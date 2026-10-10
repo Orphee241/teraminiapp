@@ -1,16 +1,17 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Oswald, Bebas_Neue } from 'next/font/google'
 import './globals.css'
 
-const oswald = Oswald({ subsets:['latin'], variable:'--font-oswald', weight:['300','400','500','600','700'], display:'swap' })
-const bebas = Bebas_Neue({ subsets:['latin'], variable:'--font-bebas', weight:'400', display:'swap' })
+const oswald = Oswald({ subsets: ['latin'], variable: '--font-oswald', weight: ['300', '400', '500', '600', '700'], display: 'swap' })
+const bebas = Bebas_Neue({ subsets: ['latin'], variable: '--font-bebas', weight: '400', display: 'swap' })
 
 export const metadata: Metadata = {
-  title: { default:'Terainterface — Mini-app', template:'%s | Terainterface' },
-  description:'Accédez aux services Terainterface, demandez un devis et suivez vos demandes depuis la mini-app.',
-  applicationName:'Terainterface Mini-app',
+  title: { default: 'Terainterface — Mini-app', template: '%s | Terainterface' },
+  description: 'Gérez vos devis et factures depuis Terainterface.',
+  applicationName: 'Terainterface Mini-app',
 }
 
-export default function RootLayout({ children }:{children:React.ReactNode}) {
-  return <html lang="fr"><body className={`${oswald.variable} ${bebas.variable}`}>{children}</body></html>
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return <html lang="fr"><body className={`${oswald.variable} ${bebas.variable}`}><Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />{children}</body></html>
 }
