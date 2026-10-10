@@ -11,6 +11,8 @@ Variables à configurer dans Coolify, sans les committer :
 ```text
 INVOICE_API_URL=https://<adresse-privee-de-l-invoice-api>
 INVOICE_API_KEY=<cle-interne-de-l-invoice-api>
+MICHELLE_API_URL=https://<url-publique-de-michelle-api>
+MICHELLE_API_KEY=<cle-interne-de-michelle-api>
 TELEGRAM_BOT_TOKEN=<token-du-bot-utilise-pour-la-mini-app>
 MINIAPP_DEV_MODE=false
 ```
