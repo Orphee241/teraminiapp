@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   if (!url || !key) return NextResponse.json({ error: 'Service Michelle non configuré.' }, { status: 503 })
   const telegramId = String(auth.user?.id || '')
   try {
-    const response = await fetch(`${url}/v1/assist`, { method: 'POST', headers: authHeaders(request), body: JSON.stringify({ application: 'terainterface-miniapp', tenant_id: `telegram:${telegramId}`, user_id: telegramId, message, context: { screen: 'miniapp_michelle', channel: 'telegram' }, scopes: ['documents:read'] }), cache: 'no-store' })
+    const response = await fetch(`${url}/v1/assist`, { method: 'POST', headers: authHeaders(request), body: JSON.stringify({ application: 'terainterface-miniapp', tenant_id: `telegram:${telegramId}`, user_id: telegramId, message, context: { screen: 'miniapp_michelle', channel: 'telegram' }, scopes: ['company:public', 'services:read'] }), cache: 'no-store' })
     const payload = await response.json().catch(() => ({ error: 'Réponse invalide de Michelle.' }))
     return NextResponse.json(payload, { status: response.status })
   } catch { return NextResponse.json({ error: 'Michelle est momentanément indisponible.' }, { status: 503 }) }
