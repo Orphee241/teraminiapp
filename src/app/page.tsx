@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
-import { ArrowLeft, ClipboardList, FilePlus2, FileText, Headphones, Home, MessageCircle, Pencil, Plus, Settings, ShoppingBag, Trash2, User, X } from 'lucide-react'
+import { ArrowLeft, Clipboard, ClipboardList, FilePlus2, FileText, Headphones, Home, MessageCircle, Mic, Paperclip, Pencil, Plus, Settings, ShoppingBag, Trash2, User, X } from 'lucide-react'
 
 type Tab = 'accueil' | 'services' | 'profil'
 type DocumentKind = 'devis' | 'facture'
@@ -23,7 +23,8 @@ export default function HomePage() {
   const [michelleOpen, setMichelleOpen] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [chatBusy, setChatBusy] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([])
+  const [chatMessages, setChatMessages] = useState<{ id?: string; role: 'user' | 'assistant'; text: string; sentAt?: string }[]>([])
+  const [selectedMessage, setSelectedMessage] = useState<string>('')
 
 
   useEffect(() => {
@@ -32,6 +33,8 @@ export default function HomePage() {
     webApp.ready(); webApp.expand(); webApp.setHeaderColor?.('#0a0a0f'); webApp.setBackgroundColor?.('#0a0a0f')
     setInitData(webApp.initData || '')
   }, [])
+
+  useEffect(() => { if (!michelleOpen || !initData) return; fetch('/api/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(data => data?.messages && setChatMessages(data.messages.map((item: { id: string; role: 'user' | 'assistant'; text: string; sent_at: string }) => ({ id: item.id, role: item.role, text: item.text, sentAt: item.sent_at })))).catch(() => undefined) }, [michelleOpen, initData])
 
   const openCreate = (kind: DocumentKind) => { setDocumentKind(kind); setMessage(''); setFormOpen(true) }
   const closeForm = () => { if (!busy) setFormOpen(false) }
@@ -50,13 +53,19 @@ export default function HomePage() {
 
   async function sendToMichelle(event: FormEvent) {
     event.preventDefault(); const text = chatInput.trim(); if (!text || chatBusy) return
-    setChatInput(''); setChatMessages(previous => [...previous, { role: 'user', text }]); setChatBusy(true)
+    setChatInput(''); setChatBusy(true)
     try {
+      const saved = await fetch('/api/conversations', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ text }) }); const savedData = await saved.json()
+      if (!saved.ok) throw new Error(savedData.error || 'Le message n’a pas été enregistré.')
+      setChatMessages(previous => [...previous, { id: savedData.id, role: 'user', text, sentAt: savedData.sent_at }])
       const response = await fetch('/api/michelle', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ message: text }) }); const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Michelle est momentanément indisponible.')
-      setChatMessages(previous => [...previous, { role: 'assistant', text: data.reply || 'Je vous écoute.' }])
-    } catch (error) { setChatMessages(previous => [...previous, { role: 'assistant', text: error instanceof Error ? error.message : 'Une erreur est survenue.' }]) } finally { setChatBusy(false) }
+      setChatMessages(previous => [...previous, { role: 'assistant', text: data.reply || 'Je vous écoute.', sentAt: new Date().toISOString() }])
+    } catch (error) { setChatMessages(previous => [...previous, { role: 'assistant', text: error instanceof Error ? error.message : 'Une erreur est survenue.', sentAt: new Date().toISOString() }]) } finally { setChatBusy(false) }
   }
+
+  async function copyMessage(text: string) { await navigator.clipboard?.writeText(text); setMessage('Message copié.') }
+  async function deleteMessage() { if (!selectedMessage) return; const response = await fetch(`/api/conversations?id=${encodeURIComponent(selectedMessage)}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } }); if (response.ok) setChatMessages(previous => previous.map(item => item.id === selectedMessage ? { ...item, text: '[Message supprimé]' } : item)); setSelectedMessage('') }
 
   return <main className="app-shell">
     <header className="app-header"><div className="brand-mark">T</div><div><p className="eyebrow">TERAINTERFACE</p><h1>Votre espace</h1></div><button className="header-icon" aria-label="Assistance" onClick={() => setTab('profil')}><Headphones size={19} /></button></header>
@@ -66,7 +75,7 @@ export default function HomePage() {
       {tab === 'profil' && <section className="screen"><p className="eyebrow accent">ESPACE PERSONNEL</p><h2 className="section-title">Profil</h2><div className="profile-list"><ProfileRow icon={Settings} title="Paramètres" text="Gérer vos préférences et votre compte." /><ProfileRow icon={Headphones} title="Assistance" text="Obtenir de l’aide sur un service ou une commande." /><ProfileRow icon={MessageCircle} title="Nous contacter" text="Parler à Michelle sur Telegram." /></div></section>}
     </div>
     {message && <div className="toast" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Fermer"><X size={16} /></button></div>}
-    {michelleOpen && <div className="chat-backdrop"><section className="chat-sheet"><div className="chat-header"><div><p className="eyebrow accent">ASSISTANTE TERAINTERFACE</p><h2>Michelle</h2></div><button className="close-button" onClick={() => setMichelleOpen(false)} aria-label="Fermer"><X size={20} /></button></div><div className="chat-messages" aria-live="polite">{chatMessages.map((item, index) => <div className={`chat-bubble ${item.role}`} key={`${item.role}-${index}`}><span>{item.text}</span></div>)}{chatBusy && <div className="chat-bubble assistant"><span className="typing">Michelle écrit…</span></div>}</div><form className="chat-composer" onSubmit={sendToMichelle}><input value={chatInput} onChange={event => setChatInput(event.target.value)} placeholder="Écrire à Michelle…" aria-label="Message à Michelle" /><button type="submit" disabled={chatBusy || !chatInput.trim()} aria-label="Envoyer"><ArrowLeft size={18} /></button></form><p className="chat-note">Les fichiers et notes vocales seront ajoutés dans une prochaine étape sécurisée.</p></section></div>}
+    {michelleOpen && <div className="chat-backdrop"><section className="chat-sheet"><div className="chat-header"><div><p className="eyebrow accent">ASSISTANTE TERAINTERFACE</p><h2>Michelle</h2></div><button className="close-button" onClick={() => setMichelleOpen(false)} aria-label="Fermer"><X size={20} /></button></div><div className="chat-messages" aria-live="polite">{chatMessages.map((item, index) => <div className={`chat-bubble ${item.role}`} key={item.id || `${item.role}-${index}`} onClick={() => item.id && setSelectedMessage(item.id)}><span>{item.text}</span><time>{item.sentAt ? new Date(item.sentAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</time>{selectedMessage === item.id && item.role === 'user' && <span className="message-actions"><button type="button" onClick={() => copyMessage(item.text)} aria-label="Copier"><Clipboard size={14} /></button><button type="button" onClick={deleteMessage} aria-label="Supprimer"><Trash2 size={14} /></button></span>}</div>)}{chatBusy && <div className="chat-bubble assistant"><span className="typing">Michelle écrit…</span></div>}</div><form className="chat-composer" onSubmit={sendToMichelle}><button type="button" className="composer-tool" title="Note vocale bientôt disponible" aria-label="Note vocale"><Mic size={18} /></button><button type="button" className="composer-tool" title="Envoyer un média" aria-label="Envoyer un média"><Paperclip size={18} /></button><input value={chatInput} onChange={event => setChatInput(event.target.value)} placeholder="Écrire à Michelle…" aria-label="Message à Michelle" /><button type="submit" disabled={chatBusy || !chatInput.trim()} aria-label="Envoyer"><ArrowLeft size={18} /></button></form><p className="chat-note">Les médias et notes vocales seront ajoutés après validation du stockage sécurisé.</p></section></div>}
     {formOpen && <div className="sheet-backdrop" onMouseDown={closeForm}><section className="form-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">NOUVEAU DOCUMENT</p><h2>{documentKind === 'devis' ? 'Créer un devis' : 'Créer une facture'}</h2></div><button className="close-button" onClick={closeForm} aria-label="Fermer"><X size={20} /></button></div><form onSubmit={createDocument}><div className="form-grid"><Field name="client_name" label="Nom du client" required /><Field name="client_company" label="Entreprise du client" /><Field name="client_phone" label="Téléphone" type="tel" /><Field name="client_address" label="Adresse" /><Field name="designation" label="Prestation ou article" required /><Field name="quantity" label="Quantité" type="number" min="1" defaultValue="1" required /><Field name="unit_price" label="Prix unitaire (FCFA)" type="number" min="1" required /></div><button disabled={busy} className="primary-button" type="submit">{busy ? 'Création en cours…' : `Créer ${documentKind === 'devis' ? 'le devis' : 'la facture'}`}</button>{message && <p className="form-message" role="status">{message}</p>}</form></section></div>}
     <nav className="bottom-nav"><NavButton active={tab === 'accueil'} icon={Home} label="Accueil" onClick={() => setTab('accueil')} /><NavButton active={tab === 'services'} icon={ShoppingBag} label="Services" onClick={() => setTab('services')} /><NavButton active={tab === 'profil'} icon={User} label="Profil" onClick={() => setTab('profil')} /></nav>
   </main>

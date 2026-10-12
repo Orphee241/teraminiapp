@@ -2,7 +2,24 @@
   "name": "teraminiapp",
   "version": "0.1.0",
   "private": true,
-  "scripts": {"dev":"next dev","build":"next build","start":"next start -H 0.0.0.0 -p 3000"},
-  "dependencies": {"@types/node":"20.4.5","@types/react":"18.2.18","@types/react-dom":"18.2.7","next":"^15.5.9","react":"18.2.0","react-dom":"18.2.0","typescript":"5.1.6","tailwindcss":"3.3.3","postcss":"8.4.31","autoprefixer":"10.4.14","lucide-react":"^0.468.0"},
-  "devDependencies": {}
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1149.0",
+    "@aws-sdk/s3-request-presigner": "^3.1149.0",
+    "@types/node": "20.4.5",
+    "@types/react": "18.2.18",
+    "@types/react-dom": "18.2.7",
+    "autoprefixer": "10.4.14",
+    "lucide-react": "^0.468.0",
+    "next": "^15.5.9",
+    "postcss": "8.4.31",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tailwindcss": "3.3.3",
+    "typescript": "5.1.6"
+  }
 }
