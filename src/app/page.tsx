@@ -8,9 +8,21 @@ type DocumentKind = 'devis' | 'facture'
 type TelegramWebApp = { initData: string; ready: () => void; expand: () => void; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void; BackButton?: { show: () => void; hide: () => void; onClick: (fn: () => void) => void; offClick: (fn: () => void) => void } }
 declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
 
-const actions: { label: string; kind: DocumentKind; icon: typeof FileText }[] = [
-  { label: 'Créer', kind: 'devis', icon: Plus }, { label: 'Modifier', kind: 'devis', icon: Pencil }, { label: 'Supprimer', kind: 'devis', icon: Trash2 },
-  { label: 'Créer', kind: 'facture', icon: FilePlus2 }, { label: 'Modifier', kind: 'facture', icon: Pencil }, { label: 'Supprimer', kind: 'facture', icon: Trash2 },
+type ServiceItem = { label: string; description: string; icon: typeof FileText; documentKind?: DocumentKind }
+
+const services: ServiceItem[] = [
+  { label: 'Développement web ou mobile', description: 'Sites web, applications mobiles et solutions métier.', icon: FileText },
+  { label: 'Design graphique', description: 'Identité visuelle, supports de communication et créations graphiques.', icon: Pencil },
+  { label: 'Montage vidéo', description: 'Montage, habillage et finition de vos contenus vidéo.', icon: FilePlus2 },
+  { label: 'Community Management', description: 'Animation, publication et suivi de vos réseaux sociaux.', icon: MessageCircle },
+  { label: 'Création digitale', description: 'Conception de contenus et expériences numériques.', icon: Plus },
+  { label: 'Couverture photo', description: 'Reportage et couverture photographique de vos événements.', icon: FileText },
+  { label: 'Couverture vidéo', description: 'Captation vidéo de vos événements et activités.', icon: FilePlus2 },
+  { label: 'Créer un devis', description: 'Demander un devis professionnel personnalisé.', icon: Plus, documentKind: 'devis' },
+  { label: 'Créer une facture', description: 'Créer une facture professionnelle.', icon: FilePlus2, documentKind: 'facture' },
+  { label: 'E-commerce', description: 'Boutiques en ligne et solutions de vente digitale.', icon: ShoppingBag },
+  { label: 'Formations', description: 'Accompagnement et formations adaptées à vos besoins.', icon: ClipboardList },
+  { label: 'Divertissement', description: 'Un espace de divertissement numérique à découvrir.', icon: Headphones },
 ]
 
 export default function HomePage() {
@@ -41,7 +53,7 @@ export default function HomePage() {
 
   const openCreate = (kind: DocumentKind) => { setDocumentKind(kind); setMessage(''); setFormOpen(true) }
   const closeForm = () => { if (!busy) setFormOpen(false) }
-  const onAction = (label: string, kind: DocumentKind) => label === 'Créer' ? openCreate(kind) : setMessage(`${label} ${kind === 'devis' ? 'un devis' : 'une facture'} sera disponible prochainement.`)
+  const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : setMessage(`${service.label} : Michelle vous donnera les informations disponibles sur ce service.`)
 
   async function createDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage('')
@@ -74,8 +86,8 @@ export default function HomePage() {
   return <main className="app-shell">
     <header className="app-header"><div className="brand-mark">T</div><div><p className="eyebrow">TERAINTERFACE</p><h1>Votre espace</h1></div><button className="header-icon" aria-label="Assistance" onClick={() => setTab('profil')}><Headphones size={19} /></button></header>
     <div className="content">
-      {tab === 'accueil' && <section className="screen"><p className="eyebrow accent">ESPACE CLIENT</p><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services, vos devis et vos factures depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Accéder à vos devis, factures et commandes." onClick={() => setTab('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
-      {tab === 'services' && <section className="screen"><button className="back-link" onClick={() => setTab('accueil')}><ArrowLeft size={16} /> Accueil</button><p className="eyebrow accent">GESTION COMMERCIALE</p><h2 className="section-title">Services</h2><p className="lead compact">Tout ce qui concerne vos devis, factures et commandes.</p><div className="action-grid">{actions.map(({ label, kind, icon: Icon }) => <button className="action-card" key={`${label}-${kind}`} onClick={() => onAction(label, kind)}><span className="action-icon"><Icon size={21} /></span><span className="action-type">{kind}</span><strong>{label} {kind === 'devis' ? 'un devis' : 'une facture'}</strong></button>)}</div><button className="orders-card" onClick={() => setMessage('Le suivi des commandes sera bientôt disponible.')}><ClipboardList size={21} /><span><strong>Suivre mes commandes</strong><small>Consulter l’état de vos demandes</small></span><span className="chevron">›</span></button></section>}
+      {tab === 'accueil' && <section className="screen"><p className="eyebrow accent">ESPACE CLIENT</p><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => setTab('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
+      {tab === 'services' && <section className="screen"><button className="back-link" onClick={() => setTab('accueil')}><ArrowLeft size={16} /> Accueil</button><p className="eyebrow accent">NOS SOLUTIONS</p><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}</div></section>}
       {tab === 'profil' && <section className="screen"><p className="eyebrow accent">ESPACE PERSONNEL</p><h2 className="section-title">Profil</h2><div className="profile-list"><ProfileRow icon={Settings} title="Paramètres" text="Gérer vos préférences et votre compte." /><ProfileRow icon={Headphones} title="Assistance" text="Obtenir de l’aide sur un service ou une commande." /><ProfileRow icon={MessageCircle} title="Nous contacter" text="Parler à Michelle sur Telegram." /></div></section>}
     </div>
     {message && <div className="toast" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Fermer"><X size={16} /></button></div>}
