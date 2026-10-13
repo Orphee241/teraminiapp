@@ -27,13 +27,15 @@ TERAMINI_ADMIN_TELEGRAM_IDS=<identifiants-Telegram-admin-séparés-par-des-virgu
 
 `INVOICE_API_URL` et `INVOICE_API_KEY` sont nécessaires pour créer réellement les devis/factures. Le token Telegram permet de vérifier `initData` côté serveur. Ne jamais exposer ces valeurs dans `NEXT_PUBLIC_*`.
 
+- Prévoir une migration non destructive pour créer `miniapp_profiles` sur la base Michelle.
+- Après déploiement, vérifier l’accès réel à `/adm` depuis Telegram avec l’identifiant administrateur autorisé.
+
 Après configuration :
 
-1. lancer le déploiement Coolify ;
-2. vérifier que le conteneur est `running:healthy` ;
-3. ouvrir l’URL publique et vérifier la page d’accueil ;
-4. vérifier que `POST /api/documents` refuse une requête sans authentification Telegram ;
-5. seulement ensuite connecter le bouton Web App dans le bot.
+1. vérifier que le conteneur est `running:healthy` ;
+2. ouvrir l’URL publique et vérifier la page d’accueil ;
+3. vérifier que `POST /api/documents` refuse une requête sans authentification Telegram ;
+4. seulement ensuite connecter le bouton Web App dans le bot.
 
 ## Local
 

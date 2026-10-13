@@ -41,12 +41,7 @@ export default function HomePage() {
   const chatMessagesRef = useRef<HTMLDivElement>(null)
 
 
-  useEffect(() => {
-    const webApp = window.Telegram?.WebApp
-    if (!webApp) return
-    webApp.ready(); webApp.expand(); webApp.setHeaderColor?.('#0a0a0f'); webApp.setBackgroundColor?.('#0a0a0f')
-    setInitData(webApp.initData || '')
-  }, [])
+  useEffect(() => { const webApp = window.Telegram?.WebApp; if (!webApp) return; webApp.ready(); const data = webApp.initData || ''; setInitData(data); if (data) void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).catch(() => undefined) }, [])
 
   useEffect(() => { if (!michelleOpen || !initData) return; fetch('/api/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(data => data?.messages && setChatMessages(data.messages.map((item: { id: string; role: 'user' | 'assistant'; text: string; sent_at: string }) => ({ id: item.id, role: item.role, text: item.text, sentAt: item.sent_at })))).catch(() => undefined) }, [michelleOpen, initData])
   useEffect(() => { if (!michelleOpen) return; const node = chatMessagesRef.current; if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' }) }, [michelleOpen, chatMessages, chatBusy])
