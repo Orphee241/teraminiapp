@@ -3,6 +3,13 @@ import Script from 'next/script'
 import { Oswald, Bebas_Neue } from 'next/font/google'
 import './globals.css'
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
 const oswald = Oswald({ subsets: ['latin'], variable: '--font-oswald', weight: ['300', '400', '500', '600', '700'], display: 'swap' })
 const bebas = Bebas_Neue({ subsets: ['latin'], variable: '--font-bebas', weight: '400', display: 'swap' })
 
