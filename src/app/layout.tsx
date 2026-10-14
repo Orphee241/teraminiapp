@@ -14,9 +14,9 @@ const oswald = Oswald({ subsets: ['latin'], variable: '--font-oswald', weight: [
 const bebas = Bebas_Neue({ subsets: ['latin'], variable: '--font-bebas', weight: '400', display: 'swap' })
 
 export const metadata: Metadata = {
-  title: { default: 'Terainterface — Mini-app', template: '%s | Terainterface' },
-  description: 'Gérez vos devis et factures depuis Terainterface.',
-  applicationName: 'Terainterface Mini-app',
+  title: { default: 'Terainterface', template: '%s | Terainterface' },
+  description: 'Accédez plus rapidement à nos produits services.',
+  applicationName: 'Terainterface',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
