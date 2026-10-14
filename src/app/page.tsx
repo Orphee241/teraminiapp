@@ -5,7 +5,7 @@ import { ArrowLeft, ChevronRight, Clipboard, ClipboardList, FilePlus2, FileText,
 
 type Tab = 'accueil' | 'services' | 'profil'
 type DocumentKind = 'devis' | 'facture'
-type TelegramWebApp = { initData: string; ready: () => void; expand: () => void; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void; BackButton?: { show: () => void; hide: () => void; onClick: (fn: () => void) => void; offClick: (fn: () => void) => void } }
+type TelegramWebApp = { initData: string; ready: () => void; expand: () => void; requestFullscreen?: () => void; isExpanded?: boolean; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void; BackButton?: { show: () => void; hide: () => void; onClick: (fn: () => void) => void; offClick: (fn: () => void) => void } }
 declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
 
 type ServiceItem = { label: string; description: string; icon: typeof FileText; documentKind?: DocumentKind }
@@ -42,7 +42,7 @@ export default function HomePage() {
   const chatMessagesRef = useRef<HTMLDivElement>(null)
 
 
-  useEffect(() => { const webApp = window.Telegram?.WebApp; if (!webApp) return; webApp.ready(); const data = webApp.initData || ''; setInitData(data); if (data) { void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).catch(() => undefined); void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => setAdminAvailable(Boolean(payload?.allowed))).catch(() => undefined) } }, [])
+  useEffect(() => { const webApp = window.Telegram?.WebApp; if (!webApp) return; webApp.ready(); webApp.expand(); const expandOnReady = () => { if (!webApp.isExpanded) webApp.expand() }; window.addEventListener('load', expandOnReady, { once: true }); const data = webApp.initData || ''; setInitData(data); if (data) { void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).catch(() => undefined); void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => setAdminAvailable(Boolean(payload?.allowed))).catch(() => undefined) } return () => window.removeEventListener('load', expandOnReady) }, [])
 
   useEffect(() => { if (!michelleOpen || !initData) return; fetch('/api/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(data => data?.messages && setChatMessages(data.messages.map((item: { id: string; role: 'user' | 'assistant'; text: string; sent_at: string }) => ({ id: item.id, role: item.role, text: item.text, sentAt: item.sent_at })))).catch(() => undefined) }, [michelleOpen, initData])
   useEffect(() => { if (!michelleOpen) return; const node = chatMessagesRef.current; if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' }) }, [michelleOpen, chatMessages, chatBusy])
