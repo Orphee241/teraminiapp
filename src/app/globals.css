@@ -15,6 +15,10 @@ button { cursor:pointer; }
 .eyebrow { margin:0; color:#9ca4b3; font-size:10px; font-weight:600; letter-spacing:.16em; }
 .app-header h1 { margin:1px 0 0; font-family:var(--font-bebas); font-size:27px; line-height:1; letter-spacing:.03em; text-transform:uppercase; }
 .header-icon,.close-button { display:grid; place-items:center; margin-left:auto; width:38px; height:38px; color:#c8ced9; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.header-actions { display:flex; align-items:center; gap:8px; margin-left:auto; }
+.window-action { display:grid; place-items:center; width:38px; height:38px; color:#c8ced9; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.window-action:hover { color:white; border-color:var(--pink); }
+.header-actions .header-icon { margin-left:0; }
 .content { width:min(100%,720px); margin:auto; padding:26px 18px 24px; }
 .screen { animation:fade-in .2s ease-out; }
 @keyframes fade-in { from { opacity:0; transform:translateY(5px) } to { opacity:1; transform:none } }

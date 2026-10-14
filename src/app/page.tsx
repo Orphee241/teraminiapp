@@ -1,11 +1,12 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ChevronRight, Clipboard, ClipboardList, FilePlus2, FileText, Headphones, Home, MessageCircle, Mic, Paperclip, Pencil, Plus, Settings, ShieldCheck, ShoppingBag, Trash2, User, X } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Clipboard, ClipboardList, FilePlus2, FileText, Headphones, Home, Maximize2, MessageCircle, Mic, Minimize2, Paperclip, Pencil, Plus, Settings, ShieldCheck, ShoppingBag, Trash2, User, X } from 'lucide-react'
+import { closeTelegramWindow, openTelegramWindow, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 
 type Tab = 'accueil' | 'services' | 'profil'
 type DocumentKind = 'devis' | 'facture'
-type TelegramWebApp = { initData: string; ready: () => void; expand: () => void; requestFullscreen?: () => void; isExpanded?: boolean; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void; BackButton?: { show: () => void; hide: () => void; onClick: (fn: () => void) => void; offClick: (fn: () => void) => void } }
+type TelegramWebApp = TelegramWindow & { initData: string; isExpanded?: boolean; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void; BackButton?: { show: () => void; hide: () => void; onClick: (fn: () => void) => void; offClick: (fn: () => void) => void } }
 declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
 
 type ServiceItem = { label: string; description: string; icon: typeof FileText; documentKind?: DocumentKind }
@@ -36,13 +37,41 @@ export default function HomePage() {
   const [chatInput, setChatInput] = useState('')
   const [chatBusy, setChatBusy] = useState(false)
   const [adminAvailable, setAdminAvailable] = useState(false)
+  const [desktopTelegram, setDesktopTelegram] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const [chatMessages, setChatMessages] = useState<{ id?: string; role: 'user' | 'assistant'; text: string; sentAt?: string }[]>([])
   const [selectedMessage, setSelectedMessage] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const chatMessagesRef = useRef<HTMLDivElement>(null)
 
 
-  useEffect(() => { const webApp = window.Telegram?.WebApp; if (!webApp) return; webApp.ready(); webApp.expand(); const expandOnReady = () => { if (!webApp.isExpanded) webApp.expand() }; window.addEventListener('load', expandOnReady, { once: true }); const data = webApp.initData || ''; setInitData(data); if (data) { void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).catch(() => undefined); void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => setAdminAvailable(Boolean(payload?.allowed))).catch(() => undefined) } return () => window.removeEventListener('load', expandOnReady) }, [])
+  useEffect(() => {
+    const webApp = window.Telegram?.WebApp
+    if (!webApp) return
+    setDesktopTelegram(openTelegramWindow(webApp))
+    setFullscreen(Boolean(webApp.isFullscreen))
+    const syncFullscreen = () => setFullscreen(Boolean(webApp.isFullscreen))
+    webApp.onEvent?.('fullscreenChanged', syncFullscreen)
+    webApp.onEvent?.('fullscreenFailed', syncFullscreen)
+    const expandOnReady = () => { if (!webApp.isExpanded) webApp.expand() }
+    window.addEventListener('load', expandOnReady, { once: true })
+    const data = webApp.initData || ''
+    setInitData(data)
+    if (data) {
+      void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).catch(() => undefined)
+      void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => setAdminAvailable(Boolean(payload?.allowed))).catch(() => undefined)
+    }
+    return () => {
+      window.removeEventListener('load', expandOnReady)
+      webApp.offEvent?.('fullscreenChanged', syncFullscreen)
+      webApp.offEvent?.('fullscreenFailed', syncFullscreen)
+    }
+  }, [])
+
+  const toggleFullscreen = () => {
+    const webApp = window.Telegram?.WebApp
+    if (webApp) toggleTelegramFullscreen(webApp)
+  }
 
   useEffect(() => { if (!michelleOpen || !initData) return; fetch('/api/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(data => data?.messages && setChatMessages(data.messages.map((item: { id: string; role: 'user' | 'assistant'; text: string; sent_at: string }) => ({ id: item.id, role: item.role, text: item.text, sentAt: item.sent_at })))).catch(() => undefined) }, [michelleOpen, initData])
   useEffect(() => { if (!michelleOpen) return; const node = chatMessagesRef.current; if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' }) }, [michelleOpen, chatMessages, chatBusy])
@@ -80,7 +109,7 @@ export default function HomePage() {
   async function sendMedia(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; const form = new FormData(); form.append('file', file); form.append('text', file.name); const response = await fetch('/api/media', { method: 'POST', headers: { 'x-telegram-init-data': initData }, body: form }); const data = await response.json(); if (!response.ok) return setMessage(data.error || 'Envoi du média impossible.'); setChatMessages(previous => [...previous, { id: data.message.id, role: 'user', text: file.name, sentAt: data.message.sent_at }]); event.target.value = '' }
 
   return <main className="app-shell">
-    <header className="app-header"><div className="brand-mark">T</div><div><p className="eyebrow">TERAINTERFACE</p><h1>Votre espace</h1></div><button className="header-icon" aria-label="Assistance" onClick={() => setTab('profil')}><Headphones size={19} /></button></header>
+    <header className="app-header"><div className="brand-mark">T</div><div><p className="eyebrow">TERAINTERFACE</p><h1>Votre espace</h1></div><div className="header-actions">{desktopTelegram && <><button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button><button className="window-action" type="button" title="Fermer la Mini App" aria-label="Fermer la Mini App" onClick={() => { const webApp = window.Telegram?.WebApp; if (webApp) closeTelegramWindow(webApp) }}><X size={18} /></button></>}<button className="header-icon" aria-label="Assistance" onClick={() => setTab('profil')}><Headphones size={19} /></button></div></header>
     <div className="content">
       {tab === 'accueil' && <section className="screen"><p className="eyebrow accent">ESPACE CLIENT</p><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => setTab('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
       {tab === 'services' && <section className="screen"><button className="back-link" onClick={() => setTab('accueil')}><ArrowLeft size={16} /> Accueil</button><p className="eyebrow accent">NOS SOLUTIONS</p><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}</div></section>}
