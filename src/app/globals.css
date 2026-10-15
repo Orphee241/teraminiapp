@@ -4,12 +4,12 @@
 
 :root { --pink:#d42e5b; --pink-soft:#f06a8b; --bg:#08090d; --surface:#11141b; --surface-2:#171b24; --line:rgba(255,255,255,.10); --muted:#8b93a3; }
 .browser-landing { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #09090b; color: #f4f4f5; }
-.browser-landing-card { width: min(100%, 400px); padding: 30px 24px; border: 1px solid #27272a; border-radius: 24px; background: #111114; text-align: center; box-shadow: 0 24px 80px #0008; }
-.browser-landing-card .brand-mark { margin: 0 auto 18px; }
-.browser-landing-card h1 { margin: 6px 0 12px; font-family: var(--font-bebas), sans-serif; font-size: clamp(42px, 10vw, 64px); text-transform: uppercase; letter-spacing: .04em; }
-.browser-landing-card p:not(.eyebrow) { margin: 0 auto 26px; max-width: 340px; color: #a1a1aa; line-height: 1.6; }
-.browser-open-button { display: flex; width: fit-content; min-width: 220px; margin: 20px auto 0; justify-content: center; align-items: center; text-decoration: none; }
-.browser-landing-card small { display: block; margin-top: 14px; color: #71717a; }
+.browser-landing-card { width: min(100%, 340px); padding: 20px 18px 18px; border: 1px solid #27272a; border-radius: 18px; background: #111114; text-align: center; box-shadow: 0 16px 48px #0008; }
+.browser-landing-card .brand-mark { margin: 0 auto 10px; }
+.browser-landing-card h1 { margin: 4px 0 8px; font-family: var(--font-bebas), sans-serif; font-size: clamp(34px, 8vw, 48px); text-transform: uppercase; letter-spacing: .04em; }
+.browser-landing-card p:not(.eyebrow) { margin: 0 auto 16px; max-width: 280px; color: #a1a1aa; line-height: 1.4; }
+.browser-open-button { display: flex; width: fit-content; min-width: 0; margin: 16px auto 0; padding: 11px 22px; justify-content: center; align-items: center; text-decoration: none; }
+.browser-landing-card small { display: block; margin-top: 10px; color: #71717a; font-size: 11px; line-height: 1.35; }
 
 html, body { margin:0; min-height:100%; background:var(--bg); color:#f7f8fa; }
 body { font-family:var(--font-oswald), sans-serif; }
