@@ -15,7 +15,7 @@ const bebas = Bebas_Neue({ subsets: ['latin'], variable: '--font-bebas', weight:
 
 export const metadata: Metadata = {
   title: { default: 'Terainterface', template: '%s | Terainterface' },
-  description: 'Accède plus rapidement à tes services via notre Application',
+  description: 'Accède plus rapidement à nos services via notre Application',
   applicationName: 'Terainterface',
 }
 
