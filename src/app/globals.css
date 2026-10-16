@@ -117,3 +117,19 @@ button { cursor:pointer; }
 .context-menu .danger-action { color: #ff8fa8; }
 .empty-state { padding: 28px 10px; color: var(--muted); text-align: center; }
 @media (max-width: 620px) { .invoice-hub { grid-template-columns: 1fr; } .invoice-toolbar { flex-direction: column; } .invoice-toolbar select { min-height: 42px; } .invoice-page { padding-bottom: 18px; } }
+
+/* Invoice creation is intentionally one-screen on mobile: no nested scroll panel. */
+.form-sheet { width: min(100%, 680px); max-height: none; overflow: visible; padding: 16px; border-radius: 18px; }
+.form-sheet .sheet-heading h2 { font-size: clamp(28px, 8vw, 35px); }
+.form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; margin-top: 14px; }
+.form-sheet .field { font-size: 10px; }
+.form-sheet .field input { margin-top: 3px; min-height: 34px; padding: 7px 8px; font-size: 14px; }
+.form-sheet .primary-button { margin-top: 12px; padding: 10px 14px; }
+@media (max-width: 460px) {
+  .sheet-backdrop { align-items: flex-start; padding: 8px; }
+  .form-sheet { width: 100%; padding: 12px; border-radius: 16px; }
+  .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 8px; }
+  .form-sheet .field:nth-child(4), .form-sheet .field:nth-child(5) { grid-column: 1 / -1; }
+  .form-sheet .field input { min-height: 32px; padding: 6px 7px; }
+  .form-sheet .close-button { width: 32px; height: 32px; }
+}
