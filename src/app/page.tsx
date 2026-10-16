@@ -86,10 +86,12 @@ export default function HomePage() {
     event.preventDefault(); setBusy(true); setMessage('')
     const form = new FormData(event.currentTarget); const quantity = Number(form.get('quantity') || 1); const unitPrice = Number(form.get('unit_price') || 0)
     const payload = { document_type: documentKind, issuer: { name: 'Terainterface', company: 'Terainterface', address: '', phone: '', tax_id: '' }, client: { name: String(form.get('client_name') || ''), company: String(form.get('client_company') || ''), address: String(form.get('client_address') || ''), phone: String(form.get('client_phone') || ''), tax_id: '' }, items: [{ designation: String(form.get('designation') || ''), quantity, unit_price: unitPrice }], template_profile: 'official', vat_applied: false, persist_crm: true, idempotency_key: `miniapp-${documentKind}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
+    const formElement = event.currentTarget
     try {
       const response = await fetch('/api/documents', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) }); const data = await response.json()
       if (!response.ok) throw new Error(data.error || data.detail || 'La création a échoué.')
-      setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}créé avec succès.`); event.currentTarget.reset()
+      setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}créé avec succès.`)
+      formElement.reset()
     } catch (error) { setMessage(error instanceof Error ? error.message : 'La création a échoué.') } finally { setBusy(false) }
   }
 
