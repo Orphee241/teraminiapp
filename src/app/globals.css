@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root { --pink:#d42e5b; --pink-soft:#f06a8b; --bg:#08090d; --surface:#11141b; --surface-2:#171b24; --line:rgba(255,255,255,.10); --muted:#8b93a3; }
+*, *::before, *::after { box-sizing:border-box; }
 .browser-landing { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #09090b; color: #f4f4f5; }
 .browser-landing-card { box-sizing: border-box; width: min(100%, 340px); padding: 20px 18px 18px; border: 1px solid #27272a; border-radius: 18px; background: #111114; text-align: center; box-shadow: 0 16px 48px #0008; overflow: hidden; }
 .browser-landing-card .brand-mark { margin: 0 auto 10px; }
