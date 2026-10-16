@@ -1,0 +1,30 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { authenticate } from '../../_auth'
+
+const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
+
+async function proxy(request: NextRequest, path: string, body?: unknown) {
+  const response = await fetch(`${apiBase()}${path}`, {
+    method: request.method,
+    headers: { 'content-type': 'application/json', 'x-api-key': process.env.INVOICE_API_KEY || '' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: 'no-store',
+  })
+  return NextResponse.json(await response.json().catch(() => ({ error: 'Réponse invalide.' })), { status: response.status })
+}
+
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await authenticate(request)
+  if (auth.response) return auth.response
+  const owner = String(auth.user?.id || '')
+  const body = await request.json()
+  body.owner_telegram_id = owner
+  return proxy(request, `/v1/documents/${(await params).id}?owner_telegram_id=${encodeURIComponent(owner)}`, body)
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await authenticate(request)
+  if (auth.response) return auth.response
+  const owner = String(auth.user?.id || '')
+  return proxy(request, `/v1/documents/${(await params).id}?owner_telegram_id=${encodeURIComponent(owner)}`)
+}
