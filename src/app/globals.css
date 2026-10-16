@@ -87,10 +87,11 @@ button { cursor:pointer; }
 /* Invoice is a real app page, not a nested service modal. */
 .invoice-screen { min-height: 0; }
 .invoice-page { width: 100%; max-width: 980px; margin: 0 auto; padding: 0; }
-.invoice-page .sheet-heading { margin-bottom: 24px; }
+.invoice-page .sheet-heading { margin-bottom: 20px; }
+.invoice-back { margin-bottom: 14px; }
 .invoice-page .close-button { display: none; }
-.invoice-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
-.invoice-hub .action-card { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; width: 100%; color: #fff; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025)); text-align: left; transition: .2s ease; }
+.invoice-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+.invoice-hub .action-card { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; min-height: 156px; padding: 16px; width: 100%; color: #fff; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025)); text-align: left; transition: .2s ease; }
 .invoice-hub .action-card:hover { border-color: rgba(212,46,91,.72); transform: translateY(-1px); }
 .invoice-toolbar { display: flex; gap: 10px; margin: 24px 0 16px; }
 .invoice-search { display: flex; align-items: center; gap: 8px; flex: 1; padding: 0 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 11px; background: #080a0f; }
