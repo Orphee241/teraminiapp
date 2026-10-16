@@ -85,7 +85,7 @@ button { cursor:pointer; }
 @media (max-width:650px) { .admin-intro { align-items:flex-start; flex-direction:column; }.stat-grid { grid-template-columns:1fr; }.admin-toolbar { flex-direction:column; }.admin-secondary { justify-content:center; min-height:43px; }.profile-card { align-items:flex-start; flex-wrap:wrap; }.profile-main { min-width:calc(100% - 55px); }.profile-meta,.profile-date { min-width:0; margin-left:50px; text-align:left; }.conversation-date { display:none; }.admin-panel { padding:16px; } }
 
 /* Invoice is a real app page, not a nested service modal. */
-.invoice-screen { min-height: calc(100dvh - 120px); }
+.invoice-screen { min-height: 0; }
 .invoice-page { width: 100%; max-width: 980px; margin: 0 auto; padding: 0; }
 .invoice-page .sheet-heading { margin-bottom: 24px; }
 .invoice-page .close-button { display: none; }
