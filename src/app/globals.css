@@ -134,3 +134,12 @@ button { cursor:pointer; }
   .form-sheet .field input { min-height: 32px; padding: 6px 7px; }
   .form-sheet .close-button { width: 32px; height: 32px; }
 }
+
+/* Invoice form hierarchy: client identity fields are full-width and comfortably sized. */
+.form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-sheet .form-grid .field:nth-child(-n+3) { grid-column: 1 / -1; }
+.form-sheet .field input { min-height: 44px; padding: 10px 11px; font-size: 15px; }
+@media (max-width: 460px) {
+  .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 10px; }
+  .form-sheet .field input { min-height: 44px; padding: 10px 9px; font-size: 15px; }
+}
