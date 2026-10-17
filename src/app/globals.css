@@ -110,6 +110,12 @@ button { cursor:pointer; }
 .detail-card h3 { margin: 4px 0 10px; font-family: var(--font-bebas); font-size: 30px; font-weight: 400; }
 .pdf-viewer { display: flex; justify-content: center; width: 100%; min-height: 320px; max-height: min(65dvh, 720px); margin: 18px 0; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .pdf-viewer canvas { display: block; width: 100%; height: auto; align-self: flex-start; }
+.pdf-viewer-expanded { position: fixed; inset: 12px; z-index: 100; width: auto; max-height: none; min-height: 0; margin: 0; padding: 44px 12px 12px; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,.65); }
+.pdf-viewer-expanded canvas { width: auto; max-width: 100%; }
+.pdf-fullscreen { position: absolute; top: 10px; right: 10px; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9d9d9; border-radius: 9px; color: #222; background: rgba(255,255,255,.94); cursor: pointer; }
+.pdf-fullscreen:hover { background: #fff; }
+.pdf-status { color: #333; }
+.pdf-error { padding: 18px; color: #a3203e; }
 .pdf-note { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: var(--pink-soft); font-size: 13px; }
 .context-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.62); }
 .context-menu { display: grid; gap: 6px; width: min(100%, 320px); padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: #11141b; box-shadow: 0 20px 60px rgba(0,0,0,.5); }

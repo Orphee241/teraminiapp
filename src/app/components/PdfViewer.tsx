@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { Maximize2, Minimize2 } from 'lucide-react'
 
 let workerConfigured = false
 
@@ -9,6 +10,7 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -48,9 +50,12 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
     }
     void render()
     return () => { cancelled = true }
-  }, [src, initData])
+  }, [src, initData, expanded])
 
-  return <div className="pdf-viewer" aria-label={title} aria-busy={state === 'loading'}>
+  return <div className={`pdf-viewer${expanded ? ' pdf-viewer-expanded' : ''}`} aria-label={title} aria-busy={state === 'loading'}>
+    <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher la facture en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
+      {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+    </button>
     {state === 'loading' && <p className="pdf-status">Chargement de l’aperçu…</p>}
     {state === 'error' && <p className="pdf-status pdf-error">{error}</p>}
     <canvas ref={canvasRef} />
