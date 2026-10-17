@@ -108,8 +108,9 @@ button { cursor:pointer; }
 .detail-card { position: relative; margin-top: 18px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #11141b; }
 .detail-card .close-button { position: absolute; top: 12px; right: 12px; display: grid; }
 .detail-card h3 { margin: 4px 0 10px; font-family: var(--font-bebas); font-size: 30px; font-weight: 400; }
-.detail-card iframe { display: block; width: 100%; height: min(65dvh, 720px); margin: 18px 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
-.detail-card a { display: inline-flex; align-items: center; gap: 7px; color: var(--pink-soft); font-size: 13px; }
+.pdf-viewer { display: flex; justify-content: center; width: 100%; min-height: 320px; max-height: min(65dvh, 720px); margin: 18px 0; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.pdf-viewer canvas { display: block; width: 100%; height: auto; align-self: flex-start; }
+.pdf-note { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: var(--pink-soft); font-size: 13px; }
 .context-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.62); }
 .context-menu { display: grid; gap: 6px; width: min(100%, 320px); padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: #11141b; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
 .context-menu strong { padding: 4px 8px 10px; }
