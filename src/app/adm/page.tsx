@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, ChevronRight, Clock3, MessageCircle, RefreshCw, Search, ShieldCheck, Users, X } from 'lucide-react'
+import { Activity, ArrowLeft, ChevronRight, Clock3, Home, MessageCircle, RefreshCw, Search, ShieldCheck, Users, X } from 'lucide-react'
 
 type Profile = { telegram_id: string; username?: string; first_name?: string; last_name?: string; language_code?: string; conversation_count?: number; last_activity?: string; created_at?: string }
 type Conversation = { id: string; external_user_id: string; title: string; status: string; created_at: string; updated_at: string }
@@ -19,9 +19,13 @@ export default function AdminPage() {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [password, setPassword] = useState('')
+  const [unlocked, setUnlocked] = useState(false)
 
   useEffect(() => { const webApp = window.Telegram?.WebApp; webApp?.ready(); setInitData(webApp?.initData || '') }, [])
-  useEffect(() => { if (initData) void refresh() }, [initData])
+  useEffect(() => { if (initData && unlocked) void refresh() }, [initData, unlocked])
+
+  async function unlock(event: React.FormEvent) { event.preventDefault(); const response = await fetch('/api/admin/access', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ password }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Accès refusé.'); setPassword(''); setUnlocked(true) }
 
   async function refresh() {
     setLoading(true); setError('')
@@ -42,8 +46,10 @@ export default function AdminPage() {
   const profiles = useMemo(() => data.profiles.filter(profile => `${displayName(profile)} ${profile.username || ''} ${profile.telegram_id}`.toLowerCase().includes(query.toLowerCase())), [data.profiles, query])
   const conversations = useMemo(() => data.conversations.filter(item => `${item.external_user_id} ${item.title}`.toLowerCase().includes(query.toLowerCase())), [data.conversations, query])
 
+  if (!unlocked) return <main className="admin-shell"><header className="admin-header"><div className="brand-mark">T</div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div><button className="admin-secondary" onClick={() => { window.location.href = '/' }}><Home size={15} /> Accueil</button></header><div className="admin-content"><section className="settings-section admin-lock"><ShieldCheck size={24} /><h2>Accès sécurisé</h2><p>Entrez le mot de passe Administration pour continuer.</p><form onSubmit={unlock}><input className="admin-password" type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Mot de passe" required /><button className="primary-button" type="submit">Ouvrir Administration</button></form>{error && <p className="form-message" role="alert">{error}</p>}</section></div></main>
+
   return <main className="admin-shell">
-    <header className="admin-header"><div className="brand-mark">T</div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div><button className="admin-refresh" onClick={refresh} disabled={loading} aria-label="Actualiser"><RefreshCw size={18} className={loading ? 'spin' : ''} /></button></header>
+    <header className="admin-header"><div className="brand-mark">T</div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div><button className="admin-secondary" onClick={() => { window.location.href = '/' }}><ArrowLeft size={15} /> Quitter</button><button className="admin-refresh" onClick={refresh} disabled={loading} aria-label="Actualiser"><RefreshCw size={18} className={loading ? 'spin' : ''} /></button></header>
     <div className="admin-content">
       {error && <div className="admin-alert"><ShieldCheck size={18} /><span>{error}</span><button onClick={() => setError('')} aria-label="Fermer"><X size={16} /></button></div>}
       <section className="admin-intro"><div><p className="eyebrow accent">TABLEAU DE BORD</p><h2>Vue d’ensemble</h2><p>Suivez les utilisateurs Telegram et les échanges avec Michelle.</p></div><div className="admin-status"><span /><span>Connexion sécurisée</span></div></section>
