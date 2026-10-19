@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
+import { isStoredAdmin } from '../../lib/storage'
 
 export type TelegramUser = { id: number; username?: string; first_name?: string; last_name?: string; language_code?: string; photo_url?: string }
 
@@ -39,6 +40,7 @@ export function authHeaders(request: NextRequest) {
 const adminCookie = 'teramini_admin_session'
 const adminSessionSecret = () => process.env.TERAMINI_ADMIN_SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN || ''
 export function isTelegramAdmin(id: string) { return (process.env.TERAMINI_ADMIN_TELEGRAM_IDS || '').split(',').map(value => value.trim()).includes(id) }
+export async function isAdmin(id: string) { return isTelegramAdmin(id) || await isStoredAdmin(id) }
 export function adminSessionValue(userId: string, expiresAt: number) { const payload = `${userId}.${expiresAt}`; return `${payload}.${crypto.createHmac('sha256', adminSessionSecret()).update(payload).digest('hex')}` }
 export function hasAdminSession(request: NextRequest, userId: string) { const raw = request.cookies.get(adminCookie)?.value || ''; const [sessionUser, expiry, signature] = raw.split('.'); if (!sessionUser || sessionUser !== userId || !expiry || !signature || Number(expiry) < Date.now()) return false; const expected = adminSessionValue(sessionUser, Number(expiry)).split('.').pop() || ''; return Boolean(adminSessionSecret()) && signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected)) }
 export const ADMIN_SESSION_COOKIE = adminCookie
