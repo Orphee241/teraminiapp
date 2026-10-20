@@ -29,7 +29,7 @@ const translations: Record<string, string> = {
   'MON OFFRE': 'MY PLAN', 'La gestion des abonnements sera bientôt disponible.': 'Subscription management will be available soon.',
   'AIDE': 'HELP', 'Contacter Michelle': 'Contact Michelle', 'Parler à notre assistante.': 'Chat with our assistant.',
   'Français': 'French', 'English': 'English', 'Retour': 'Back', 'Fermer': 'Close', 'Enregistrer les paramètres': 'Save settings',
-  'Facture': 'Invoice', 'Mes factures': 'My invoices', 'Voir mes factures générées': 'View my generated invoices',
+  'Facture': 'Invoice', 'Devis et Facture': 'Quotes and invoices', 'Devis': 'Quote', 'Mes factures': 'My invoices', 'Mes devis': 'My quotes', 'Voir mes factures générées': 'View my generated invoices', 'Voir mes devis générés': 'View my generated quotes',
   'Archives': 'Archive', 'SERVICE': 'SERVICE', 'ARCHIVES': 'ARCHIVE', 'NOUVEAU DOCUMENT': 'NEW DOCUMENT',
   'Nom du client': 'Client name', 'Entreprise du client': 'Client company', 'Prestation ou article': 'Service or item', 'Quantité': 'Quantity', 'Prix unitaire (FCFA)': 'Unit price (XAF)',
   'Créer le devis': 'Create quote', 'Chargement de vos factures…': 'Loading your invoices…', 'Aucune facture générée.': 'No invoices generated.',
