@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, ArrowLeft, ChevronRight, Clock3, Home, MessageCircle, RefreshCw, Search, ShieldCheck, Users, X } from 'lucide-react'
+import { createActionGate } from '../../lib/action-gate'
 
 type Profile = { telegram_id: string; username?: string; first_name?: string; last_name?: string; language_code?: string; conversation_count?: number; last_activity?: string; created_at?: string }
 type Admin = { telegram_id: string; username?: string; first_name?: string; last_name?: string; created_at?: string }
@@ -24,6 +25,8 @@ export default function AdminPage() {
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
   const [unlocked, setUnlocked] = useState(false)
+  const refreshGate = useRef(createActionGate())
+  const mutationGate = useRef(createActionGate())
 
   useEffect(() => { const webApp = window.Telegram?.WebApp; webApp?.ready(); const data = webApp?.initData || ''; setInitData(data); if (data) void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => { if (payload?.unlocked) setUnlocked(true); else if (payload && !payload.allowed) setError('Accès administrateur requis.') }).catch(() => undefined) }, [])
   useEffect(() => { if (initData && unlocked) void refresh() }, [initData, unlocked])
@@ -31,6 +34,8 @@ export default function AdminPage() {
   async function unlock(event: React.FormEvent) { event.preventDefault(); const response = await fetch('/api/admin/access', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ password }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Accès refusé.'); setPassword(''); setUnlocked(true) }
 
   async function refresh() {
+    if (refreshGate.current.busy) return
+    return refreshGate.current.run(async () => {
     setLoading(true); setError('')
     try {
       const response = await fetch('/api/admin/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
@@ -38,11 +43,12 @@ export default function AdminPage() {
       if (!response.ok) throw new Error(payload.error || 'Accès refusé.')
       setData({ profiles: payload.profiles || [], conversations: payload.conversations || [], stats: payload.stats || {} }); setAdmins(payload.admins || [])
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Tableau de bord indisponible.') } finally { setLoading(false) }
+    })
   }
 
-  async function saveAdmin(event: React.FormEvent) { event.preventDefault(); const response = await fetch('/api/admin/conversations', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(adminForm) }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Administrateur impossible à enregistrer.'); setAdminForm({ telegram_id: '', username: '', first_name: '', last_name: '' }); await refresh() }
-  async function addAdminFromProfile(profile: Profile) { const response = await fetch('/api/admin/conversations', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ telegram_id: profile.telegram_id, username: profile.username || '', first_name: profile.first_name || '', last_name: profile.last_name || '' }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Administrateur impossible à enregistrer.'); await refresh() }
-  async function removeAdmin(telegramId: string) { if (!window.confirm('Supprimer cet administrateur ?')) return; const response = await fetch(`/api/admin/conversations?telegram_id=${encodeURIComponent(telegramId)}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Suppression impossible.'); await refresh() }
+  async function saveAdmin(event: React.FormEvent) { event.preventDefault(); if (mutationGate.current.busy) return; return mutationGate.current.run(async () => { const response = await fetch('/api/admin/conversations', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(adminForm) }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Administrateur impossible à enregistrer.'); setAdminForm({ telegram_id: '', username: '', first_name: '', last_name: '' }); await refresh() }) }
+  async function addAdminFromProfile(profile: Profile) { if (mutationGate.current.busy) return; return mutationGate.current.run(async () => { const response = await fetch('/api/admin/conversations', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ telegram_id: profile.telegram_id, username: profile.username || '', first_name: profile.first_name || '', last_name: profile.last_name || '' }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Administrateur impossible à enregistrer.'); await refresh() }) }
+  async function removeAdmin(telegramId: string) { if (!window.confirm('Supprimer cet administrateur ?') || mutationGate.current.busy) return; return mutationGate.current.run(async () => { const response = await fetch(`/api/admin/conversations?telegram_id=${encodeURIComponent(telegramId)}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Suppression impossible.'); await refresh() }) }
   async function openConversation(conversation: Conversation) {
     setSelected(conversation); setMessages([])
     const response = await fetch(`/api/admin/conversations?conversation_id=${encodeURIComponent(conversation.id)}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })

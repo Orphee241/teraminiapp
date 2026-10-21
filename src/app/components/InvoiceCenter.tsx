@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createActionGate } from '../../lib/action-gate'
 import PdfViewer from './PdfViewer'
 import { Archive, ArrowLeft, FilePlus2, FileText, Pencil, Search, Trash2, X } from 'lucide-react'
 
@@ -17,6 +18,8 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const loaded = useRef(false)
+  const loadGate = useRef(createActionGate())
+  const removeGate = useRef(createActionGate())
 
   const kindLabel = (kind: DocumentKind) => kind === 'devis' ? 'devis' : 'facture'
   const kindTitle = (kind: DocumentKind) => kind === 'devis' ? 'Devis' : 'Facture'
@@ -27,6 +30,8 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
   const visibleDocuments = documents.filter(document => matchesKind(document, archiveKind))
 
   const load = async () => {
+    if (loadGate.current.busy) return
+    return loadGate.current.run(async () => {
     setLoading(true)
     setError('')
     try {
@@ -41,6 +46,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     } finally {
       setLoading(false)
     }
+    })
   }
 
   useEffect(() => {
@@ -65,7 +71,8 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
   }
 
   const remove = async () => {
-    if (!menu || !window.confirm(`Supprimer le ${kindLabel(archiveKind)} ${menu.numero} ?`)) return
+    if (!menu || removeGate.current.busy || !window.confirm(`Supprimer le ${kindLabel(archiveKind)} ${menu.numero} ?`)) return
+    return removeGate.current.run(async () => {
     const response = await fetch(`/api/documents/${menu.id}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } })
     if (!response.ok) {
       setError(`Impossible de supprimer ce ${kindLabel(archiveKind)}.`)
@@ -73,6 +80,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     }
     setMenu(null)
     await load()
+    })
   }
 
   return <section className="invoice-page" aria-label="Devis et factures">

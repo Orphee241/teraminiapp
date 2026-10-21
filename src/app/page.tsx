@@ -5,6 +5,7 @@ import { ArrowLeft, BriefcaseBusiness, ChevronRight, Clipboard, ClipboardList, C
 import InvoiceCenter from './components/InvoiceCenter'
 import { closeTelegramWindow, openTelegramWindow, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
+import { createActionGate } from '../lib/action-gate'
 
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
@@ -55,6 +56,10 @@ export default function HomePage() {
   const [hydrated, setHydrated] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const chatMessagesRef = useRef<HTMLDivElement>(null)
+  const createGate = useRef(createActionGate())
+  const messageGate = useRef(createActionGate())
+  const mediaGate = useRef(createActionGate())
+  const deleteMessageGate = useRef(createActionGate())
 
 
   useEffect(() => {
@@ -107,7 +112,10 @@ export default function HomePage() {
   const updateLanguage = (value: string) => { setLanguage(value); window.localStorage.setItem('terainterface-language', value); setMessage(value === 'fr' ? 'Langue française sélectionnée.' : 'English selected.') }
 
   async function createDocument(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setMessage('')
+    event.preventDefault()
+    if (createGate.current.busy) return
+    return createGate.current.run(async () => {
+    setBusy(true); setMessage('')
     const form = new FormData(event.currentTarget); const quantity = Number(form.get('quantity') || 1); const unitPrice = Number(form.get('unit_price') || 0)
     let existingClient: { name?: string; company?: string; address?: string; phone?: string } = {}
     if (editingDocument?.notes) { try { const parsed = JSON.parse(editingDocument.notes); existingClient = parsed.client || {} } catch { existingClient = {} } }
@@ -127,10 +135,12 @@ export default function HomePage() {
       setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${editingDocument ? 'modifié' : 'créé'} avec succès.`)
       formElement.reset()
     } catch (error) { setMessage(error instanceof Error ? error.message : 'La création a échoué.') } finally { setEditingDocument(null); setBusy(false) }
+    })
   }
 
   async function sendToMichelle(event: FormEvent) {
-    event.preventDefault(); const text = chatInput.trim(); if (!text || chatBusy) return
+    event.preventDefault(); const text = chatInput.trim(); if (!text || chatBusy || messageGate.current.busy) return
+    return messageGate.current.run(async () => {
     setChatInput(''); setChatBusy(true)
     try {
       const saved = await fetch('/api/conversations', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ text }) }); const savedData = await saved.json()
@@ -140,11 +150,12 @@ export default function HomePage() {
       if (!response.ok) throw new Error(data.error || 'Michelle est momentanément indisponible.')
       setChatMessages(previous => [...previous, { role: 'assistant', text: data.reply || 'Je vous écoute.', sentAt: new Date().toISOString() }])
     } catch (error) { setChatMessages(previous => [...previous, { role: 'assistant', text: error instanceof Error ? error.message : 'Une erreur est survenue.', sentAt: new Date().toISOString() }]) } finally { setChatBusy(false) }
+    })
   }
 
   async function copyMessage(text: string) { await navigator.clipboard?.writeText(text); setMessage('Message copié.') }
-  async function deleteMessage() { if (!selectedMessage) return; const response = await fetch(`/api/conversations?id=${encodeURIComponent(selectedMessage)}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } }); if (response.ok) setChatMessages(previous => previous.map(item => item.id === selectedMessage ? { ...item, text: '[Message supprimé]' } : item)); setSelectedMessage('') }
-  async function sendMedia(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file) return; const form = new FormData(); form.append('file', file); form.append('text', file.name); const response = await fetch('/api/media', { method: 'POST', headers: { 'x-telegram-init-data': initData }, body: form }); const data = await response.json(); if (!response.ok) return setMessage(data.error || 'Envoi du média impossible.'); setChatMessages(previous => [...previous, { id: data.message.id, role: 'user', text: file.name, sentAt: data.message.sent_at }]); event.target.value = '' }
+  async function deleteMessage() { if (!selectedMessage || deleteMessageGate.current.busy) return; return deleteMessageGate.current.run(async () => { const response = await fetch(`/api/conversations?id=${encodeURIComponent(selectedMessage)}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } }); if (response.ok) setChatMessages(previous => previous.map(item => item.id === selectedMessage ? { ...item, text: '[Message supprimé]' } : item)); setSelectedMessage('') }) }
+  async function sendMedia(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file || mediaGate.current.busy) return; return mediaGate.current.run(async () => { const form = new FormData(); form.append('file', file); form.append('text', file.name); const response = await fetch('/api/media', { method: 'POST', headers: { 'x-telegram-init-data': initData }, body: form }); const data = await response.json(); if (!response.ok) return setMessage(data.error || 'Envoi du média impossible.'); setChatMessages(previous => [...previous, { id: data.message.id, role: 'user', text: file.name, sentAt: data.message.sent_at }]); event.target.value = '' }) }
 
   if (!telegramAvailable || !hydrated) return <main className="browser-landing"><section className="browser-landing-card"><div className="brand-mark">T</div><p className="eyebrow accent">TERAINTERFACE</p><h1>Votre espace</h1><p>Accède plus rapidement à nos services via notre Application</p><a className="primary-button browser-open-button" href="https://t.me/Terainterface_bot?startapp" rel="noopener noreferrer">Ouvrir l’App</a><small>Telegram s’ouvrira pour lancer l’application.</small></section></main>
 
@@ -164,7 +175,8 @@ export default function HomePage() {
 }
 
 function AccountScreen({ accountPage, navigateAccount, profile, setProfile, profileMessage, setProfileMessage, language, updateLanguage, adminAvailable, openMichelle, onAdmin }: { accountPage: AccountPage; navigateAccount: (page: AccountPage) => void; profile: TelegramProfile; setProfile: (profile: TelegramProfile) => void; profileMessage: string; setProfileMessage: (message: string) => void; language: string; updateLanguage: (value: string) => void; adminAvailable: boolean; openMichelle: () => void; onAdmin: () => void }) {
-  const saveProfile = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setProfileMessage(''); const response = await fetch('/api/profile', { method: 'PUT', headers: { 'content-type': 'application/json', 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '' }, body: JSON.stringify(profile) }); const value = await response.json().catch(() => ({})); if (response.ok) { setProfile(value.profile || profile); setProfileMessage('Informations enregistrées.'); } else setProfileMessage(value.error || 'Enregistrement impossible.') }
+  const saveProfileGate = useRef(createActionGate())
+  const saveProfile = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (saveProfileGate.current.busy) return; return saveProfileGate.current.run(async () => { setProfileMessage(''); const response = await fetch('/api/profile', { method: 'PUT', headers: { 'content-type': 'application/json', 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '' }, body: JSON.stringify(profile) }); const value = await response.json().catch(() => ({})); if (response.ok) { setProfile(value.profile || profile); setProfileMessage('Informations enregistrées.'); } else setProfileMessage(value.error || 'Enregistrement impossible.') }) }
   const companyForm = <form className="profile-settings" onSubmit={saveProfile}><p className="settings-note">Ces informations apparaissent comme émetteur de vos propres devis et factures.</p><Field name="company_name" label="Nom de l’entreprise (facultatif)" value={profile.company_name} onChange={event => setProfile({ ...profile, company_name: event.target.value })} /><Field name="phone" label="Téléphone" value={profile.phone} onChange={event => setProfile({ ...profile, phone: event.target.value })} /><Field name="address" label="Adresse" value={profile.address} onChange={event => setProfile({ ...profile, address: event.target.value })} /><Field name="nif" label="NIF (facultatif)" value={profile.nif} onChange={event => setProfile({ ...profile, nif: event.target.value })} /><Field name="rccm" label="RCCM (facultatif)" value={profile.rccm} onChange={event => setProfile({ ...profile, rccm: event.target.value })} /><Field name="logo_url" label="Logo (facultatif)" value={profile.logo_url} onChange={event => setProfile({ ...profile, logo_url: event.target.value })} placeholder="Logo à importer prochainement" /><button className="primary-button" type="submit">Enregistrer</button>{profileMessage && <p className="form-message" role="status">{profileMessage}</p>}</form>
   const page = accountPage
   return <section className="screen"><button className="back-link" onClick={() => page === 'menu' ? navigateAccount('menu') : navigateAccount('menu')}><ArrowLeft size={16} /> {page === 'menu' ? 'Accueil' : 'Mon compte'}</button>
