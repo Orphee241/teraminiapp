@@ -82,8 +82,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
       <div className="invoice-hub">
         <button className="action-card" onClick={() => onCreate('devis')}><span className="action-icon"><FilePlus2 size={20} /></span><span className="action-type">Document</span><strong>Créer un devis</strong></button>
         <button className="action-card" onClick={() => onCreate('facture')}><span className="action-icon"><FilePlus2 size={20} /></span><span className="action-type">Document</span><strong>Créer une facture</strong></button>
-        <button className="action-card" onClick={() => openArchive('devis')}><span className="action-icon"><Archive size={20} /></span><span className="action-type">Archives</span><strong>Voir mes devis générés</strong></button>
-        <button className="action-card" onClick={() => openArchive('facture')}><span className="action-icon"><Archive size={20} /></span><span className="action-type">Archives</span><strong>Voir mes factures générées</strong></button>
+        <button className="action-card archive-action" onClick={() => openArchive('devis')}><span className="action-icon"><Archive size={20} /></span><span className="action-type">Archives</span><strong>Voir mes devis et factures</strong></button>
       </div>
     </> : <>
       <button className="back-link" onClick={() => setScreen('hub')}><ArrowLeft size={16} /> Devis et Facture</button>

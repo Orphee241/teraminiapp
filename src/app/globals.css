@@ -94,6 +94,7 @@ button { cursor:pointer; }
 .invoice-page .close-button { display: none; }
 .invoice-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
 .invoice-hub .action-card { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; min-height: 156px; padding: 16px; width: 100%; color: #fff; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025)); text-align: left; transition: .2s ease; }
+.invoice-hub .archive-action { grid-column: 1 / -1; min-height: 112px; }
 .invoice-hub .action-card:hover { border-color: rgba(212,46,91,.72); transform: translateY(-1px); }
 .archive-switcher { display:flex; gap:8px; margin:18px 0 12px; }
 .archive-switcher button { flex:1; min-height:40px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.04); color:var(--muted); font:inherit; cursor:pointer; }
