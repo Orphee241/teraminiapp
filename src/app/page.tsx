@@ -9,6 +9,7 @@ import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
 type DocumentKind = 'devis' | 'facture'
+type EditableDocument = { id: number; type_document: string; numero: string; montant: number; notes?: string }
 type TelegramProfile = { telegram_id: string; username: string; first_name: string; last_name: string; language_code: string; photo_url: string; email: string; phone: string; address: string; company_name: string; nif: string; rccm: string; logo_url: string }
 type TelegramWebApp = TelegramWindow & { initData: string; isExpanded?: boolean; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void; BackButton?: { show: () => void; hide: () => void; onClick: (fn: () => void) => void; offClick: (fn: () => void) => void } }
 declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
@@ -33,6 +34,7 @@ const services: ServiceItem[] = [
 export default function HomePage() {
   const [tab, setTab] = useState<Tab>('accueil')
   const [documentKind, setDocumentKind] = useState<DocumentKind>('facture')
+  const [editingDocument, setEditingDocument] = useState<EditableDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -96,7 +98,7 @@ export default function HomePage() {
   useEffect(() => { if (!michelleOpen || !initData || chatMessages.length) return; fetch('/api/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(data => data?.messages && setChatMessages(data.messages.map((item: { id: string; role: 'user' | 'assistant'; text: string; sent_at: string }) => ({ id: item.id, role: item.role, text: item.text, sentAt: item.sent_at })))).catch(() => undefined) }, [michelleOpen, initData, chatMessages.length])
   useEffect(() => { if (!michelleOpen) return; const node = chatMessagesRef.current; if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' }) }, [michelleOpen, chatMessages, chatBusy])
 
-  const openCreate = (kind: DocumentKind) => { setDocumentKind(kind); setMessage(''); setFormOpen(true) }
+  const openCreate = (kind: DocumentKind, document: EditableDocument | null = null) => { setDocumentKind(kind); setEditingDocument(document); setMessage(''); setFormOpen(true) }
   const closeForm = () => { if (!busy) setFormOpen(false) }
   const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : setMessage(`${service.label} : Michelle vous donnera les informations disponibles sur ce service.`)
   const openAccount = (page: AccountPage = 'menu') => { setAccountPage(page); setTab('profil'); window.localStorage.setItem('terainterface-account-page', page); window.localStorage.setItem('terainterface-tab', 'profil') }
@@ -107,6 +109,8 @@ export default function HomePage() {
   async function createDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage('')
     const form = new FormData(event.currentTarget); const quantity = Number(form.get('quantity') || 1); const unitPrice = Number(form.get('unit_price') || 0)
+    let existingClient: { name?: string; company?: string; address?: string; phone?: string } = {}
+    if (editingDocument?.notes) { try { const parsed = JSON.parse(editingDocument.notes); existingClient = parsed.client || {} } catch { existingClient = {} } }
     const issuerName = profile.company_name.trim()
     const issuerPhone = profile.phone.trim()
     const issuerAddress = profile.address.trim()
@@ -115,14 +119,14 @@ export default function HomePage() {
       setBusy(false)
       return
     }
-    const payload = { document_type: documentKind, issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || ''), company: String(form.get('client_company') || ''), address: String(form.get('client_address') || ''), phone: String(form.get('client_phone') || ''), tax_id: '' }, items: [{ designation: String(form.get('designation') || ''), quantity, unit_price: unitPrice }], template_profile: 'client_zero', logo_enabled: false, client_logo_path: '', vat_applied: false, persist_crm: true, idempotency_key: `miniapp-${documentKind}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
+    const payload = { document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), company: String(form.get('client_company') || existingClient.company || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: '' }, items: [{ designation: String(form.get('designation') || ''), quantity, unit_price: unitPrice }], template_profile: 'client_zero', logo_enabled: false, client_logo_path: '', vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
     const formElement = event.currentTarget
     try {
-      const response = await fetch('/api/documents', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) }); const data = await response.json()
+      const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) }); const data = await response.json()
       if (!response.ok) throw new Error(data.error || data.detail || 'La création a échoué.')
-      setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}créé avec succès.`)
+      setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${editingDocument ? 'modifié' : 'créé'} avec succès.`)
       formElement.reset()
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'La création a échoué.') } finally { setBusy(false) }
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'La création a échoué.') } finally { setEditingDocument(null); setBusy(false) }
   }
 
   async function sendToMichelle(event: FormEvent) {
@@ -149,7 +153,7 @@ export default function HomePage() {
     <div className="content">
       {tab === 'accueil' && <section className="screen"><p className="eyebrow accent">ESPACE CLIENT</p><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => navigate('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
       {tab === 'services' && <section className="screen"><button className="back-link" onClick={() => navigate('accueil')}><ArrowLeft size={16} /> Accueil</button><p className="eyebrow accent">NOS SOLUTIONS</p><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.filter(service => !service.documentKind).map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}<button className="service-card" onClick={() => navigate('facture')}><span className="service-icon"><FileText size={20} /></span><span className="service-copy"><strong>Devis et Facture</strong><small>Créer et retrouver vos devis et factures générés.</small></span><span className="chevron">›</span></button></div></section>}
-      {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} onClose={() => navigate('services')} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture') => { openCreate(kind) }} /></section>}
+      {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} onClose={() => navigate('services')} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} /></section>}
       {tab === 'profil' && <AccountScreen accountPage={accountPage} navigateAccount={navigateAccount} profile={profile} setProfile={setProfile} profileMessage={profileMessage} setProfileMessage={setProfileMessage} language={language} updateLanguage={updateLanguage} adminAvailable={adminAvailable} openMichelle={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} onAdmin={() => { window.location.href = '/adm' }} />}
     </div>
     {message && <div className="toast" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Fermer"><X size={16} /></button></div>}

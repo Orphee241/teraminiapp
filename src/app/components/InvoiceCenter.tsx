@@ -7,7 +7,7 @@ import { Archive, ArrowLeft, FilePlus2, FileText, Pencil, Search, Trash2, X } fr
 type DocumentKind = 'devis' | 'facture'
 type DocumentRecord = { id: number; type_document: string; numero: string; statut: string; montant: number; notes?: string; created_at?: string }
 
-export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: { initData: string; onClose: () => void; onCreate: (kind?: DocumentKind) => void; onEdit: (kind?: DocumentKind) => void }) {
+export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: { initData: string; onClose: () => void; onCreate: (kind?: DocumentKind) => void; onEdit: (kind?: DocumentKind, document?: DocumentRecord) => void }) {
   const [screen, setScreen] = useState<'hub' | 'list'>('hub')
   const [archiveKind, setArchiveKind] = useState<DocumentKind>('devis')
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
@@ -30,7 +30,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     setLoading(true)
     setError('')
     try {
-      const query = new URLSearchParams({ search })
+      const query = new URLSearchParams({ search, status: 'genere' })
       const response = await fetch(`/api/documents?${query}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || data.detail || `Impossible de charger vos ${kindLabel(archiveKind)}.`)
@@ -93,6 +93,6 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     </>}
 
     {selected && <div className="detail-backdrop" onMouseDown={() => setSelected(null)}><section className="detail-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">APERÇU</p><h2>{selected.numero}</h2></div><button className="close-button" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button></div><PdfViewer src={`/api/documents/${selected.id}/pdf`} title={selected.numero} initData={initData} /></section></div>}
-    {menu && <div className="detail-backdrop" onMouseDown={() => setMenu(null)}><section className="action-sheet" onMouseDown={event => event.stopPropagation()}><button onClick={() => { onEdit(archiveKind); setMenu(null) }}><Pencil size={17} /> Modifier</button><button className="danger-action" onClick={remove}><Trash2 size={17} /> Supprimer</button></section></div>}
+    {menu && <div className="detail-backdrop" onMouseDown={() => setMenu(null)}><section className="action-sheet" onMouseDown={event => event.stopPropagation()}><button onClick={() => { onEdit(archiveKind, menu); setMenu(null) }}><Pencil size={17} /> Modifier</button><button className="danger-action" onClick={remove}><Trash2 size={17} /> Supprimer</button></section></div>}
   </section>
 }
