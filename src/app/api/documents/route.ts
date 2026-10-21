@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const checked = await auth(request)
   if (checked.response) return checked.response
   const params = request.nextUrl.searchParams
-  const query = new URLSearchParams({ owner_telegram_id: checked.owner, search: params.get('search') || '', status_filter: params.get('status') || '' })
+  const query = new URLSearchParams({ owner_telegram_id: checked.owner, search: params.get('search') || '', status_filter: params.get('status') || '', document_type: params.get('type') || '' })
   return proxy(request, `/v1/documents?${query.toString()}`)
 }
 
