@@ -120,10 +120,10 @@ button { cursor:pointer; }
 .action-sheet button { display:flex; align-items:center; gap:9px; padding:11px 8px; color:#f7f8fa; border:0; border-radius:9px; background:transparent; text-align:left; font:inherit; }
 .action-sheet button:hover { background:rgba(255,255,255,.07); }
 .action-sheet .danger-action { color:#ff8fa8; }
-.pdf-viewer { display: flex; justify-content: center; width: 100%; min-height: 320px; max-height: min(65dvh, 720px); margin: 18px 0; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
-.pdf-viewer canvas { display: block; width: 100%; height: auto; align-self: flex-start; }
+.pdf-viewer { position: relative; display: flex; justify-content: center; width: 100%; min-height: 320px; max-height: min(65dvh, 720px); margin: 18px 0; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.pdf-viewer canvas { display: block; max-width: none; align-self: flex-start; image-rendering: auto; }
 .pdf-viewer-expanded { position: fixed; inset: 12px; z-index: 100; width: auto; max-height: none; min-height: 0; margin: 0; padding: 44px 12px 12px; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,.65); }
-.pdf-viewer-expanded canvas { width: auto; max-width: 100%; }
+.pdf-viewer-expanded canvas { max-width: none; }
 .pdf-fullscreen { position: absolute; top: 10px; right: 10px; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9d9d9; border-radius: 9px; color: #222; background: rgba(255,255,255,.94); cursor: pointer; }
 .pdf-fullscreen:hover { background: #fff; }
 .pdf-status { color: #333; }
