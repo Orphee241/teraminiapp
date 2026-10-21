@@ -73,6 +73,20 @@ export async function listAdmins() { await ensureSchema(); return query('SELECT 
 export async function isStoredAdmin(telegramId: string) { await ensureSchema(); const rows = await query('SELECT telegram_id FROM miniapp_admins WHERE telegram_id=?1 LIMIT 1', [telegramId]); return Boolean(rows[0]) }
 export async function upsertAdmin(admin: Record<string, string>) { await ensureSchema(); const now = new Date().toISOString(); await query("INSERT INTO miniapp_admins (telegram_id,username,first_name,last_name,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?5) ON CONFLICT(telegram_id) DO UPDATE SET username=excluded.username,first_name=excluded.first_name,last_name=excluded.last_name,updated_at=excluded.updated_at", [admin.telegram_id, admin.username || '', admin.first_name || '', admin.last_name || '', now]); const admins = await listAdmins(); return admins.find((item: Record<string, unknown>) => item.telegram_id === admin.telegram_id) }
 export async function deleteAdmin(telegramId: string) { await ensureSchema(); await query('DELETE FROM miniapp_admins WHERE telegram_id=?1', [telegramId]); return { ok: true } }
+export async function uploadLogo(userId: string, file: File) {
+  const client = s3(), bucket = process.env.GARAGE_BUCKET || 'terainterface'
+  if (!client) throw new Error('media_storage_unconfigured')
+  const allowed = new Set(['image/jpeg', 'image/png', 'image/webp'])
+  if (!allowed.has(file.type)) throw new Error('logo_type_forbidden')
+  if (file.size > 5 * 1024 * 1024) throw new Error('logo_too_large')
+  const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+  const key = `teraminiapp/${userId}/logo.${extension}`
+  await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: Buffer.from(await file.arrayBuffer()), ContentType: file.type, CacheControl: 'public, max-age=31536000, immutable', Metadata: { owner: userId, application: 'terainterface-miniapp', asset: 'company-logo' } }))
+  const publicBase = String(process.env.GARAGE_PUBLIC_URL || '').replace(/\/$/, '')
+  const url = publicBase ? `${publicBase}/${bucket}/${key}` : await getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 86400 })
+  return { key, url, type: file.type, size: file.size }
+}
+
 export async function uploadObject(userId: string, file: File) { const client = s3(), bucket = process.env.GARAGE_BUCKET || 'terainterface'; if (!client) throw new Error('media_storage_unconfigured'); const allowed = new Set(['image/jpeg','image/png','image/webp','audio/ogg','audio/mpeg','audio/mp4','application/pdf']); if (!allowed.has(file.type)) throw new Error('media_type_forbidden'); if (file.size > 15 * 1024 * 1024) throw new Error('media_too_large'); const key = `teraminiapp/${userId}/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`; await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: Buffer.from(await file.arrayBuffer()), ContentType: file.type, Metadata: { owner: userId, application: 'terainterface-miniapp' } })); return { key, name: file.name, type: file.type, size: file.size, url: await getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 900 }) } }
 
 export async function getProfile(telegramId: string) { await ensureSchema(); const rows = await query('SELECT telegram_id,username,first_name,last_name,language_code,photo_url,email,phone,address,company_name,nif,rccm,logo_url FROM miniapp_profiles WHERE telegram_id=?1 LIMIT 1', [telegramId]); return rows[0] || { telegram_id: telegramId, username: '', first_name: '', last_name: '', language_code: '', photo_url: '', email: '', company_name: '', phone: '', address: '', nif: '', rccm: '', logo_url: '' } }
