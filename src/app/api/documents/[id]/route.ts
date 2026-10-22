@@ -10,7 +10,10 @@ async function proxy(request: NextRequest, path: string, body?: unknown) {
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: 'no-store',
   })
-  return NextResponse.json(await response.json().catch(() => ({ error: 'Réponse invalide.' })), { status: response.status })
+  // The document service returns 204 after a successful DELETE. A 204 response cannot contain a JSON body.
+  if (response.status === 204) return new NextResponse(null, { status: 204 })
+  const payload = await response.json().catch(() => ({ error: 'Réponse invalide.' }))
+  return NextResponse.json(payload, { status: response.status })
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -91,7 +91,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     try {
     const response = await fetch(`/api/documents/${target.id}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } })
     if (!response.ok) {
-      setError(`Impossible de supprimer ce ${kindLabel(archiveKind)}.`)
+      setError(`Impossible de supprimer cette ${kindLabel(archiveKind)}.`)
       return
     }
     setConfirmDelete(null)
@@ -121,6 +121,6 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
 
     {selected && <div className="detail-backdrop" onMouseDown={() => setSelected(null)}><section className="detail-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">APERÇU</p><h2>{selected.numero}</h2></div><button className="close-button" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button></div><PdfViewer src={`/api/documents/${selected.id}/pdf`} title={selected.numero} initData={initData} /></section></div>}
     {menu && <div className="detail-backdrop" onMouseDown={() => setMenu(null)}><section className="action-sheet" onMouseDown={event => event.stopPropagation()}><p className="action-sheet-title">{menu.numero}</p><button onClick={() => { onEdit(archiveKind, menu); setMenu(null) }}><Pencil size={17} /> Modifier</button><button className="danger-action" onClick={() => { setConfirmDelete(menu); setMenu(null) }}><Trash2 size={17} /> Supprimer</button></section></div>}
-    {confirmDelete && <div className="detail-backdrop" onMouseDown={() => !deleteBusy && setConfirmDelete(null)}><section className="confirm-sheet" onMouseDown={event => event.stopPropagation()}><div className="confirm-icon"><Trash2 size={22} /></div><p className="eyebrow danger-eyebrow">ATTENTION</p><h2>Supprimer ce {kindLabel(archiveKind)} ?</h2><p>Voulez-vous vraiment supprimer <strong>{confirmDelete.numero}</strong> ? Cette action est irréversible.</p><div className="confirm-actions"><button type="button" className="secondary-button" disabled={deleteBusy} onClick={() => setConfirmDelete(null)}>Non</button><button type="button" className="danger-button" disabled={deleteBusy} onClick={remove}>{deleteBusy ? 'Suppression…' : 'Oui, supprimer'}</button></div></section></div>}
+    {confirmDelete && <div className="detail-backdrop" onMouseDown={() => !deleteBusy && setConfirmDelete(null)}><section className="confirm-sheet" onMouseDown={event => event.stopPropagation()}><div className="confirm-icon"><Trash2 size={22} /></div><p className="eyebrow danger-eyebrow">ATTENTION</p><h2>Supprimer cette {kindLabel(archiveKind)} ?</h2><p>Voulez-vous vraiment supprimer <strong>{confirmDelete.numero}</strong> ? Cette action est irréversible.</p><div className="confirm-actions"><button type="button" className="secondary-button" disabled={deleteBusy} onClick={() => setConfirmDelete(null)}>Non</button><button type="button" className="danger-button" disabled={deleteBusy} onClick={remove}>{deleteBusy ? 'Suppression…' : 'Oui, supprimer'}</button></div></section></div>}
   </section>
 }
