@@ -17,6 +17,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
   const [menu, setMenu] = useState<DocumentRecord | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<DocumentRecord | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [editBusy, setEditBusy] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const loaded = useRef(false)
@@ -45,7 +46,8 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
       if (!response.ok) throw new Error(data.error || data.detail || `Impossible de charger vos ${kindLabel(archiveKind)}.`)
       setDocuments(Array.isArray(data.documents) ? data.documents : [])
     } catch (reason) {
-      setDocuments([])
+      // Keep the last authoritative list visible. A transient refresh failure must
+      // never make existing documents disappear from the archive.
       setError(reason instanceof Error ? reason.message : `Impossible de charger vos ${kindLabel(archiveKind)}.`)
     } finally {
       setLoading(false)
@@ -78,6 +80,24 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     suppressClick.current = false
     pressTimer.current = setTimeout(() => { suppressClick.current = true; setMenu(document) }, 550)
   }
+  const editDocument = async (document: DocumentRecord) => {
+    setEditBusy(true)
+    try {
+      const response = await fetch(`/api/documents/${document.id}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+      const data = await response.json().catch(() => ({}))
+      if (response.ok) {
+        const complete = (data.document || data) as DocumentRecord
+        onEdit(archiveKind, { ...document, ...complete })
+      } else {
+        onEdit(archiveKind, document)
+      }
+    } catch {
+      onEdit(archiveKind, document)
+    } finally {
+      setEditBusy(false)
+      setMenu(null)
+    }
+  }
   const cancelLongPress = () => {
     if (pressTimer.current) clearTimeout(pressTimer.current)
     pressTimer.current = null
@@ -94,8 +114,12 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
       setError(`Impossible de supprimer cette ${kindLabel(archiveKind)}.`)
       return
     }
+    // Update the local archive only after the API confirms success. A refresh failure
+    // must not turn a completed deletion into a false deletion error.
+    setDocuments(previous => previous.filter(document => document.id !== target.id))
     setConfirmDelete(null)
-    await load()
+    setError('')
+    try { await load() } catch { /* the deleted record is already removed locally */ }
     } finally {
       setDeleteBusy(false)
     }
@@ -120,7 +144,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     </>}
 
     {selected && <div className="detail-backdrop" onMouseDown={() => setSelected(null)}><section className="detail-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">APERÇU</p><h2>{selected.numero}</h2></div><button className="close-button" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button></div><PdfViewer src={`/api/documents/${selected.id}/pdf`} title={selected.numero} initData={initData} /></section></div>}
-    {menu && <div className="detail-backdrop" onMouseDown={() => setMenu(null)}><section className="action-sheet" onMouseDown={event => event.stopPropagation()}><p className="action-sheet-title">{menu.numero}</p><button onClick={() => { onEdit(archiveKind, menu); setMenu(null) }}><Pencil size={17} /> Modifier</button><button className="danger-action" onClick={() => { setConfirmDelete(menu); setMenu(null) }}><Trash2 size={17} /> Supprimer</button></section></div>}
+    {menu && <div className="detail-backdrop" onMouseDown={() => setMenu(null)}><section className="action-sheet" onMouseDown={event => event.stopPropagation()}><p className="action-sheet-title">{menu.numero}</p><button disabled={editBusy} onClick={() => void editDocument(menu)}><Pencil size={17} /> {editBusy ? 'Chargement…' : 'Modifier'}</button><button className="danger-action" onClick={() => { setConfirmDelete(menu); setMenu(null) }}><Trash2 size={17} /> Supprimer</button></section></div>}
     {confirmDelete && <div className="detail-backdrop" onMouseDown={() => !deleteBusy && setConfirmDelete(null)}><section className="confirm-sheet" onMouseDown={event => event.stopPropagation()}><div className="confirm-icon"><Trash2 size={22} /></div><p className="eyebrow danger-eyebrow">ATTENTION</p><h2>Supprimer cette {kindLabel(archiveKind)} ?</h2><p>Voulez-vous vraiment supprimer <strong>{confirmDelete.numero}</strong> ? Cette action est irréversible.</p><div className="confirm-actions"><button type="button" className="secondary-button" disabled={deleteBusy} onClick={() => setConfirmDelete(null)}>Non</button><button type="button" className="danger-button" disabled={deleteBusy} onClick={remove}>{deleteBusy ? 'Suppression…' : 'Oui, supprimer'}</button></div></section></div>}
   </section>
 }
