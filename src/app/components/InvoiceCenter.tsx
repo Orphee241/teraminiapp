@@ -15,11 +15,15 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<DocumentRecord | null>(null)
   const [menu, setMenu] = useState<DocumentRecord | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<DocumentRecord | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const loaded = useRef(false)
   const loadGate = useRef(createActionGate())
   const removeGate = useRef(createActionGate())
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const suppressClick = useRef(false)
 
   const kindLabel = (kind: DocumentKind) => kind === 'devis' ? 'devis' : 'facture'
   const kindTitle = (kind: DocumentKind) => kind === 'devis' ? 'Devis' : 'Facture'
@@ -70,16 +74,31 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     }
   }
 
+  const beginLongPress = (document: DocumentRecord) => {
+    suppressClick.current = false
+    pressTimer.current = setTimeout(() => { suppressClick.current = true; setMenu(document) }, 550)
+  }
+  const cancelLongPress = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current)
+    pressTimer.current = null
+  }
+
   const remove = async () => {
-    if (!menu || removeGate.current.busy || !window.confirm(`Supprimer le ${kindLabel(archiveKind)} ${menu.numero} ?`)) return
+    const target = confirmDelete
+    if (!target || removeGate.current.busy) return
     return removeGate.current.run(async () => {
-    const response = await fetch(`/api/documents/${menu.id}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } })
+    setDeleteBusy(true)
+    try {
+    const response = await fetch(`/api/documents/${target.id}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } })
     if (!response.ok) {
       setError(`Impossible de supprimer ce ${kindLabel(archiveKind)}.`)
       return
     }
-    setMenu(null)
+    setConfirmDelete(null)
     await load()
+    } finally {
+      setDeleteBusy(false)
+    }
     })
   }
 
@@ -97,10 +116,11 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
       <div className="sheet-heading"><div><p className="eyebrow accent">ARCHIVES</p><h2>Mes {archiveKind === 'devis' ? 'devis' : 'factures'}</h2></div><button className="close-button" onClick={onClose} aria-label="Fermer"><X size={20} /></button></div>
       <div className="archive-switcher"><button className={archiveKind === 'devis' ? 'active' : ''} onClick={() => { setArchiveKind('devis'); void load() }}>Mes devis</button><button className={archiveKind === 'facture' ? 'active' : ''} onClick={() => { setArchiveKind('facture'); void load() }}>Mes factures</button></div>
       <div className="invoice-toolbar"><div className="invoice-search"><Search size={16} /><input value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === 'Enter' && void load()} placeholder="Rechercher..." /></div></div>
-      <div className="invoice-list">{loading ? <p className="empty-state">Chargement de vos {kindLabel(archiveKind)}…</p> : error ? <p className="empty-state">{error}</p> : visibleDocuments.length ? visibleDocuments.map(document => <button className="invoice-row" key={document.id} onClick={() => setSelected(document)} onContextMenu={event => { event.preventDefault(); setMenu(document) }}><span className="invoice-row-icon"><FileText size={18} /></span><span><strong>{document.numero}</strong><small>{title(document)} · {document.montant.toLocaleString('fr-FR')} FCFA</small></span><span className="invoice-row-status">{document.statut}</span></button>) : <p className="empty-state">Aucun {kindLabel(archiveKind)} généré.</p>}</div>
+      <div className="invoice-list">{loading ? <p className="empty-state">Chargement de vos {kindLabel(archiveKind)}…</p> : error ? <p className="empty-state">{error}</p> : visibleDocuments.length ? visibleDocuments.map(document => <button className="invoice-row" key={document.id} onPointerDown={() => beginLongPress(document)} onPointerUp={cancelLongPress} onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } setSelected(document) }} onContextMenu={event => { event.preventDefault(); cancelLongPress(); setMenu(document) }}><span className="invoice-row-icon"><FileText size={18} /></span><span><strong>{document.numero}</strong><small>{title(document)} · {document.montant.toLocaleString('fr-FR')} FCFA</small></span><span className="invoice-row-status">{document.statut}</span></button>) : <p className="empty-state">Aucun {kindLabel(archiveKind)} généré.</p>}</div>
     </>}
 
     {selected && <div className="detail-backdrop" onMouseDown={() => setSelected(null)}><section className="detail-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">APERÇU</p><h2>{selected.numero}</h2></div><button className="close-button" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button></div><PdfViewer src={`/api/documents/${selected.id}/pdf`} title={selected.numero} initData={initData} /></section></div>}
-    {menu && <div className="detail-backdrop" onMouseDown={() => setMenu(null)}><section className="action-sheet" onMouseDown={event => event.stopPropagation()}><button onClick={() => { onEdit(archiveKind, menu); setMenu(null) }}><Pencil size={17} /> Modifier</button><button className="danger-action" onClick={remove}><Trash2 size={17} /> Supprimer</button></section></div>}
+    {menu && <div className="detail-backdrop" onMouseDown={() => setMenu(null)}><section className="action-sheet" onMouseDown={event => event.stopPropagation()}><p className="action-sheet-title">{menu.numero}</p><button onClick={() => { onEdit(archiveKind, menu); setMenu(null) }}><Pencil size={17} /> Modifier</button><button className="danger-action" onClick={() => { setConfirmDelete(menu); setMenu(null) }}><Trash2 size={17} /> Supprimer</button></section></div>}
+    {confirmDelete && <div className="detail-backdrop" onMouseDown={() => !deleteBusy && setConfirmDelete(null)}><section className="confirm-sheet" onMouseDown={event => event.stopPropagation()}><div className="confirm-icon"><Trash2 size={22} /></div><p className="eyebrow danger-eyebrow">ATTENTION</p><h2>Supprimer ce {kindLabel(archiveKind)} ?</h2><p>Voulez-vous vraiment supprimer <strong>{confirmDelete.numero}</strong> ? Cette action est irréversible.</p><div className="confirm-actions"><button type="button" className="secondary-button" disabled={deleteBusy} onClick={() => setConfirmDelete(null)}>Non</button><button type="button" className="danger-button" disabled={deleteBusy} onClick={remove}>{deleteBusy ? 'Suppression…' : 'Oui, supprimer'}</button></div></section></div>}
   </section>
 }
