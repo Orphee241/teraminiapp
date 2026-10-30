@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { Maximize2, Minimize2 } from 'lucide-react'
 
 let workerConfigured = false
@@ -15,10 +14,6 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
 
   useEffect(() => {
     let cancelled = false
-    if (!workerConfigured) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
-      workerConfigured = true
-    }
 
     const render = async () => {
       const canvas = canvasRef.current
@@ -30,6 +25,11 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
       setError('')
       context.clearRect(0, 0, canvas.width, canvas.height)
       try {
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+        if (!workerConfigured) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+          workerConfigured = true
+        }
         const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
         if (!response.ok) throw new Error(`PDF indisponible (${response.status})`)
         const bytes = await response.arrayBuffer()
