@@ -4,16 +4,22 @@ import { authenticate } from '../../_auth'
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 
 async function proxy(request: NextRequest, path: string, body?: unknown) {
-  const response = await fetch(`${apiBase()}${path}`, {
-    method: request.method,
-    headers: { 'content-type': 'application/json', 'x-api-key': process.env.INVOICE_API_KEY || '' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    cache: 'no-store',
-  })
-  // The document service returns 204 after a successful DELETE. A 204 response cannot contain a JSON body.
-  if (response.status === 204) return new NextResponse(null, { status: 204 })
-  const payload = await response.json().catch(() => ({ error: 'Réponse invalide.' }))
-  return NextResponse.json(payload, { status: response.status })
+  try {
+    const response = await fetch(`${apiBase()}${path}`, {
+      method: request.method,
+      headers: { 'content-type': 'application/json', 'x-api-key': process.env.INVOICE_API_KEY || '' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: 'no-store',
+    })
+    // The document service returns 204 after a successful DELETE. A 204 response cannot contain a JSON body.
+    if (response.status === 204) return new NextResponse(null, { status: 204 })
+    const text = await response.text()
+    let payload: unknown
+    try { payload = text ? JSON.parse(text) : {} } catch { payload = { error: `Service de documents indisponible (${response.status}).` } }
+    return NextResponse.json(payload, { status: response.status })
+  } catch {
+    return NextResponse.json({ error: 'Service de documents momentanément indisponible.' }, { status: 503 })
+  }
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
