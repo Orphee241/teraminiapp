@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate } from '../../_auth'
-import { updateProfile, uploadLogo } from '../../../../lib/storage'
+import { updateProfile, uploadLogo, getProfile } from '../../../../lib/storage'
 
 export async function POST(request: NextRequest) {
   const auth = await authenticate(request)
@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
   try {
     const userId = String(auth.user!.id)
     const logo = await uploadLogo(userId, file)
-    const profile = await updateProfile(userId, { logo_url: logo.url })
+    const existing = await getProfile(userId)
+    const profile = await updateProfile(userId, { ...existing, logo_url: logo.url })
     return NextResponse.json({ logo, profile })
   } catch (error) {
     const code = error instanceof Error ? error.message : ''

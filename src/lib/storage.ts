@@ -14,6 +14,8 @@ const storageConfig = () => {
 }
 const s3 = () => { const config = storageConfig(); return config.endpoint && config.accessKeyId && config.secretAccessKey ? new S3Client({ endpoint: config.endpoint, region: config.region, forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey } }) : null }
 const bucket = () => storageConfig().bucket
+function internalTelegramIds() { return new Set(String(process.env.TERAMINI_INTERNAL_TELEGRAM_IDS || process.env.TERAINTERFACE_INTERNAL_TELEGRAM_IDS || '').split(',').map(value => value.trim()).filter(Boolean)) }
+function logoNamespace(userId: string) { return internalTelegramIds().has(String(userId)) ? `terainterface/logos/${userId}` : `clients/${userId}/logos` }
 export const conversationSchema = `CREATE TABLE IF NOT EXISTS miniapp_profiles (telegram_id TEXT PRIMARY KEY, username TEXT NOT NULL DEFAULT '', first_name TEXT NOT NULL DEFAULT '', last_name TEXT NOT NULL DEFAULT '', language_code TEXT NOT NULL DEFAULT '', photo_url TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', company_name TEXT NOT NULL DEFAULT '', nif TEXT NOT NULL DEFAULT '', rccm TEXT NOT NULL DEFAULT '', logo_url TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS miniapp_conversations (id TEXT PRIMARY KEY, application TEXT NOT NULL, tenant TEXT NOT NULL, external_user_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT 'Michelle', status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(application, external_user_id, status)); CREATE TABLE IF NOT EXISTS miniapp_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES miniapp_conversations(id), role TEXT NOT NULL CHECK(role IN ('user','assistant')), text TEXT NOT NULL, sent_at TEXT NOT NULL, edited_at TEXT, deleted_at TEXT, attachment_json TEXT); CREATE TABLE IF NOT EXISTS miniapp_admins (telegram_id TEXT PRIMARY KEY, username TEXT NOT NULL DEFAULT '', first_name TEXT NOT NULL DEFAULT '', last_name TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE INDEX IF NOT EXISTS idx_miniapp_messages_conversation ON miniapp_messages(conversation_id, sent_at);`
 function endpoint(raw: string) { return `${String(raw).replace(/^libsql:\/\//, 'https://').replace(/\/$/, '')}/v2/pipeline` }
 function value(cell: any) { return cell?.type === 'null' ? null : cell?.value ?? cell }
@@ -86,8 +88,9 @@ export async function uploadLogo(userId: string, file: File) {
   if (!allowed.has(file.type)) throw new Error('logo_type_forbidden')
   if (file.size > 5 * 1024 * 1024) throw new Error('logo_too_large')
   const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-  const key = `teraminiapp/${userId}/logo.${extension}`
-  await client.send(new PutObjectCommand({ Bucket: targetBucket, Key: key, Body: Buffer.from(await file.arrayBuffer()), ContentType: file.type, CacheControl: 'public, max-age=31536000, immutable', Metadata: { owner: userId, application: 'terainterface-miniapp', asset: 'company-logo' } }))
+  const key = `${logoNamespace(userId)}/logo.${extension}`
+  const internal = internalTelegramIds().has(String(userId))
+  await client.send(new PutObjectCommand({ Bucket: targetBucket, Key: key, Body: Buffer.from(await file.arrayBuffer()), ContentType: file.type, CacheControl: 'public, max-age=31536000, immutable', Metadata: { owner: userId, application: 'terainterface-miniapp', asset: 'company-logo', ownerScope: internal ? 'terainterface' : 'client' } }))
   const url = await getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket, Key: key }), { expiresIn: 86400 })
   return { key, url, type: file.type, size: file.size }
 }
