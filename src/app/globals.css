@@ -154,7 +154,7 @@ button { cursor:pointer; }
 @media (max-width: 620px) { .invoice-hub { grid-template-columns: 1fr; } .invoice-toolbar { flex-direction: column; } .invoice-toolbar select { min-height: 42px; } .invoice-page { padding-bottom: 18px; } }
 
 /* Invoice creation is intentionally one-screen on mobile: no nested scroll panel. */
-.form-sheet { width: min(100%, 680px); max-height: none; overflow: visible; padding: 16px; border-radius: 18px; }
+.form-sheet { width: min(100%, 680px); max-height: min(92dvh, 820px); overflow-y: auto; overscroll-behavior: contain; padding: 16px; border-radius: 18px; }
 .form-sheet .sheet-heading h2 { font-size: clamp(28px, 8vw, 35px); }
 .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; margin-top: 14px; }
 .form-sheet .field { font-size:17px; line-height:1.25; }
@@ -178,19 +178,20 @@ button { cursor:pointer; }
 .document-lines-heading small { color: var(--muted); font-size: 12px; }
 .document-line { display: grid; grid-template-columns: 28px minmax(0, 1fr) 90px minmax(120px, .8fr) 34px; align-items: end; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
 .document-line-number { display: grid; place-items: center; width: 26px; height: 26px; margin-bottom: 9px; color: var(--pink-soft); border-radius: 50%; background: rgba(212,46,91,.14); font-size: 12px; font-weight: 700; }
+.line-designation { display: grid; grid-template-columns: minmax(0, 1fr) 38px; align-items: end; gap: 6px; min-width: 0; }
 .document-line .field { min-width: 0; }
+.add-line-icon { display: grid; place-items: center; width: 38px; height: 38px; margin-bottom: 5px; color: #fff; border: 0; border-radius: 10px; background: linear-gradient(135deg, #d42e5b, #a8234a); box-shadow: 0 6px 14px rgba(212,46,91,.22); cursor: pointer; }
+.add-line-icon:hover { filter: brightness(1.12); transform: translateY(-1px); }
 .remove-line { display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 5px; color: #ff8fa8; border: 1px solid rgba(255,100,130,.35); border-radius: 9px; background: transparent; cursor: pointer; }
 .remove-line:hover { background: rgba(255,100,130,.1); }
-.add-line { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; color: var(--pink-soft); border: 1px dashed rgba(212,46,91,.65); border-radius: 10px; background: rgba(212,46,91,.06); font: inherit; cursor: pointer; }
-.add-line:hover { background: rgba(212,46,91,.13); }
+
 @media (max-width: 460px) {
   .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 10px; }
   .form-sheet .field input { min-height: 44px; padding: 10px 9px; font-size: 15px; }
   .document-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px; gap: 7px; }
   .document-line-number { grid-column: 1 / -1; margin: 0; }
-  .document-line .field:nth-of-type(1) { grid-column: 1 / -1; }
-  .document-line .field:nth-of-type(2) { grid-column: 1; }
-  .document-line .field:nth-of-type(3) { grid-column: 2; }
+  .line-designation { grid-column: 1 / -1; }
+  .document-line .field { grid-column: auto; }
   .document-line .remove-line { grid-column: 3; grid-row: 3; }
 }
 
