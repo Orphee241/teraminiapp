@@ -114,12 +114,12 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
       setError(`Impossible de supprimer cette ${kindLabel(archiveKind)}.`)
       return
     }
-    // Update the local archive only after the API confirms success. A refresh failure
-    // must not turn a completed deletion into a false deletion error.
     setDocuments(previous => previous.filter(document => document.id !== target.id))
     setConfirmDelete(null)
     setError('')
-    try { await load() } catch { /* the deleted record is already removed locally */ }
+    // The authoritative DELETE already completed. Do not immediately fetch the
+    // whole archive again: that caused a second visible loading phase after
+    // every successful deletion. The local list is now synchronized.
     } finally {
       setDeleteBusy(false)
     }
@@ -140,7 +140,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
       <div className="sheet-heading"><div><p className="eyebrow accent">ARCHIVES</p><h2>Mes {archiveKind === 'devis' ? 'devis' : 'factures'}</h2></div><button className="close-button" onClick={onClose} aria-label="Fermer"><X size={20} /></button></div>
       <div className="archive-switcher"><button className={archiveKind === 'devis' ? 'active' : ''} onClick={() => { setArchiveKind('devis'); void load() }}>Mes devis</button><button className={archiveKind === 'facture' ? 'active' : ''} onClick={() => { setArchiveKind('facture'); void load() }}>Mes factures</button></div>
       <div className="invoice-toolbar"><div className="invoice-search"><Search size={16} /><input value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === 'Enter' && void load()} placeholder="Rechercher..." /></div></div>
-      <div className="invoice-list">{loading ? <p className="empty-state">Chargement de vos {kindLabel(archiveKind)}…</p> : error ? <p className="empty-state">{error}</p> : visibleDocuments.length ? visibleDocuments.map(document => <button className="invoice-row" key={document.id} onPointerDown={() => beginLongPress(document)} onPointerUp={cancelLongPress} onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } setSelected(document) }} onContextMenu={event => { event.preventDefault(); cancelLongPress(); setMenu(document) }}><span className="invoice-row-icon"><FileText size={18} /></span><span><strong>{document.numero}</strong><small>{title(document)} · {document.montant.toLocaleString('fr-FR')} FCFA</small></span><span className="invoice-row-status">{document.statut}</span></button>) : <p className="empty-state">Aucun {kindLabel(archiveKind)} généré.</p>}</div>
+      <div className="invoice-list">{loading && !visibleDocuments.length ? <p className="empty-state">Chargement de vos {kindLabel(archiveKind)}…</p> : error && !visibleDocuments.length ? <p className="empty-state">{error}</p> : visibleDocuments.length ? <>{loading && <p className="pdf-status" role="status">Actualisation…</p>}{error && <p className="pdf-status pdf-error" role="status">{error}</p>}{visibleDocuments.map(document => <button className="invoice-row" key={document.id} onPointerDown={() => beginLongPress(document)} onPointerUp={cancelLongPress} onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } setSelected(document) }} onContextMenu={event => { event.preventDefault(); cancelLongPress(); setMenu(document) }}><span className="invoice-row-icon"><FileText size={18} /></span><span><strong>{document.numero}</strong><small>{title(document)} · {document.montant.toLocaleString('fr-FR')} FCFA</small></span><span className="invoice-row-status">{document.statut}</span></button>)}</> : <p className="empty-state">Aucun {kindLabel(archiveKind)} généré.</p>}</div>
     </>}
 
     {selected && <div className="detail-backdrop" onMouseDown={() => setSelected(null)}><section className="detail-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">APERÇU</p><h2>{selected.numero}</h2></div><button className="close-button" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button></div><PdfViewer src={`/api/documents/${selected.id}/pdf`} title={selected.numero} initData={initData} /></section></div>}
