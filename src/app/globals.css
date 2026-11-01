@@ -128,8 +128,22 @@ button { cursor:pointer; }
 .pdf-fullscreen { position: absolute; top: 10px; right: 10px; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9d9d9; border-radius: 9px; color: #222; background: rgba(255,255,255,.94); cursor: pointer; }
 .pdf-fullscreen:hover { background: #fff; }
 .pdf-status { color: #333; }
+.pdf-loading { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; gap: 10px; align-content: center; color: #333; background: rgba(255,255,255,.82); }
+.pdf-spinner { width: 34px; height: 34px; border: 3px solid rgba(212,46,91,.22); border-top-color: #d42e5b; border-radius: 50%; animation: pdf-spin .75s linear infinite; }
+.pdf-loading-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@keyframes pdf-spin { to { transform: rotate(360deg); } }
 .pdf-error { padding: 18px; color: #a3203e; }
 .pdf-note { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: var(--pink-soft); font-size: 13px; }
+@media (max-width: 620px) {
+  .detail-backdrop { align-items: stretch; padding: 8px; }
+  .detail-sheet { width: 100%; max-height: 94dvh; padding: 12px; border-radius: 16px; }
+  .pdf-viewer { min-height: min(62dvh, 520px); max-height: min(72dvh, 620px); margin: 12px 0; }
+  .pdf-fullscreen { top: 8px; right: 8px; width: 34px; height: 34px; }
+}
+@media (min-width: 900px) {
+  .detail-sheet { width: min(86vw, 920px); }
+  .pdf-viewer { min-height: 420px; max-height: min(74dvh, 860px); }
+}
 .context-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.62); }
 .context-menu { display: grid; gap: 6px; width: min(100%, 320px); padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: #11141b; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
 .context-menu strong { padding: 4px 8px 10px; }

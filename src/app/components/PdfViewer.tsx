@@ -8,6 +8,7 @@ let workerConfigured = false
 export default function PdfViewer({ src, title, initData }: { src: string; title: string; initData: string }) {
   const viewerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const pdfCache = useRef<{ key: string; promise: Promise<any> } | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(false)
@@ -25,16 +26,24 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
       setError('')
       context.clearRect(0, 0, canvas.width, canvas.height)
       try {
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-        if (!workerConfigured) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
-          workerConfigured = true
+        const cacheKey = `${src}\u0000${initData}`
+        let pdfPromise = pdfCache.current?.key === cacheKey ? pdfCache.current.promise : null
+        if (!pdfPromise) {
+          pdfPromise = (async () => {
+            const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+            if (!workerConfigured) {
+              pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+              workerConfigured = true
+            }
+            const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+            if (!response.ok) throw new Error(`PDF indisponible (${response.status})`)
+            const bytes = await response.arrayBuffer()
+            if (!bytes.byteLength) throw new Error('Le PDF reçu est vide.')
+            return pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise
+          })()
+          pdfCache.current = { key: cacheKey, promise: pdfPromise }
         }
-        const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
-        if (!response.ok) throw new Error(`PDF indisponible (${response.status})`)
-        const bytes = await response.arrayBuffer()
-        if (!bytes.byteLength) throw new Error('Le PDF reçu est vide.')
-        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise
+        const pdf = await pdfPromise
         if (cancelled) return
         const page = await pdf.getPage(1)
         const baseViewport = page.getViewport({ scale: 1 })
@@ -52,6 +61,7 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
         await page.render({ canvasContext: context, viewport: renderViewport }).promise
         if (!cancelled) setState('ready')
       } catch (reason) {
+        if (pdfCache.current?.key === `${src}\u0000${initData}`) pdfCache.current = null
         if (!cancelled) {
           setState('error')
           setError(reason instanceof Error ? reason.message : 'Impossible de prévisualiser ce document.')
@@ -67,7 +77,7 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
     <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher le PDF en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
       {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
     </button>
-    {state === 'loading' && <p className="pdf-status">Chargement de l’aperçu…</p>}
+    {state === 'loading' && <div className="pdf-loading" role="status" aria-live="polite"><span className="pdf-spinner" aria-hidden="true" /><span className="pdf-loading-label">Chargement de l’aperçu…</span></div>}
     {state === 'error' && <p className="pdf-status pdf-error">{error}</p>}
     <canvas ref={canvasRef} />
   </div>
