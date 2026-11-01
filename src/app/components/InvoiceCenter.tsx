@@ -108,18 +108,25 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     if (!target || removeGate.current.busy) return
     return removeGate.current.run(async () => {
     setDeleteBusy(true)
-    try {
-    const response = await fetch(`/api/documents/${target.id}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } })
-    if (!response.ok) {
-      setError(`Impossible de supprimer cette ${kindLabel(archiveKind)}.`)
-      return
-    }
+    const previousDocuments = documents
+    // Optimistic UI: hide the row immediately after confirmation. If the
+    // authoritative request fails, restore the exact previous list.
     setDocuments(previous => previous.filter(document => document.id !== target.id))
-    setConfirmDelete(null)
-    setError('')
-    // The authoritative DELETE already completed. Do not immediately fetch the
-    // whole archive again: that caused a second visible loading phase after
-    // every successful deletion. The local list is now synchronized.
+    try {
+      const response = await fetch(`/api/documents/${target.id}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } })
+      if (!response.ok) {
+        setDocuments(previousDocuments)
+        setError(`Impossible de supprimer cette ${kindLabel(archiveKind)}.`)
+        return
+      }
+      setConfirmDelete(null)
+      setError('')
+      // The authoritative DELETE already completed. Do not immediately fetch the
+      // whole archive again: that caused a second visible loading phase after
+      // every successful deletion. The local list is now synchronized.
+    } catch {
+      setDocuments(previousDocuments)
+      setError(`Impossible de supprimer cette ${kindLabel(archiveKind)}.`)
     } finally {
       setDeleteBusy(false)
     }
