@@ -173,9 +173,22 @@ button { cursor:pointer; }
 .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .form-sheet .form-grid .field:nth-child(-n+3) { grid-column: 1 / -1; }
 .form-sheet .field input { min-height: 44px; padding: 10px 11px; font-size: 15px; }
+.document-lines { grid-column: 1 / -1; display: grid; gap: 10px; margin-top: 4px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
+.document-lines-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.document-lines-heading small { color: var(--muted); font-size: 12px; }
+.document-line { display: grid; grid-template-columns: 28px minmax(0, 1fr) 90px minmax(120px, .8fr) 34px; align-items: end; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.document-line-number { display: grid; place-items: center; width: 26px; height: 26px; margin-bottom: 9px; color: var(--pink-soft); border-radius: 50%; background: rgba(212,46,91,.14); font-size: 12px; font-weight: 700; }
+.document-line .field { min-width: 0; }
+.remove-line { display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 5px; color: #ff8fa8; border: 1px solid rgba(255,100,130,.35); border-radius: 9px; background: transparent; cursor: pointer; }
+.remove-line:hover { background: rgba(255,100,130,.1); }
+.add-line { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; color: var(--pink-soft); border: 1px dashed rgba(212,46,91,.65); border-radius: 10px; background: rgba(212,46,91,.06); font: inherit; cursor: pointer; }
+.add-line:hover { background: rgba(212,46,91,.13); }
 @media (max-width: 460px) {
   .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 10px; }
   .form-sheet .field input { min-height: 44px; padding: 10px 9px; font-size: 15px; }
+  .document-line { grid-template-columns: 26px minmax(0, 1fr) 34px; gap: 7px; }
+  .document-line .field:nth-of-type(2), .document-line .field:nth-of-type(3) { grid-column: 2 / 4; }
+  .document-line .remove-line { grid-column: 3; grid-row: 1; }
 }
 
 .logo-upload { display:grid; gap:9px; padding:13px; border:1px dashed rgba(212,46,91,.55); border-radius:13px; background:rgba(212,46,91,.06); }.logo-upload-label { color:#aeb6c4; font-size:12px; }.logo-upload-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }.logo-upload-button { width:100%; padding:12px 14px; color:#fff; border:1px solid rgba(212,46,91,.7); border-radius:10px; background:linear-gradient(135deg,#d42e5b,#a8234a); font-weight:600; cursor:pointer; }.logo-upload-button:disabled { opacity:.55; cursor:wait; }.logo-upload-preview { width:72px; height:72px; object-fit:contain; padding:6px; border:1px solid var(--line); border-radius:10px; background:#fff; }

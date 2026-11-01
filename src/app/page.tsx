@@ -11,24 +11,27 @@ type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
 type DocumentKind = 'devis' | 'facture'
 type EditableDocument = { id: number; type_document: string; numero: string; montant: number; notes?: string | Record<string, unknown>; [key: string]: unknown }
-type DocumentFormValues = { client_name: string; client_company: string; client_phone: string; client_address: string; designation: string; quantity: string; unit_price: string }
+type DocumentLine = { designation: string; quantity: string; unit_price: string }
+type DocumentFormValues = { client_name: string; client_company: string; client_phone: string; client_address: string; items: DocumentLine[] }
 
 function documentFormValues(document: EditableDocument | null): DocumentFormValues {
-  const empty = { client_name: '', client_company: '', client_phone: '', client_address: '', designation: '', quantity: '1', unit_price: '' }
+  const empty = { client_name: '', client_company: '', client_phone: '', client_address: '', items: [{ designation: '', quantity: '1', unit_price: '' }] }
   if (!document) return empty
   try {
     const parsed = typeof document.notes === 'string' ? JSON.parse(document.notes || '{}') : document.notes || document.data || document.payload || document
 
     const client = parsed.client || {}
-    const item = parsed.items?.[0] || {}
+    const items = Array.isArray(parsed.items) && parsed.items.length ? parsed.items : [{}]
     return {
       client_name: String(client.name || client.full_name || ''),
       client_company: String(client.company || ''),
       client_phone: String(client.phone || ''),
       client_address: String(client.address || ''),
-      designation: String(item.designation || item.description || ''),
-      quantity: String(item.quantity ?? 1),
-      unit_price: String(item.unit_price ?? ''),
+      items: items.map((item: { designation?: string; description?: string; quantity?: number; unit_price?: number }) => ({
+        designation: String(item.designation || item.description || ''),
+        quantity: String(item.quantity ?? 1),
+        unit_price: String(item.unit_price ?? ''),
+      })),
     }
   } catch { return empty }
 }
@@ -57,6 +60,7 @@ export default function HomePage() {
   const [tab, setTab] = useState<Tab>('accueil')
   const [documentKind, setDocumentKind] = useState<DocumentKind>('facture')
   const [editingDocument, setEditingDocument] = useState<EditableDocument | null>(null)
+  const [lineItems, setLineItems] = useState<DocumentLine[]>([{ designation: '', quantity: '1', unit_price: '' }])
   const [formOpen, setFormOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -124,7 +128,7 @@ export default function HomePage() {
   useEffect(() => { if (!michelleOpen || !initData || chatMessages.length) return; fetch('/api/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(data => data?.messages && setChatMessages(data.messages.map((item: { id: string; role: 'user' | 'assistant'; text: string; sent_at: string }) => ({ id: item.id, role: item.role, text: item.text, sentAt: item.sent_at })))).catch(() => undefined) }, [michelleOpen, initData, chatMessages.length])
   useEffect(() => { if (!michelleOpen) return; const node = chatMessagesRef.current; if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' }) }, [michelleOpen, chatMessages, chatBusy])
 
-  const openCreate = (kind: DocumentKind, document: EditableDocument | null = null) => { setDocumentKind(kind); setEditingDocument(document); setMessage(''); setFormOpen(true) }
+  const openCreate = (kind: DocumentKind, document: EditableDocument | null = null) => { const values = documentFormValues(document); setDocumentKind(kind); setEditingDocument(document); setLineItems(values.items); setMessage(''); setFormOpen(true) }
   const closeForm = () => { if (!busy) setFormOpen(false) }
   const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : setMessage(`${service.label} : Michelle vous donnera les informations disponibles sur ce service.`)
   const openAccount = (page: AccountPage = 'menu') => { setAccountPage(page); setTab('profil'); window.localStorage.setItem('terainterface-account-page', page); window.localStorage.setItem('terainterface-tab', 'profil') }
@@ -137,7 +141,9 @@ export default function HomePage() {
     if (createGate.current.busy) return
     return createGate.current.run(async () => {
     setBusy(true); setMessage('')
-    const form = new FormData(event.currentTarget); const quantity = Number(form.get('quantity') || 1); const unitPrice = Number(form.get('unit_price') || 0)
+    const form = new FormData(event.currentTarget)
+    const items = form.getAll('designation').map((designation, index) => ({ designation: String(designation).trim(), quantity: Number(form.getAll('quantity')[index] || 1), unit_price: Number(form.getAll('unit_price')[index] || 0) })).filter(item => item.designation)
+    if (!items.length || items.some(item => item.quantity < 1 || item.unit_price <= 0)) { setMessage('Ajoutez au moins une ligne complète avec une désignation, une quantité et un prix unitaire.'); setBusy(false); return }
     let existingClient: { name?: string; company?: string; address?: string; phone?: string } = {}
     if (editingDocument?.notes) { try { const parsed = typeof editingDocument.notes === 'string' ? JSON.parse(editingDocument.notes) : editingDocument.notes; existingClient = (parsed as { client?: typeof existingClient }).client || {} } catch { existingClient = {} } }
     const issuerName = profile.company_name.trim()
@@ -152,13 +158,13 @@ export default function HomePage() {
       setBusy(false)
       return
     }
-    const payload = { document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), company: String(form.get('client_company') || existingClient.company || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: '' }, items: [{ designation: String(form.get('designation') || ''), quantity, unit_price: unitPrice }], template_profile: 'client_zero', logo_enabled: Boolean(profile.logo_url.trim()), client_logo_path: profile.logo_url.trim(), vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
+    const payload = { document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), company: String(form.get('client_company') || existingClient.company || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: '' }, items, template_profile: 'client_zero', logo_enabled: Boolean(profile.logo_url.trim()), client_logo_path: profile.logo_url.trim(), vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
     const formElement = event.currentTarget
     try {
       const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) }); const data = await response.json()
       if (!response.ok) throw new Error(data.error || data.detail || 'La création a échoué.')
       setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${editingDocument ? 'modifié' : 'créé'} avec succès.`)
-      formElement.reset()
+      formElement.reset(); setLineItems([{ designation: '', quantity: '1', unit_price: '' }])
     } catch (error) { setMessage(error instanceof Error ? error.message : 'La création a échoué.') } finally { setEditingDocument(null); setBusy(false) }
     })
   }
@@ -194,7 +200,7 @@ export default function HomePage() {
     </div>
     {message && <div className="toast" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Fermer"><X size={16} /></button></div>}
     {michelleOpen && <div className="chat-backdrop"><section className="chat-sheet"><div className="chat-header"><div><p className="eyebrow accent">ASSISTANTE TERAINTERFACE</p><h2>Michelle</h2></div><button className="close-button" onClick={() => setMichelleOpen(false)} aria-label="Fermer"><X size={20} /></button></div><div ref={chatMessagesRef} className="chat-messages" aria-live="polite">{chatMessages.map((item, index) => <div className={`chat-bubble ${item.role}`} key={item.id || `${item.role}-${index}`} onClick={() => item.id && setSelectedMessage(item.id)}><span>{item.text}</span><time>{item.sentAt ? new Date(item.sentAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</time>{selectedMessage === item.id && item.role === 'user' && <span className="message-actions"><button type="button" onClick={() => copyMessage(item.text)} aria-label="Copier"><Clipboard size={14} /></button><button type="button" onClick={deleteMessage} aria-label="Supprimer"><Trash2 size={14} /></button></span>}</div>)}{chatBusy && <div className="chat-bubble assistant"><span className="typing">Michelle écrit…</span></div>}</div><form className="chat-composer" onSubmit={sendToMichelle}><button type="button" className="composer-tool" title="Note vocale bientôt disponible" aria-label="Note vocale"><Mic size={18} /></button><button type="button" className="composer-tool" title="Envoyer un média" aria-label="Envoyer un média" onClick={() => fileInputRef.current?.click()}><Paperclip size={18} /></button><input ref={fileInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp,audio/ogg,audio/mpeg,audio/mp4,application/pdf" onChange={sendMedia} /><input value={chatInput} onChange={event => setChatInput(event.target.value)} placeholder="Écrire à Michelle…" aria-label="Message à Michelle" /><button type="submit" disabled={chatBusy || !chatInput.trim()} aria-label="Envoyer"><ArrowLeft size={18} /></button></form><p className="chat-note">Les médias et notes vocales seront ajoutés après validation du stockage sécurisé.</p></section></div>}
-    {formOpen && (() => { const values = documentFormValues(editingDocument); return <div className="sheet-backdrop" onMouseDown={closeForm}><section className="form-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">{editingDocument ? 'MODIFIER LE DOCUMENT' : 'NOUVEAU DOCUMENT'}</p><h2>{editingDocument ? `Modifier ${documentKind === 'devis' ? 'le devis' : 'la facture'}` : documentKind === 'devis' ? 'Créer un devis' : 'Créer une facture'}</h2></div><button className="close-button" onClick={closeForm} aria-label="Fermer"><X size={20} /></button></div><form key={editingDocument?.id || `new-${documentKind}`} onSubmit={createDocument}><div className="form-grid"><Field name="client_name" label="Nom du client" defaultValue={values.client_name} required /><Field name="client_company" label="Entreprise du client" defaultValue={values.client_company} /><Field name="client_phone" label="Téléphone" type="tel" defaultValue={values.client_phone} required /><Field name="client_address" label="Adresse" defaultValue={values.client_address} required /><Field name="designation" label="Prestation ou article" defaultValue={values.designation} required /><Field name="quantity" label="Quantité" type="number" min="1" defaultValue={values.quantity} required /><Field name="unit_price" label="Prix unitaire (FCFA)" type="number" min="1" defaultValue={values.unit_price} required /></div><button disabled={busy} className="primary-button" type="submit">{busy ? 'Enregistrement en cours…' : editingDocument ? 'Enregistrer les modifications' : `Créer ${documentKind === 'devis' ? 'le devis' : 'la facture'}`}</button>{message && <p className="form-message" role="status">{message}</p>}</form></section></div> })()}
+    {formOpen && (() => { const values = documentFormValues(editingDocument); return <div className="sheet-backdrop" onMouseDown={closeForm}><section className="form-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">{editingDocument ? 'MODIFIER LE DOCUMENT' : 'NOUVEAU DOCUMENT'}</p><h2>{editingDocument ? `Modifier ${documentKind === 'devis' ? 'le devis' : 'la facture'}` : documentKind === 'devis' ? 'Créer un devis' : 'Créer une facture'}</h2></div><button className="close-button" onClick={closeForm} aria-label="Fermer"><X size={20} /></button></div><form key={editingDocument?.id || `new-${documentKind}`} onSubmit={createDocument}><div className="form-grid"><Field name="client_name" label="Nom du client" defaultValue={values.client_name} required /><Field name="client_company" label="Entreprise du client" defaultValue={values.client_company} /><Field name="client_phone" label="Téléphone" type="tel" defaultValue={values.client_phone} required /><Field name="client_address" label="Adresse" defaultValue={values.client_address} required /><div className="document-lines"><div className="document-lines-heading"><strong>Articles et prestations</strong><small>{lineItems.length} ligne{lineItems.length > 1 ? 's' : ''}</small></div>{lineItems.map((item, index) => <div className="document-line" key={index}><div className="document-line-number">{index + 1}</div><Field name="designation" label="Désignation" defaultValue={item.designation} required /><Field name="quantity" label="Quantité" type="number" min="1" defaultValue={item.quantity} required /><Field name="unit_price" label="Prix unitaire (FCFA)" type="number" min="1" defaultValue={item.unit_price} required />{lineItems.length > 1 && <button type="button" className="remove-line" aria-label={`Supprimer la ligne ${index + 1}`} onClick={() => setLineItems(previous => previous.filter((_, lineIndex) => lineIndex !== index))}><Trash2 size={16} /></button>}</div>)}<button type="button" className="add-line" onClick={() => setLineItems(previous => [...previous, { designation: '', quantity: '1', unit_price: '' }])}><Plus size={16} /> Ajouter une ligne</button></div></div><button disabled={busy} className="primary-button" type="submit">{busy ? 'Enregistrement en cours…' : editingDocument ? 'Enregistrer les modifications' : `Créer ${documentKind === 'devis' ? 'le devis' : 'la facture'}`}</button>{message && <p className="form-message" role="status">{message}</p>}</form></section></div> })()}
     <nav className="bottom-nav"><NavButton active={tab === 'accueil'} icon={Home} label="Accueil" onClick={() => navigate('accueil')} /><NavButton active={tab === 'services'} icon={ShoppingBag} label="Services" onClick={() => navigate('services')} /><NavButton active={tab === 'profil'} icon={User} label="Mon compte" onClick={() => openAccount()} /></nav>
   </main>
 }
