@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 
 let workerConfigured = false
+const pdfPromiseCache = new Map<string, Promise<any>>()
+const PDF_CACHE_LIMIT = 8
 
 export default function PdfViewer({ src, title, initData }: { src: string; title: string; initData: string }) {
   const viewerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const pdfCache = useRef<{ key: string; promise: Promise<any> } | null>(null)
+
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(false)
@@ -27,7 +29,7 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
       context.clearRect(0, 0, canvas.width, canvas.height)
       try {
         const cacheKey = `${src}\u0000${initData}`
-        let pdfPromise = pdfCache.current?.key === cacheKey ? pdfCache.current.promise : null
+        let pdfPromise = pdfPromiseCache.get(cacheKey) || null
         if (!pdfPromise) {
           pdfPromise = (async () => {
             const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
@@ -41,7 +43,12 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
             if (!bytes.byteLength) throw new Error('Le PDF reçu est vide.')
             return pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise
           })()
-          pdfCache.current = { key: cacheKey, promise: pdfPromise }
+          pdfPromiseCache.set(cacheKey, pdfPromise)
+          while (pdfPromiseCache.size > PDF_CACHE_LIMIT) {
+            const oldestKey = pdfPromiseCache.keys().next().value
+            if (oldestKey) pdfPromiseCache.delete(oldestKey)
+            else break
+          }
         }
         const pdf = await pdfPromise
         if (cancelled) return
@@ -61,7 +68,7 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
         await page.render({ canvasContext: context, viewport: renderViewport }).promise
         if (!cancelled) setState('ready')
       } catch (reason) {
-        if (pdfCache.current?.key === `${src}\u0000${initData}`) pdfCache.current = null
+        pdfPromiseCache.delete(`${src}\u0000${initData}`)
         if (!cancelled) {
           setState('error')
           setError(reason instanceof Error ? reason.message : 'Impossible de prévisualiser ce document.')
