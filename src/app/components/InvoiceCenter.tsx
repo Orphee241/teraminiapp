@@ -22,6 +22,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
   const [error, setError] = useState('')
   const loaded = useRef(false)
   const loadGate = useRef(createActionGate())
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const removeGate = useRef(createActionGate())
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressClick = useRef(false)
@@ -34,16 +35,16 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
   }
   const visibleDocuments = documents.filter(document => matchesKind(document, archiveKind))
 
-  const load = async () => {
+  const load = async (nextSearch = search, nextKind = archiveKind) => {
     if (loadGate.current.busy) return
     return loadGate.current.run(async () => {
     setLoading(true)
     setError('')
     try {
-      const query = new URLSearchParams({ search, status: 'genere' })
+      const query = new URLSearchParams({ search: nextSearch, status: 'genere', document_type: nextKind })
       const response = await fetch(`/api/documents?${query}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || data.detail || `Impossible de charger vos ${kindLabel(archiveKind)}.`)
+      if (!response.ok) throw new Error(data.error || data.detail || `Impossible de charger vos ${kindLabel(nextKind)}.`)
       setDocuments(Array.isArray(data.documents) ? data.documents : [])
     } catch (reason) {
       // Keep the last authoritative list visible. A transient refresh failure must
@@ -61,6 +62,13 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
       void load()
     }
   }, [screen])
+
+  useEffect(() => {
+    if (screen !== 'list' || !loaded.current || !search.trim()) return
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(() => { void load(search, archiveKind) }, 250)
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current) }
+  }, [search, archiveKind, screen])
 
   const openArchive = (kind: DocumentKind) => {
     setArchiveKind(kind)
@@ -145,8 +153,8 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
     </> : <>
       <button className="back-link" onClick={() => setScreen('hub')}><ArrowLeft size={16} /> Devis et Facture</button>
       <div className="sheet-heading"><div><p className="eyebrow accent">ARCHIVES</p><h2>Mes {archiveKind === 'devis' ? 'devis' : 'factures'}</h2></div><button className="close-button" onClick={onClose} aria-label="Fermer"><X size={20} /></button></div>
-      <div className="archive-switcher"><button className={archiveKind === 'devis' ? 'active' : ''} onClick={() => { setArchiveKind('devis'); void load() }}>Mes devis</button><button className={archiveKind === 'facture' ? 'active' : ''} onClick={() => { setArchiveKind('facture'); void load() }}>Mes factures</button></div>
-      <div className="invoice-toolbar"><div className="invoice-search"><Search size={16} /><input value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => event.key === 'Enter' && void load()} placeholder="Rechercher..." /></div></div>
+      <div className="archive-switcher"><button className={archiveKind === 'devis' ? 'active' : ''} onClick={() => { setArchiveKind('devis') }}>Mes devis</button><button className={archiveKind === 'facture' ? 'active' : ''} onClick={() => { setArchiveKind('facture') }}>Mes factures</button></div>
+      <div className="invoice-toolbar"><div className="invoice-search"><Search size={16} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher..." aria-label="Rechercher dans les devis et factures" /></div></div>
       <div className="invoice-list">{loading && !visibleDocuments.length ? <p className="empty-state">Chargement de vos {kindLabel(archiveKind)}…</p> : error && !visibleDocuments.length ? <p className="empty-state">{error}</p> : visibleDocuments.length ? <>{loading && <p className="pdf-status" role="status">Actualisation…</p>}{error && <p className="pdf-status pdf-error" role="status">{error}</p>}{visibleDocuments.map(document => <button className="invoice-row" key={document.id} onPointerDown={() => beginLongPress(document)} onPointerUp={cancelLongPress} onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } setSelected(document) }} onContextMenu={event => { event.preventDefault(); cancelLongPress(); setMenu(document) }}><span className="invoice-row-icon"><FileText size={18} /></span><span><strong>{document.numero}</strong><small>{title(document)} · {document.montant.toLocaleString('fr-FR')} FCFA</small></span><span className="invoice-row-status">{document.statut}</span></button>)}</> : <p className="empty-state">Aucun {kindLabel(archiveKind)} généré.</p>}</div>
     </>}
 
