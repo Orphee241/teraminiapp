@@ -65,6 +65,7 @@ export default function HomePage() {
   const [formOpen, setFormOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [archiveRefresh, setArchiveRefresh] = useState<{ kind: DocumentKind; key: number } | null>(null)
   const [initData, setInitData] = useState('')
   const [michelleOpen, setMichelleOpen] = useState(false)
   const [chatInput, setChatInput] = useState('')
@@ -178,8 +179,14 @@ export default function HomePage() {
         return
       }
       const data = await response.json()
-      setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${editingDocument ? 'modifié' : 'créé'} avec succès.${logoUnavailable ? ' Le logo était indisponible; le document a été créé sans logo.' : ''}`)
+      const wasEditing = Boolean(editingDocument)
+      const savedKind = documentKind
+      setMessage(`${savedKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${wasEditing ? 'modifié' : 'créé'} avec succès.${logoUnavailable ? ' Le logo était indisponible; le document a été créé sans logo.' : ''}`)
       formElement.reset(); setLineItems([{ designation: '', quantity: '1', unit_price: '' }])
+      if (wasEditing) {
+        setFormOpen(false)
+        setArchiveRefresh(previous => ({ kind: savedKind, key: (previous?.key || 0) + 1 }))
+      }
     } catch { setMessage('La connexion au service de documents a échoué. Vérifiez votre connexion et réessayez.') } finally { setEditingDocument(null); setBusy(false) }
     })
   }
@@ -210,7 +217,7 @@ export default function HomePage() {
     <div className="content">
       {tab === 'accueil' && <section className="screen"><p className="eyebrow accent">ESPACE CLIENT</p><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => navigate('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
       {tab === 'services' && <section className="screen"><button className="back-link" onClick={() => navigate('accueil')}><ArrowLeft size={16} /> Accueil</button><p className="eyebrow accent">NOS SOLUTIONS</p><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.filter(service => !service.documentKind).map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}<button className="service-card" onClick={() => navigate('facture')}><span className="service-icon"><FileText size={20} /></span><span className="service-copy"><strong>Devis et Facture</strong><small>Créer et retrouver vos devis et factures générés.</small></span><span className="chevron">›</span></button></div></section>}
-      {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} onClose={() => navigate('services')} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} /></section>}
+      {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} onClose={() => navigate('services')} archiveRefresh={archiveRefresh} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} /></section>}
       {tab === 'profil' && <AccountScreen accountPage={accountPage} navigateAccount={navigateAccount} onHome={() => navigate('accueil')} profile={profile} setProfile={setProfile} profileMessage={profileMessage} setProfileMessage={setProfileMessage} language={language} updateLanguage={updateLanguage} adminAvailable={adminAvailable} openMichelle={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} onAdmin={() => { window.location.href = '/adm' }} />}
     </div>
     {message && <div className="toast" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Fermer"><X size={16} /></button></div>}

@@ -8,7 +8,7 @@ import { Archive, ArrowLeft, FilePlus2, FileText, Pencil, Search, Trash2, X } fr
 type DocumentKind = 'devis' | 'facture'
 type DocumentRecord = { id: number; type_document: string; numero: string; statut: string; montant: number; notes?: string; created_at?: string }
 
-export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: { initData: string; onClose: () => void; onCreate: (kind?: DocumentKind) => void; onEdit: (kind?: DocumentKind, document?: DocumentRecord) => void }) {
+export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, archiveRefresh = null }: { initData: string; onClose: () => void; onCreate: (kind?: DocumentKind) => void; onEdit: (kind?: DocumentKind, document?: DocumentRecord) => void; archiveRefresh?: { kind: DocumentKind; key: number } | null }) {
   const [screen, setScreen] = useState<'hub' | 'list'>('hub')
   const [archiveKind, setArchiveKind] = useState<DocumentKind>('devis')
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
@@ -62,6 +62,17 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit }: {
       void load()
     }
   }, [screen])
+
+  useEffect(() => {
+    if (!archiveRefresh) return
+    setArchiveKind(archiveRefresh.kind)
+    setScreen('list')
+    setSearch('')
+    setSelected(null)
+    setMenu(null)
+    loaded.current = true
+    void load('', archiveRefresh.kind)
+  }, [archiveRefresh?.key])
 
   useEffect(() => {
     if (screen !== 'list' || !loaded.current || !search.trim()) return

@@ -32,6 +32,26 @@ async function openArchive(fetchMock: typeof fetch) {
 describe('InvoiceCenter archive performance contract', () => {
   afterEach(() => { vi.unstubAllGlobals() })
 
+  it.each(['devis', 'facture'] as const)('opens and reloads the %s archive after a successful edit', async kind => {
+    const refreshedRow = { ...documentRow, type_document: kind, numero: kind === 'devis' ? 'DEV-UPDATED-42' : 'FAC-UPDATED-42' }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const query = new URL(String(input), 'https://local').searchParams
+      if (String(input).startsWith('/api/documents?')) {
+        return Promise.resolve(new Response(JSON.stringify({ documents: [refreshedRow] }), { status: 200 }))
+      }
+      throw new Error(`unexpected request: ${String(input)} ${query}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const view = render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} />)
+
+    view.rerender(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} archiveRefresh={{ kind, key: 1 }} />)
+
+    expect(await screen.findByText(refreshedRow.numero)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: kind === 'devis' ? 'Mes devis' : 'Mes factures' })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(String(fetchMock.mock.calls[0][0])).toContain(`document_type=${kind}`)
+  })
+
   it('removes a deleted row immediately and does not reload the archive', async () => {
     let resolveDelete!: (response: Response) => void
     const deletePending = new Promise<Response>(resolve => { resolveDelete = resolve })
