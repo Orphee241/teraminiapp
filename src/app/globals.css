@@ -219,8 +219,9 @@ button { cursor:pointer; }
 .secondary-button { color: #f7f8fa; border: 1px solid var(--line); background: transparent; }
 .danger-button { color: #fff; border: 1px solid #d72e55; background: #b51f43; }
 .confirm-actions button:disabled { cursor: wait; opacity: .55; }
-/* Keep the deletion confirmation intentionally compact on mobile and desktop. */
-.confirm-sheet.confirm-sheet-compact { width: min(100%, 340px); padding: 14px 16px; }
+/* Confirmation uses its own centering rule because the mobile detail backdrop intentionally stretches detail sheets. */
+.confirm-backdrop { align-items: center; }
+.confirm-sheet.confirm-sheet-compact { width: min(100%, 340px); height: auto; min-height: 0; max-height: none; align-self: center; justify-self: center; padding: 14px 16px; }
 .confirm-sheet.confirm-sheet-compact h2 { margin: 0 0 4px; font-size: 28px; line-height: 1; }
 .confirm-sheet.confirm-sheet-compact > p { margin: 0; line-height: 1.25; }
 .confirm-sheet.confirm-sheet-compact .confirm-actions { margin-top: 12px; }
