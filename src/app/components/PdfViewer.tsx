@@ -14,6 +14,8 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageCount, setPageCount] = useState(1)
 
   useEffect(() => {
     let cancelled = false
@@ -52,20 +54,27 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
         }
         const pdf = await pdfPromise
         if (cancelled) return
-        const page = await pdf.getPage(1)
-        const baseViewport = page.getViewport({ scale: 1 })
+        const totalPages = Math.max(1, Number(pdf.numPages) || 1)
+        setPageCount(totalPages)
+        const safePage = Math.min(page, totalPages)
+        if (safePage !== page) {
+          setPage(safePage)
+          return
+        }
+        const pageData = await pdf.getPage(safePage)
+        const baseViewport = pageData.getViewport({ scale: 1 })
         const availableWidth = Math.max(280, container.clientWidth - 24)
         const cssScale = availableWidth / baseViewport.width
         // Keep the PDF sharp on Retina/high-density screens. The canvas backing
         // store is larger than its CSS size, so text does not look pixelated.
         const pixelRatio = Math.min(window.devicePixelRatio || 1, 3)
-        const renderViewport = page.getViewport({ scale: cssScale * pixelRatio })
-        const cssViewport = page.getViewport({ scale: cssScale })
+        const renderViewport = pageData.getViewport({ scale: cssScale * pixelRatio })
+        const cssViewport = pageData.getViewport({ scale: cssScale })
         canvas.width = Math.ceil(renderViewport.width)
         canvas.height = Math.ceil(renderViewport.height)
         canvas.style.width = `${Math.ceil(cssViewport.width)}px`
         canvas.style.height = `${Math.ceil(cssViewport.height)}px`
-        await page.render({ canvasContext: context, viewport: renderViewport }).promise
+        await pageData.render({ canvasContext: context, viewport: renderViewport }).promise
         if (!cancelled) setState('ready')
       } catch (reason) {
         pdfPromiseCache.delete(`${src}\u0000${initData}`)
@@ -78,9 +87,18 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
 
     void render()
     return () => { cancelled = true }
-  }, [src, initData, expanded])
+  }, [src, initData, expanded, page])
+
+  const goToPage = (nextPage: number) => {
+    setPage(Math.max(1, Math.min(pageCount, nextPage)))
+  }
 
   return <div ref={viewerRef} className={`pdf-viewer${expanded ? ' pdf-viewer-expanded' : ''}`} aria-label={title} aria-busy={state === 'loading'}>
+    <div className="pdf-toolbar" role="navigation" aria-label="Navigation des pages PDF">
+      <button type="button" onClick={() => goToPage(page - 1)} disabled={page <= 1 || state === 'loading'} aria-label="Page précédente">‹</button>
+      <span aria-live="polite">Page {page} / {pageCount}</span>
+      <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= pageCount || state === 'loading'} aria-label="Page suivante">›</button>
+    </div>
     <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher le PDF en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
       {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
     </button>

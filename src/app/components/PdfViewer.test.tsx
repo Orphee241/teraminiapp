@@ -9,6 +9,7 @@ vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
   GlobalWorkerOptions: { workerSrc: '' },
   getDocument: () => ({
     promise: Promise.resolve({
+    numPages: 3,
       getPage: () => Promise.resolve({
         getViewport: ({ scale }: { scale: number }) => ({ width: 600 * scale, height: 800 * scale }),
         render: renderPage,
@@ -37,5 +38,19 @@ describe('PdfViewer responsive preview', () => {
     await waitFor(() => expect(viewer).toHaveAttribute('aria-busy', 'false'))
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(renderPage).toHaveBeenCalledTimes(2)
+  })
+  it('navigates through every page without downloading the PDF again', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 640 })
+
+    render(<PdfViewer src="/api/documents/long/pdf" title="FAC-983DB7" initData="telegram-init-data" />)
+    await waitFor(() => expect(screen.getByText('Page 1 / 3')).toBeInTheDocument())
+    const next = screen.getByRole('button', { name: 'Page suivante' })
+    await fireEvent.click(next)
+    await waitFor(() => expect(screen.getByText('Page 2 / 3')).toBeInTheDocument())
+    await fireEvent.click(next)
+    await waitFor(() => expect(screen.getByText('Page 3 / 3')).toBeInTheDocument())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
