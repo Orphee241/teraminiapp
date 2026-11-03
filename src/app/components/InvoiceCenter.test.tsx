@@ -44,7 +44,7 @@ describe('InvoiceCenter archive performance contract', () => {
 
     fireEvent.contextMenu(screen.getByRole('button', { name: /DEV-TEST-42/i }))
     await user.click(await screen.findByRole('button', { name: 'Supprimer' }))
-    await user.click(screen.getByRole('button', { name: /oui, supprimer/i }))
+    await user.click(screen.getByRole('button', { name: /^supprimer$/i }))
 
     expect(screen.queryByRole('button', { name: /DEV-TEST-42.*15.*FCFA.*genere/i })).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -64,7 +64,7 @@ describe('InvoiceCenter archive performance contract', () => {
 
     fireEvent.contextMenu(screen.getByRole('button', { name: /DEV-TEST-42/i }))
     await user.click(await screen.findByRole('button', { name: 'Supprimer' }))
-    await user.click(screen.getByRole('button', { name: /oui, supprimer/i }))
+    await user.click(screen.getByRole('button', { name: /^supprimer$/i }))
 
     expect(await screen.findByRole('button', { name: /DEV-TEST-42.*15.*FCFA.*genere/i })).toBeInTheDocument()
     expect(screen.getByText(/impossible de supprimer/i)).toBeInTheDocument()
