@@ -43,8 +43,6 @@ declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
 type ServiceItem = { label: string; description: string; icon: typeof FileText; documentKind?: DocumentKind }
 
 const services: ServiceItem[] = [
-  { label: 'Montage vidéo', description: 'Montage, habillage et finition de vos contenus vidéo.', icon: FilePlus2 },
-  { label: 'Couverture vidéo', description: 'Captation vidéo de vos événements et activités.', icon: FilePlus2 },
   { label: 'Créer un devis', description: 'Demander un devis professionnel personnalisé.', icon: Plus, documentKind: 'devis' },
   { label: 'Créer une facture', description: 'Créer une facture professionnelle.', icon: FilePlus2, documentKind: 'facture' },
   { label: 'E-commerce', description: 'Boutiques en ligne et solutions de vente digitale.', icon: ShoppingBag },
