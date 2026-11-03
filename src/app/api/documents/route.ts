@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate } from '../_auth'
+import { documentOperationError } from '../../../lib/document-errors'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 const apiKey = () => process.env.INVOICE_API_KEY || ''
@@ -14,9 +15,15 @@ async function proxy(request: NextRequest, path: string, body?: unknown) {
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: 'no-store',
     })
+    if (!response.ok) {
+      const message = request.method === 'POST'
+        ? documentOperationError(response.status)
+        : 'Impossible de charger vos documents. Réessayez dans quelques instants.'
+      return NextResponse.json({ error: message }, { status: response.status })
+    }
     const text = await response.text()
     let payload: unknown
-    try { payload = text ? JSON.parse(text) : {} } catch { payload = { error: `Service de documents indisponible (${response.status}).` } }
+    try { payload = text ? JSON.parse(text) : {} } catch { payload = { error: 'Service de documents momentanément indisponible.' } }
     return NextResponse.json(payload, { status: response.status })
   } catch {
     return NextResponse.json({ error: 'Service de documents momentanément indisponible.' }, { status: 503 })

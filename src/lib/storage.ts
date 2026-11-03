@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { logoObjectKeyFromReference } from './logo-reference'
 
 // Conversation storage belongs to Michelle's identity database. Do not fall
 // back to a generic TURSO_* pair: in Coolify that pair may point to a tenant
@@ -16,6 +17,15 @@ const s3 = () => { const config = storageConfig(); return config.endpoint && con
 const bucket = () => storageConfig().bucket
 function internalTelegramIds() { return new Set(String(process.env.TERAMINI_INTERNAL_TELEGRAM_IDS || process.env.TERAINTERFACE_INTERNAL_TELEGRAM_IDS || '').split(',').map(value => value.trim()).filter(Boolean)) }
 function logoNamespace(userId: string) { return internalTelegramIds().has(String(userId)) ? `terainterface/logos/${userId}` : `clients/${userId}/logos` }
+function ownedLogoKey(userId: string, reference: string) {
+  return logoObjectKeyFromReference(userId, reference, String(bucket() || ''), Array.from(internalTelegramIds()))
+}
+async function signedLogoUrl(userId: string, reference: string) {
+  const key = ownedLogoKey(userId, reference)
+  const client = s3()
+  if (!key || !client) return ''
+  return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket(), Key: key }), { expiresIn: 3600 })
+}
 export const conversationSchema = `CREATE TABLE IF NOT EXISTS miniapp_profiles (telegram_id TEXT PRIMARY KEY, username TEXT NOT NULL DEFAULT '', first_name TEXT NOT NULL DEFAULT '', last_name TEXT NOT NULL DEFAULT '', language_code TEXT NOT NULL DEFAULT '', photo_url TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', company_name TEXT NOT NULL DEFAULT '', nif TEXT NOT NULL DEFAULT '', rccm TEXT NOT NULL DEFAULT '', logo_url TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS miniapp_conversations (id TEXT PRIMARY KEY, application TEXT NOT NULL, tenant TEXT NOT NULL, external_user_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT 'Michelle', status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(application, external_user_id, status)); CREATE TABLE IF NOT EXISTS miniapp_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES miniapp_conversations(id), role TEXT NOT NULL CHECK(role IN ('user','assistant')), text TEXT NOT NULL, sent_at TEXT NOT NULL, edited_at TEXT, deleted_at TEXT, attachment_json TEXT); CREATE TABLE IF NOT EXISTS miniapp_admins (telegram_id TEXT PRIMARY KEY, username TEXT NOT NULL DEFAULT '', first_name TEXT NOT NULL DEFAULT '', last_name TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE INDEX IF NOT EXISTS idx_miniapp_messages_conversation ON miniapp_messages(conversation_id, sent_at);`
 function endpoint(raw: string) { return `${String(raw).replace(/^libsql:\/\//, 'https://').replace(/\/$/, '')}/v2/pipeline` }
 function value(cell: any) { return cell?.type === 'null' ? null : cell?.value ?? cell }
@@ -97,5 +107,30 @@ export async function uploadLogo(userId: string, file: File) {
 
 export async function uploadObject(userId: string, file: File) { const client = s3(), targetBucket = bucket(); if (!client) throw new Error('media_storage_unconfigured'); const allowed = new Set(['image/jpeg','image/png','image/webp','audio/ogg','audio/mpeg','audio/mp4','application/pdf']); if (!allowed.has(file.type)) throw new Error('media_type_forbidden'); if (file.size > 15 * 1024 * 1024) throw new Error('media_too_large'); const key = `teraminiapp/${userId}/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`; await client.send(new PutObjectCommand({ Bucket: targetBucket, Key: key, Body: Buffer.from(await file.arrayBuffer()), ContentType: file.type, Metadata: { owner: userId, application: 'terainterface-miniapp' } })); return { key, name: file.name, type: file.type, size: file.size, url: await getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket, Key: key }), { expiresIn: 900 }) } }
 
-export async function getProfile(telegramId: string) { await ensureSchema(); const rows = await query('SELECT telegram_id,username,first_name,last_name,language_code,photo_url,email,phone,address,company_name,nif,rccm,logo_url FROM miniapp_profiles WHERE telegram_id=?1 LIMIT 1', [telegramId]); return rows[0] || { telegram_id: telegramId, username: '', first_name: '', last_name: '', language_code: '', photo_url: '', email: '', company_name: '', phone: '', address: '', nif: '', rccm: '', logo_url: '' } }
-export async function updateProfile(telegramId: string, profile: Record<string, string>) { await ensureSchema(); await query('UPDATE miniapp_profiles SET company_name=?1,phone=?2,address=?3,nif=?4,rccm=?5,logo_url=?6,updated_at=?7 WHERE telegram_id=?8', [profile.company_name || '', profile.phone || '', profile.address || '', profile.nif || '', profile.rccm || '', profile.logo_url || '', new Date().toISOString(), telegramId]); return getProfile(telegramId) }
+export async function getProfile(telegramId: string) {
+  await ensureSchema()
+  const rows = await query('SELECT telegram_id,username,first_name,last_name,language_code,photo_url,email,phone,address,company_name,nif,rccm,logo_url FROM miniapp_profiles WHERE telegram_id=?1 LIMIT 1', [telegramId])
+  const profile = rows[0] || { telegram_id: telegramId, username: '', first_name: '', last_name: '', language_code: '', photo_url: '', email: '', company_name: '', phone: '', address: '', nif: '', rccm: '', logo_url: '' }
+  const storedLogo = String(profile.logo_url || '')
+  const key = ownedLogoKey(telegramId, storedLogo)
+  if (!key) return { ...profile, logo_url: '' }
+  if (storedLogo !== key) await query('UPDATE miniapp_profiles SET logo_url=?1 WHERE telegram_id=?2', [key, telegramId])
+  return { ...profile, logo_url: await signedLogoUrl(telegramId, key) }
+}
+export async function updateProfile(telegramId: string, profile: Record<string, string>) {
+  await ensureSchema()
+  const logoReference = String(profile.logo_url || '').trim()
+  const logoKey = logoReference ? ownedLogoKey(telegramId, logoReference) : ''
+  if (logoReference && !logoKey) throw new Error('logo_reference_invalid')
+  await query('UPDATE miniapp_profiles SET company_name=?1,phone=?2,address=?3,nif=?4,rccm=?5,logo_url=?6,updated_at=?7 WHERE telegram_id=?8', [profile.company_name || '', profile.phone || '', profile.address || '', profile.nif || '', profile.rccm || '', logoKey, new Date().toISOString(), telegramId])
+  return getProfile(telegramId)
+}
+export async function freshLogoUrl(telegramId: string) {
+  await ensureSchema()
+  const rows = await query('SELECT logo_url FROM miniapp_profiles WHERE telegram_id=?1 LIMIT 1', [telegramId])
+  const reference = String(rows[0]?.logo_url || '')
+  const key = ownedLogoKey(telegramId, reference)
+  if (!key) return ''
+  if (reference !== key) await query('UPDATE miniapp_profiles SET logo_url=?1 WHERE telegram_id=?2', [key, telegramId])
+  return signedLogoUrl(telegramId, key)
+}

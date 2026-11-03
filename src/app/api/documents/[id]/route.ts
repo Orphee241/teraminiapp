@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate } from '../../_auth'
+import { documentOperationError } from '../../../../lib/document-errors'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 
@@ -13,9 +14,15 @@ async function proxy(request: NextRequest, path: string, body?: unknown) {
     })
     // The document service returns 204 after a successful DELETE. A 204 response cannot contain a JSON body.
     if (response.status === 204) return new NextResponse(null, { status: 204 })
+    if (!response.ok) {
+      const message = request.method === 'PUT'
+        ? documentOperationError(response.status, 'modification')
+        : response.status === 404 ? 'Document introuvable.' : 'Impossible de traiter ce document pour le moment.'
+      return NextResponse.json({ error: message }, { status: response.status })
+    }
     const text = await response.text()
     let payload: unknown
-    try { payload = text ? JSON.parse(text) : {} } catch { payload = { error: `Service de documents indisponible (${response.status}).` } }
+    try { payload = text ? JSON.parse(text) : {} } catch { payload = { error: 'Service de documents momentanément indisponible.' } }
     return NextResponse.json(payload, { status: response.status })
   } catch {
     return NextResponse.json({ error: 'Service de documents momentanément indisponible.' }, { status: 503 })

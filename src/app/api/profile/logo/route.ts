@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate } from '../../_auth'
-import { updateProfile, uploadLogo, getProfile } from '../../../../lib/storage'
+import { updateProfile, uploadLogo, getProfile, freshLogoUrl } from '../../../../lib/storage'
+
+export async function GET(request: NextRequest) {
+  const auth = await authenticate(request)
+  if (auth.response) return auth.response
+  try { return NextResponse.json({ logo_url: await freshLogoUrl(String(auth.user!.id)) }) }
+  catch { return NextResponse.json({ error: 'Logo temporairement indisponible.' }, { status: 503 }) }
+}
 
 export async function POST(request: NextRequest) {
   const auth = await authenticate(request)
@@ -12,7 +19,7 @@ export async function POST(request: NextRequest) {
     const userId = String(auth.user!.id)
     const logo = await uploadLogo(userId, file)
     const existing = await getProfile(userId)
-    const profile = await updateProfile(userId, { ...existing, logo_url: logo.url })
+    const profile = await updateProfile(userId, { ...existing, logo_url: logo.key })
     return NextResponse.json({ logo, profile })
   } catch (error) {
     const code = error instanceof Error ? error.message : ''

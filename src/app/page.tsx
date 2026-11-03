@@ -6,6 +6,7 @@ import InvoiceCenter from './components/InvoiceCenter'
 import { closeTelegramWindow, openTelegramWindow, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
 import { createActionGate } from '../lib/action-gate'
+import { documentOperationError } from '../lib/document-errors'
 
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
@@ -158,14 +159,28 @@ export default function HomePage() {
       setBusy(false)
       return
     }
-    const payload = { document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), company: String(form.get('client_company') || existingClient.company || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: '' }, items, template_profile: 'client_zero', logo_enabled: Boolean(profile.logo_url.trim()), client_logo_path: profile.logo_url.trim(), vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
     const formElement = event.currentTarget
     try {
-      const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) }); const data = await response.json()
-      if (!response.ok) throw new Error(data.error || data.detail || 'La création a échoué.')
-      setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${editingDocument ? 'modifié' : 'créé'} avec succès.`)
+      let logoUrl = ''
+      let logoUnavailable = false
+      if (profile.logo_url.trim()) {
+        try {
+          const logoResponse = await fetch('/api/profile/logo', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+          const logoData = await logoResponse.json().catch(() => ({}))
+          logoUrl = logoResponse.ok ? String(logoData.logo_url || '') : ''
+          logoUnavailable = !logoUrl
+        } catch { logoUnavailable = true }
+      }
+      const payload = { document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), company: String(form.get('client_company') || existingClient.company || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: '' }, items, template_profile: 'client_zero', logo_enabled: Boolean(logoUrl), client_logo_path: logoUrl, vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
+      const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) })
+      if (!response.ok) {
+        setMessage(documentOperationError(response.status, editingDocument ? 'modification' : 'generation'))
+        return
+      }
+      const data = await response.json()
+      setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${editingDocument ? 'modifié' : 'créé'} avec succès.${logoUnavailable ? ' Le logo était indisponible; le document a été créé sans logo.' : ''}`)
       formElement.reset(); setLineItems([{ designation: '', quantity: '1', unit_price: '' }])
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'La création a échoué.') } finally { setEditingDocument(null); setBusy(false) }
+    } catch { setMessage('La connexion au service de documents a échoué. Vérifiez votre connexion et réessayez.') } finally { setEditingDocument(null); setBusy(false) }
     })
   }
 
@@ -219,10 +234,10 @@ function AccountScreen({ accountPage, navigateAccount, onHome, profile, setProfi
       const form = new FormData(); form.append('file', file)
       const response = await fetch('/api/profile/logo', { method: 'POST', headers: { 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '' }, body: form })
       const value = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(value.error || 'Import du logo impossible.')
-      setProfile({ ...profile, logo_url: value.logo.url })
+      if (!response.ok) { setProfileMessage(value.error || 'Import du logo impossible.'); return }
+      setProfile(value.profile || { ...profile, logo_url: value.logo.url })
       setProfileMessage('Logo importé et enregistré. Il sera utilisé sur vos prochains devis et factures.')
-    } catch (error) { setProfileMessage(error instanceof Error ? error.message : 'Import du logo impossible.') } finally { setLogoBusy(false) }
+    } catch { setProfileMessage('Le logo ne peut pas être enregistré pour le moment. Vérifiez votre connexion et réessayez.') } finally { setLogoBusy(false) }
   }
   const companyForm = <form className="profile-settings" onSubmit={saveProfile}><p className="settings-note">Ces informations apparaissent comme émetteur de vos propres devis et factures.</p><Field name="company_name" label="Nom de l’entreprise" value={profile.company_name} onChange={event => setProfile({ ...profile, company_name: event.target.value })} /><Field name="phone" label="Téléphone" value={profile.phone} onChange={event => setProfile({ ...profile, phone: event.target.value })} /><Field name="address" label="Adresse" value={profile.address} onChange={event => setProfile({ ...profile, address: event.target.value })} /><Field name="nif" label="NIF (facultatif)" value={profile.nif} onChange={event => setProfile({ ...profile, nif: event.target.value })} /><Field name="rccm" label="RCCM (facultatif)" value={profile.rccm} onChange={event => setProfile({ ...profile, rccm: event.target.value })} /><div className="logo-upload"><span className="logo-upload-label">Logo (facultatif)</span><input ref={logoInputRef} className="logo-upload-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadLogo} /><button className="logo-upload-button" type="button" disabled={logoBusy} onClick={() => logoInputRef.current?.click()}>{logoBusy ? 'Import en cours…' : profile.logo_url ? 'Changer le logo' : 'Importer le logo'}</button>{profile.logo_url && <img className="logo-upload-preview" src={profile.logo_url} alt="Logo de l’entreprise" />}</div><button className="primary-button" type="submit">Enregistrer</button>{profileMessage && <p className="form-message" role="status">{profileMessage}</p>}</form>
   const page = accountPage
