@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, BriefcaseBusiness, ChevronRight, Clipboard, ClipboardList, CreditCard, FilePlus2, FileText, Headphones, Home, Languages, Maximize2, MessageCircle, Mic, Minimize2, Paperclip, Pencil, Plus, Settings, ShieldCheck, ShoppingBag, Trash2, User, X } from 'lucide-react'
+import { ArrowLeft, BriefcaseBusiness, ChevronRight, Clipboard, ClipboardList, CreditCard, FilePlus2, FileText, Headphones, Home, Languages, Maximize2, MessageCircle, Mic, Minimize2, Paperclip, Plus, Settings, ShieldCheck, ShoppingBag, Trash2, User, X } from 'lucide-react'
 import InvoiceCenter from './components/InvoiceCenter'
 import { closeTelegramWindow, openTelegramWindow, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
@@ -43,12 +43,7 @@ declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
 type ServiceItem = { label: string; description: string; icon: typeof FileText; documentKind?: DocumentKind }
 
 const services: ServiceItem[] = [
-  { label: 'Développement web ou mobile', description: 'Sites web, applications mobiles et solutions métier.', icon: FileText },
-  { label: 'Design graphique', description: 'Identité visuelle, supports de communication et créations graphiques.', icon: Pencil },
   { label: 'Montage vidéo', description: 'Montage, habillage et finition de vos contenus vidéo.', icon: FilePlus2 },
-  { label: 'Community Management', description: 'Animation, publication et suivi de vos réseaux sociaux.', icon: MessageCircle },
-  { label: 'Création digitale', description: 'Conception de contenus et expériences numériques.', icon: Plus },
-  { label: 'Couverture photo', description: 'Reportage et couverture photographique de vos événements.', icon: FileText },
   { label: 'Couverture vidéo', description: 'Captation vidéo de vos événements et activités.', icon: FilePlus2 },
   { label: 'Créer un devis', description: 'Demander un devis professionnel personnalisé.', icon: Plus, documentKind: 'devis' },
   { label: 'Créer une facture', description: 'Créer une facture professionnelle.', icon: FilePlus2, documentKind: 'facture' },
