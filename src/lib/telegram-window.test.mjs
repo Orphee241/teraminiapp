@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { isDesktopTelegram, openTelegramWindow, toggleTelegramFullscreen, closeTelegramWindow } from './telegram-window.ts'
+import { isDesktopTelegram, openTelegramWindow, toggleTelegramFullscreen, closeTelegramWindow, configureTelegramBackButton } from './telegram-window.ts'
 
 test('desktop platforms are recognized without mistaking mobile Telegram for desktop', () => {
   for (const platform of ['tdesktop', 'windows', 'macos', 'linux', 'weba', 'webk', 'web']) assert.equal(isDesktopTelegram(platform), true)
@@ -20,10 +20,22 @@ test('older desktop clients fall back to expansion without throwing', () => {
   assert.deepEqual(calls, ['ready', 'expand'])
 })
 
-test('opening mobile Mini App remains expanded, with no desktop controls', () => {
+test('opening mobile Mini App requests native fullscreen when supported', () => {
   const calls = []
-  assert.equal(openTelegramWindow({ ready: () => calls.push('ready'), expand: () => calls.push('expand'), platform: 'ios' }), false)
-  assert.deepEqual(calls, ['ready', 'expand'])
+  assert.equal(openTelegramWindow({ ready: () => calls.push('ready'), expand: () => calls.push('expand'), requestFullscreen: () => calls.push('fullscreen'), platform: 'ios', isVersionAtLeast: () => true }), false)
+  assert.deepEqual(calls, ['ready', 'expand', 'fullscreen'])
+})
+
+test('native Telegram BackButton is shown only for a nested screen and is cleaned up', () => {
+  const calls = []
+  const backButton = { show: () => calls.push('show'), hide: () => calls.push('hide'), onClick: fn => calls.push(['on', fn]), offClick: fn => calls.push(['off', fn]) }
+  const onBack = () => undefined
+  const cleanup = configureTelegramBackButton({ BackButton: backButton }, true, onBack)
+  cleanup()
+  assert.equal(calls[0], 'show')
+  assert.equal(calls[1][0], 'on')
+  assert.equal(calls[2][0], 'off')
+  assert.equal(calls[3], 'hide')
 })
 
 test('fullscreen control is explicit, reversible, and safe on unsupported hosts', () => {

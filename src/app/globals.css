@@ -21,7 +21,7 @@ button { cursor:pointer; }
 .app-header { position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:12px; height:76px; padding:14px 18px; background:rgba(8,9,13,.88); border-bottom:1px solid var(--line); backdrop-filter:blur(18px); }
 .brand-mark { display:grid; place-items:center; width:42px; height:42px; border-radius:13px; background:var(--pink); color:white; font-family:var(--font-bebas); font-size:27px; }
 .eyebrow { margin:0; color:#9ca4b3; font-size:10px; font-weight:600; letter-spacing:.16em; }
-.app-header h1 { margin:1px 0 0; font-family:var(--font-bebas); font-size:27px; line-height:1; letter-spacing:.03em; text-transform:uppercase; }
+.app-header h1 { margin:1px 0 0; font-family:var(--font-bebas); font-size:27px; line-height:1; letter-spacing:.03em; }
 .header-icon,.close-button { display:grid; place-items:center; margin-left:auto; width:38px; height:38px; color:#c8ced9; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
 .header-actions { display:flex; align-items:center; gap:8px; margin-left:auto; }
 .window-action { display:grid; place-items:center; width:38px; height:38px; color:#c8ced9; border:1px solid var(--line); border-radius:12px; background:var(--surface); }

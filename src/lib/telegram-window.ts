@@ -11,6 +11,12 @@ export type TelegramWindow = {
   onEvent?: (event: string, callback: () => void) => void
   offEvent?: (event: string, callback: () => void) => void
   close?: () => void
+  BackButton?: {
+    show: () => void
+    hide: () => void
+    onClick: (callback: () => void) => void
+    offClick: (callback: () => void) => void
+  }
 }
 
 export function isDesktopTelegram(platform?: string): boolean {
@@ -36,10 +42,30 @@ export function openTelegramWindow(webApp: TelegramWindow): boolean {
   webApp.ready()
   webApp.expand()
   const desktop = isDesktopTelegram(webApp.platform)
-  if (desktop && webApp.isVersionAtLeast?.('8.0')) {
+  // Telegram 8+ supports native fullscreen on mobile as well as desktop.
+  if (webApp.isVersionAtLeast?.('8.0')) {
     toggleTelegramFullscreen(webApp)
   }
   return desktop
+}
+
+export function configureTelegramBackButton(
+  webApp: Pick< TelegramWindow, 'BackButton'>,
+  visible: boolean,
+  onBack: () => void,
+): () => void {
+  const button = webApp.BackButton
+  if (!button) return () => undefined
+  if (visible) {
+    button.show()
+    button.onClick(onBack)
+  } else {
+    button.hide()
+  }
+  return () => {
+    button.offClick(onBack)
+    button.hide()
+  }
 }
 
 export function closeTelegramWindow(webApp: Pick<TelegramWindow, 'close'>): boolean {

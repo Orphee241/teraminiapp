@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, afterEach, it, vi } from 'vitest'
 import InvoiceCenter from './InvoiceCenter'
@@ -50,6 +50,24 @@ describe('InvoiceCenter archive performance contract', () => {
     expect(screen.getByRole('heading', { name: kind === 'devis' ? 'Mes devis' : 'Mes factures' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(String(fetchMock.mock.calls[0][0])).toContain(`document_type=${kind}`)
+  })
+
+  it('uses the host back action to return from archive to hub, then to services', async () => {
+    const onClose = vi.fn()
+    let back: () => void = () => undefined
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ documents: [] }), { status: 200 })))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<InvoiceCenter initData="telegram-init-data" onClose={onClose} onCreate={vi.fn()} onEdit={vi.fn()} onBackReady={handler => { back = handler }} />)
+
+    await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
+    await screen.findByRole('heading', { name: 'Mes devis' })
+    act(() => back())
+    expect(await screen.findByRole('heading', { name: 'Devis et Facture' })).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+
+    act(() => back())
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('removes a deleted row immediately and does not reload the archive', async () => {

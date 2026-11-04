@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { createActionGate } from '../../lib/action-gate'
 import PdfViewer from './PdfViewer'
-import { Archive, ArrowLeft, FilePlus2, FileText, Pencil, Search, Trash2, X } from 'lucide-react'
+import { Archive, FilePlus2, FileText, Pencil, Search, Trash2, X } from 'lucide-react'
 
 type DocumentKind = 'devis' | 'facture'
 type DocumentRecord = { id: number; type_document: string; numero: string; statut: string; montant: number; notes?: string; created_at?: string }
 
-export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, archiveRefresh = null }: { initData: string; onClose: () => void; onCreate: (kind?: DocumentKind) => void; onEdit: (kind?: DocumentKind, document?: DocumentRecord) => void; archiveRefresh?: { kind: DocumentKind; key: number } | null }) {
+export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onBackReady = () => undefined, archiveRefresh = null }: { initData: string; onClose: () => void; onCreate: (kind?: DocumentKind) => void; onEdit: (kind?: DocumentKind, document?: DocumentRecord) => void; onBackReady?: (handler: () => void) => void; archiveRefresh?: { kind: DocumentKind; key: number } | null }) {
   const [screen, setScreen] = useState<'hub' | 'list'>('hub')
   const [archiveKind, setArchiveKind] = useState<DocumentKind>('devis')
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
@@ -34,6 +34,17 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, arc
     return value === kind || value === `document_${kind}` || value.includes(kind)
   }
   const visibleDocuments = documents.filter(document => matchesKind(document, archiveKind))
+
+  useEffect(() => {
+    const handleBack = () => {
+      if (confirmDelete) { setConfirmDelete(null); return }
+      if (menu) { setMenu(null); return }
+      if (selected) { setSelected(null); return }
+      if (screen === 'list') { setScreen('hub'); setSearch(''); return }
+      onClose()
+    }
+    onBackReady(handleBack)
+  }, [confirmDelete, menu, onBackReady, onClose, screen, selected])
 
   const load = async (nextSearch = search, nextKind = archiveKind) => {
     if (loadGate.current.busy) return
@@ -154,16 +165,14 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, arc
 
   return <section className="invoice-page" aria-label="Devis et factures">
     {screen === 'hub' ? <>
-      <button className="back-link invoice-back" onClick={onClose} aria-label="Retour aux services"><ArrowLeft size={16} /> Retour</button>
-      <div className="sheet-heading"><div><p className="eyebrow accent">SERVICE</p><h2>Devis et Facture</h2></div><button className="close-button" onClick={onClose} aria-label="Fermer"><X size={20} /></button></div>
+      <div className="sheet-heading"><div><p className="eyebrow accent">SERVICE</p><h2>Devis et Facture</h2></div></div>
       <div className="invoice-hub">
         <button className="action-card" onClick={() => onCreate('devis')}><span className="action-icon"><FilePlus2 size={20} /></span><span className="action-type">Document</span><strong>Créer un devis</strong></button>
         <button className="action-card" onClick={() => onCreate('facture')}><span className="action-icon"><FilePlus2 size={20} /></span><span className="action-type">Document</span><strong>Créer une facture</strong></button>
         <button className="action-card archive-action" onClick={() => openArchive('devis')}><span className="action-icon"><Archive size={20} /></span><span className="action-type">Archives</span><strong>Voir mes devis et factures</strong></button>
       </div>
     </> : <>
-      <button className="back-link" onClick={() => setScreen('hub')}><ArrowLeft size={16} /> Devis et Facture</button>
-      <div className="sheet-heading"><div><p className="eyebrow accent">ARCHIVES</p><h2>Mes {archiveKind === 'devis' ? 'devis' : 'factures'}</h2></div><button className="close-button" onClick={onClose} aria-label="Fermer"><X size={20} /></button></div>
+      <div className="sheet-heading"><div><p className="eyebrow accent">ARCHIVES</p><h2>Mes {archiveKind === 'devis' ? 'devis' : 'factures'}</h2></div></div>
       <div className="archive-switcher"><button className={archiveKind === 'devis' ? 'active' : ''} onClick={() => { setArchiveKind('devis') }}>Mes devis</button><button className={archiveKind === 'facture' ? 'active' : ''} onClick={() => { setArchiveKind('facture') }}>Mes factures</button></div>
       <div className="invoice-toolbar"><div className="invoice-search"><Search size={16} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher..." aria-label="Rechercher dans les devis et factures" /></div></div>
       <div className="invoice-list">{loading && !visibleDocuments.length ? <p className="empty-state">Chargement de vos {kindLabel(archiveKind)}…</p> : error && !visibleDocuments.length ? <p className="empty-state">{error}</p> : visibleDocuments.length ? <>{loading && <p className="pdf-status" role="status">Actualisation…</p>}{error && <p className="pdf-status pdf-error" role="status">{error}</p>}{visibleDocuments.map(document => <button className="invoice-row" key={document.id} onPointerDown={() => beginLongPress(document)} onPointerUp={cancelLongPress} onPointerCancel={cancelLongPress} onPointerLeave={cancelLongPress} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } setSelected(document) }} onContextMenu={event => { event.preventDefault(); cancelLongPress(); setMenu(document) }}><span className="invoice-row-icon"><FileText size={18} /></span><span><strong>{document.numero}</strong><small>{title(document)} · {document.montant.toLocaleString('fr-FR')} FCFA</small></span><span className="invoice-row-status">{document.statut}</span></button>)}</> : <p className="empty-state">Aucun {kindLabel(archiveKind)} généré.</p>}</div>
