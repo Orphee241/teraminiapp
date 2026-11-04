@@ -7,6 +7,8 @@ export type TelegramWindow = {
   isVersionAtLeast?: (version: string) => boolean
   requestFullscreen?: () => void
   exitFullscreen?: () => void
+  requestSafeArea?: () => void
+  requestContentSafeArea?: () => void
   isFullscreen?: boolean
   onEvent?: (event: string, callback: () => void) => void
   offEvent?: (event: string, callback: () => void) => void
@@ -45,6 +47,8 @@ export function openTelegramWindow(webApp: TelegramWindow): boolean {
   // Telegram 8+ supports native fullscreen on mobile as well as desktop.
   if (webApp.isVersionAtLeast?.('8.0')) {
     toggleTelegramFullscreen(webApp)
+    webApp.requestSafeArea?.()
+    webApp.requestContentSafeArea?.()
   }
   return desktop
 }

@@ -9,9 +9,9 @@ test('desktop platforms are recognized without mistaking mobile Telegram for des
 
 test('opening a supported desktop Mini App requests Telegram fullscreen for immediate wide view', () => {
   const calls = []
-  const webApp = { ready: () => calls.push('ready'), expand: () => calls.push('expand'), requestFullscreen: () => calls.push('fullscreen'), platform: 'tdesktop', isVersionAtLeast: (version) => version === '8.0' }
+  const webApp = { ready: () => calls.push('ready'), expand: () => calls.push('expand'), requestSafeArea: () => calls.push('safe-area'), requestContentSafeArea: () => calls.push('content-safe-area'), requestFullscreen: () => calls.push('fullscreen'), platform: 'tdesktop', isVersionAtLeast: (version) => version === '8.0' }
   assert.equal(openTelegramWindow(webApp), true)
-  assert.deepEqual(calls, ['ready', 'expand', 'fullscreen'])
+  assert.deepEqual(calls, ['ready', 'expand', 'fullscreen', 'safe-area', 'content-safe-area'])
 })
 
 test('older desktop clients fall back to expansion without throwing', () => {
