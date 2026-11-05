@@ -46,8 +46,9 @@ export function openTelegramWindow(webApp: TelegramWindow): boolean {
   webApp.ready()
   webApp.expand()
   const desktop = isDesktopTelegram(webApp.platform)
-  // Telegram 8+ supports native fullscreen on mobile as well as desktop.
-  if (webApp.isVersionAtLeast?.('8.0')) {
+  // Prefer the native fullscreen capability whenever the client exposes it.
+  // Some Telegram clients expose the method without a reliable version helper.
+  if (webApp.isVersionAtLeast?.('8.0') || webApp.requestFullscreen) {
     toggleTelegramFullscreen(webApp)
     webApp.requestSafeArea?.()
     webApp.requestContentSafeArea?.()
