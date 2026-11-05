@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, ChevronRight, Clock3, Eye, EyeOff, MessageCircle, RefreshCw, Search, ShieldCheck, Users, X } from 'lucide-react'
 import { createActionGate } from '../../lib/action-gate'
-import { configureTelegramBackButton } from '../../lib/telegram-window'
+import { configureTelegramBackButton, openTelegramWindow } from '../../lib/telegram-window'
 
 type Profile = { telegram_id: string; username?: string; first_name?: string; last_name?: string; language_code?: string; conversation_count?: number; last_activity?: string; created_at?: string }
 type Admin = { telegram_id: string; username?: string; first_name?: string; last_name?: string; created_at?: string }
@@ -36,9 +36,23 @@ export default function AdminPage() {
     webApp?.ready()
     const data = webApp?.initData || ''
     setInitData(data)
+    if (webApp) openTelegramWindow(webApp)
+    const syncSafeAreas = () => {
+      const safe = webApp?.safeAreaInset || {}
+      const content = webApp?.contentSafeAreaInset || {}
+      for (const [name, value] of Object.entries(safe)) document.documentElement.style.setProperty(`--tg-safe-area-inset-${name}`, `${Number(value) || 0}px`)
+      for (const [name, value] of Object.entries(content)) document.documentElement.style.setProperty(`--tg-content-safe-area-inset-${name}`, `${Number(value) || 0}px`)
+    }
+    syncSafeAreas()
+    webApp?.onEvent?.('safeAreaChanged', syncSafeAreas)
+    webApp?.onEvent?.('contentSafeAreaChanged', syncSafeAreas)
     const cleanupBack = webApp ? configureTelegramBackButton(webApp, true, () => { window.location.href = '/' }) : () => undefined
     if (data) void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => { if (payload?.unlocked) setUnlocked(true); else if (payload && !payload.allowed) setError('Accès administrateur requis.') }).catch(() => undefined)
-    return cleanupBack
+    return () => {
+      cleanupBack()
+      webApp?.offEvent?.('safeAreaChanged', syncSafeAreas)
+      webApp?.offEvent?.('contentSafeAreaChanged', syncSafeAreas)
+    }
   }, [])
   useEffect(() => { if (!error) return; const timer = window.setTimeout(() => setError(''), 8000); return () => window.clearTimeout(timer) }, [error])
   useEffect(() => { if (initData && unlocked) void refresh() }, [initData, unlocked])
