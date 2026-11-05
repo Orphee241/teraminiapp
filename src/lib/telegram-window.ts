@@ -9,6 +9,8 @@ export type TelegramWindow = {
   exitFullscreen?: () => void
   requestSafeArea?: () => void
   requestContentSafeArea?: () => void
+  safeAreaInset?: { top?: number; right?: number; bottom?: number; left?: number }
+  contentSafeAreaInset?: { top?: number; right?: number; bottom?: number; left?: number }
   isFullscreen?: boolean
   onEvent?: (event: string, callback: () => void) => void
   offEvent?: (event: string, callback: () => void) => void

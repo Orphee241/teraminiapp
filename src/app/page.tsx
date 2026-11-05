@@ -96,6 +96,15 @@ export default function HomePage() {
     if (!webApp) return
     const telegram = webApp
     setDesktopTelegram(openTelegramWindow(telegram))
+    const syncSafeAreas = () => {
+      const safe = telegram.safeAreaInset || {}
+      const content = telegram.contentSafeAreaInset || {}
+      for (const [name, value] of Object.entries(safe)) document.documentElement.style.setProperty(`--tg-safe-area-inset-${name}`, `${Number(value) || 0}px`)
+      for (const [name, value] of Object.entries(content)) document.documentElement.style.setProperty(`--tg-content-safe-area-inset-${name}`, `${Number(value) || 0}px`)
+    }
+    syncSafeAreas()
+    telegram.onEvent?.('safeAreaChanged', syncSafeAreas)
+    telegram.onEvent?.('contentSafeAreaChanged', syncSafeAreas)
     telegram.BackButton?.hide()
     setFullscreen(Boolean(telegram.isFullscreen))
     const syncFullscreen = () => setFullscreen(Boolean(telegram.isFullscreen))
@@ -113,6 +122,8 @@ export default function HomePage() {
       window.removeEventListener('load', expandOnReady)
       telegram.offEvent?.('fullscreenChanged', syncFullscreen)
       telegram.offEvent?.('fullscreenFailed', syncFullscreen)
+      telegram.offEvent?.('safeAreaChanged', syncSafeAreas)
+      telegram.offEvent?.('contentSafeAreaChanged', syncSafeAreas)
     }
   }, [])
 

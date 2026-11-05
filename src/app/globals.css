@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face { font-family:'Oswald'; font-style:normal; font-weight:300; src:url('/fonts/oswald-300.ttf') format('truetype'); font-display:swap; }
+@font-face { font-family:'Oswald'; font-style:normal; font-weight:400; src:url('/fonts/oswald-400.ttf') format('truetype'); font-display:swap; }
+@font-face { font-family:'Oswald'; font-style:normal; font-weight:500; src:url('/fonts/oswald-500.ttf') format('truetype'); font-display:swap; }
+@font-face { font-family:'Oswald'; font-style:normal; font-weight:600; src:url('/fonts/oswald-600.ttf') format('truetype'); font-display:swap; }
+@font-face { font-family:'Oswald'; font-style:normal; font-weight:700; src:url('/fonts/oswald-700.ttf') format('truetype'); font-display:swap; }
+@font-face { font-family:'Bebas Neue'; font-style:normal; font-weight:400; src:url('/fonts/bebas-neue-400.ttf') format('truetype'); font-display:swap; }
+
 :root { --pink:#d42e5b; --pink-soft:#f06a8b; --bg:#08090d; --surface:#11141b; --surface-2:#171b24; --line:rgba(255,255,255,.10); --muted:#8b93a3; --telegram-top-inset:max(var(--tg-content-safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px)); }
 *, *::before, *::after { box-sizing:border-box; }
 .browser-landing { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #09090b; color: #f4f4f5; }
