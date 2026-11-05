@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Activity, ArrowLeft, ChevronRight, Clock3, Home, MessageCircle, RefreshCw, Search, ShieldCheck, Users, X } from 'lucide-react'
+import { Activity, ChevronRight, Clock3, Eye, EyeOff, MessageCircle, RefreshCw, Search, ShieldCheck, Users, X } from 'lucide-react'
 import { createActionGate } from '../../lib/action-gate'
+import { configureTelegramBackButton } from '../../lib/telegram-window'
 
 type Profile = { telegram_id: string; username?: string; first_name?: string; last_name?: string; language_code?: string; conversation_count?: number; last_activity?: string; created_at?: string }
 type Admin = { telegram_id: string; username?: string; first_name?: string; last_name?: string; created_at?: string }
@@ -24,14 +25,25 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
+  const [noticeKind, setNoticeKind] = useState<'error' | 'success'>('error')
   const refreshGate = useRef(createActionGate())
   const mutationGate = useRef(createActionGate())
 
-  useEffect(() => { const webApp = window.Telegram?.WebApp; webApp?.ready(); const data = webApp?.initData || ''; setInitData(data); if (data) void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => { if (payload?.unlocked) setUnlocked(true); else if (payload && !payload.allowed) setError('Accès administrateur requis.') }).catch(() => undefined) }, [])
+  useEffect(() => {
+    const webApp = window.Telegram?.WebApp
+    webApp?.ready()
+    const data = webApp?.initData || ''
+    setInitData(data)
+    const cleanupBack = webApp ? configureTelegramBackButton(webApp, true, () => { window.location.href = '/' }) : () => undefined
+    if (data) void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => { if (payload?.unlocked) setUnlocked(true); else if (payload && !payload.allowed) setError('Accès administrateur requis.') }).catch(() => undefined)
+    return cleanupBack
+  }, [])
+  useEffect(() => { if (!error) return; const timer = window.setTimeout(() => setError(''), 8000); return () => window.clearTimeout(timer) }, [error])
   useEffect(() => { if (initData && unlocked) void refresh() }, [initData, unlocked])
 
-  async function unlock(event: React.FormEvent) { event.preventDefault(); const response = await fetch('/api/admin/access', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ password }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) return setError(payload.error || 'Accès refusé.'); setPassword(''); setUnlocked(true) }
+  async function unlock(event: React.FormEvent) { event.preventDefault(); if (!password.trim()) { setNoticeKind('error'); setError('Veuillez renseigner le mot de passe.'); return } const response = await fetch('/api/admin/access', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ password }) }); const payload = await response.json().catch(() => ({})); if (!response.ok) { setNoticeKind('error'); return setError(payload.error || 'Mot de passe incorrect.') } setPassword(''); setShowPassword(false); setNoticeKind('success'); setError('Mot de passe accepté. Accès administrateur ouvert.'); setUnlocked(true) }
 
   async function refresh() {
     if (refreshGate.current.busy) return
@@ -59,12 +71,12 @@ export default function AdminPage() {
   const conversations = useMemo(() => data.conversations.filter(item => `${item.external_user_id} ${item.title}`.toLowerCase().includes(query.toLowerCase())), [data.conversations, query])
   const isProfileAdmin = (telegramId: string) => admins.some(admin => admin.telegram_id === telegramId)
 
-  if (!unlocked) return <main className="admin-shell"><header className="admin-header"><div className="brand-mark">T</div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div><button className="admin-secondary" onClick={() => { window.location.href = '/' }}><Home size={15} /> Accueil</button></header><div className="admin-content"><section className="settings-section admin-lock"><ShieldCheck size={24} /><h2>Accès sécurisé</h2><p>Entrez le mot de passe Administration pour continuer.</p><form onSubmit={unlock}><input className="admin-password" type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Mot de passe" required /><button className="primary-button" type="submit">Ouvrir Administration</button></form>{error && <p className="form-message" role="alert">{error}</p>}</section></div></main>
+  if (!unlocked) return <main className="admin-shell"><header className="admin-header"><div className="brand-mark">T</div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div></header><div className="admin-content"><section className="settings-section admin-lock"><ShieldCheck size={24} /><h2>Accès sécurisé</h2><p>Entrez le mot de passe Administration pour continuer.</p><form onSubmit={unlock}><div className="admin-password-wrap"><input className="admin-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Mot de passe" /><button className="admin-password-toggle" type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><button className="primary-button" type="submit">Ouvrir Administration</button></form>{error && <p className={`form-message ${noticeKind}`} role="alert">{error}</p>}</section></div></main>
 
   return <main className="admin-shell">
-    <header className="admin-header"><div className="brand-mark">T</div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div><button className="admin-secondary" onClick={() => { window.location.href = '/' }}><ArrowLeft size={15} /> Quitter</button><button className="admin-refresh" onClick={refresh} disabled={loading} aria-label="Actualiser"><RefreshCw size={18} className={loading ? 'spin' : ''} /></button></header>
+    <header className="admin-header"><div className="brand-mark">T</div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div><button className="admin-refresh" onClick={refresh} disabled={loading} aria-label="Actualiser"><RefreshCw size={18} className={loading ? 'spin' : ''} /></button></header>
     <div className="admin-content">
-      {error && <div className="admin-alert"><ShieldCheck size={18} /><span>{error}</span><button onClick={() => setError('')} aria-label="Fermer"><X size={16} /></button></div>}
+      {error && <div className={`admin-alert ${noticeKind}`} role="status"><ShieldCheck size={18} /><span>{error}</span><button onClick={() => setError('')} aria-label="Fermer"><X size={16} /></button></div>}
       <section className="admin-intro"><div><p className="eyebrow accent">TABLEAU DE BORD</p><h2>Vue d’ensemble</h2><p>Suivez les utilisateurs Telegram et les échanges avec Michelle.</p></div><div className="admin-status"><span /><span>Connexion sécurisée</span></div></section>
       <section className="stat-grid"><Stat icon={Users} label="Utilisateurs" value={data.stats.users} /><Stat icon={MessageCircle} label="Conversations" value={data.stats.conversations} /><Stat icon={Activity} label="Messages" value={data.stats.messages} /></section>
       <div className="admin-toolbar"><div className="search-field"><Search size={17} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Rechercher un utilisateur…" /></div><button className="admin-secondary" onClick={refresh}><RefreshCw size={15} /> Actualiser</button></div>
