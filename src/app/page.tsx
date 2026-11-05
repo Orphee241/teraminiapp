@@ -11,6 +11,7 @@ import { documentOperationError } from '../lib/document-errors'
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
 type DocumentKind = 'devis' | 'facture'
+type NoticeKind = 'error' | 'success'
 type EditableDocument = { id: number; type_document: string; numero: string; montant: number; notes?: string | Record<string, unknown>; [key: string]: unknown }
 type DocumentLine = { designation: string; quantity: string; unit_price: string }
 type DocumentFormValues = { client_name: string; client_company: string; client_phone: string; client_address: string; items: DocumentLine[] }
@@ -58,12 +59,13 @@ export default function HomePage() {
   const [formOpen, setFormOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageKind, setMessageKind] = useState<NoticeKind>('error')
   const [archiveRefresh, setArchiveRefresh] = useState<{ kind: DocumentKind; key: number } | null>(null)
   const [initData, setInitData] = useState('')
   const [michelleOpen, setMichelleOpen] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [chatBusy, setChatBusy] = useState(false)
-  const [adminAvailable, setAdminAvailable] = useState(false)
+  const [adminAvailable, setAdminAvailable] = useState(true)
   const [desktopTelegram, setDesktopTelegram] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const invoiceBackRef = useRef<() => void>(() => undefined)
@@ -81,6 +83,8 @@ export default function HomePage() {
   const messageGate = useRef(createActionGate())
   const mediaGate = useRef(createActionGate())
   const deleteMessageGate = useRef(createActionGate())
+
+  const notify = (text: string, kind: NoticeKind = 'error') => { setMessageKind(kind); setMessage(text) }
 
 
   useEffect(() => {
@@ -151,11 +155,11 @@ export default function HomePage() {
 
   const openCreate = (kind: DocumentKind, document: EditableDocument | null = null) => { const values = documentFormValues(document); setDocumentKind(kind); setEditingDocument(document); setLineItems(values.items); setMessage(''); setFormOpen(true) }
   const closeForm = () => { if (!busy) setFormOpen(false) }
-  const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : setMessage(`${service.label} : Michelle vous donnera les informations disponibles sur ce service.`)
+  const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : notify('Ce service sera bientôt disponible.')
   const openAccount = (page: AccountPage = 'menu') => { setAccountPage(page); setTab('profil'); window.localStorage.setItem('terainterface-account-page', page); window.localStorage.setItem('terainterface-tab', 'profil') }
   const navigate = (value: Tab) => { setTab(value); if (value !== 'profil') setAccountPage('menu'); window.localStorage.setItem('terainterface-tab', value); if (value !== 'profil') window.localStorage.setItem('terainterface-account-page', 'menu') }
   const navigateAccount = (value: AccountPage) => { setAccountPage(value); window.localStorage.setItem('terainterface-account-page', value) }
-  const updateLanguage = (value: string) => { setLanguage(value); window.localStorage.setItem('terainterface-language', value); setMessage(value === 'fr' ? 'Langue française sélectionnée.' : 'English selected.') }
+  const updateLanguage = (value: string) => { setLanguage(value); window.localStorage.setItem('terainterface-language', value); notify(value === 'fr' ? 'Langue française sélectionnée.' : 'English selected.', 'success') }
 
   async function createDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -164,14 +168,14 @@ export default function HomePage() {
     setBusy(true); setMessage('')
     const form = new FormData(event.currentTarget)
     const items = form.getAll('designation').map((designation, index) => ({ designation: String(designation).trim(), quantity: Number(form.getAll('quantity')[index] || 1), unit_price: Number(form.getAll('unit_price')[index] || 0) })).filter(item => item.designation)
-    if (!items.length || items.some(item => item.quantity < 1 || item.unit_price <= 0)) { setMessage('Ajoutez au moins une ligne complète avec une désignation, une quantité et un prix unitaire.'); setBusy(false); return }
+    if (!items.length || items.some(item => item.quantity < 1 || item.unit_price <= 0)) { notify('Ajoutez au moins une ligne complète avec une désignation, une quantité et un prix unitaire.'); setBusy(false); return }
     let existingClient: { name?: string; company?: string; address?: string; phone?: string } = {}
     if (editingDocument?.notes) { try { const parsed = typeof editingDocument.notes === 'string' ? JSON.parse(editingDocument.notes) : editingDocument.notes; existingClient = (parsed as { client?: typeof existingClient }).client || {} } catch { existingClient = {} } }
     const issuerName = profile.company_name.trim()
     const issuerPhone = profile.phone.trim()
     const issuerAddress = profile.address.trim()
     if (!issuerName || !issuerPhone || !issuerAddress) {
-      setMessage('Complétez les informations de votre entreprise dans Paramètres avant de créer le document.')
+      notify('Complétez les informations de votre entreprise dans Paramètres avant de créer le document.')
       setAccountPage('settings')
       setTab('profil')
       window.localStorage.setItem('terainterface-account-page', 'settings')
@@ -194,19 +198,19 @@ export default function HomePage() {
       const payload = { document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), company: String(form.get('client_company') || existingClient.company || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: '' }, items, template_profile: 'client_zero', logo_enabled: Boolean(logoUrl), client_logo_path: logoUrl, vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
       const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) })
       if (!response.ok) {
-        setMessage(documentOperationError(response.status, editingDocument ? 'modification' : 'generation'))
+        notify(documentOperationError(response.status, editingDocument ? 'modification' : 'generation'))
         return
       }
       const data = await response.json()
       const wasEditing = Boolean(editingDocument)
       const savedKind = documentKind
-      setMessage(`${savedKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${wasEditing ? 'modifié' : 'créé'} avec succès.${logoUnavailable ? ' Le logo était indisponible; le document a été créé sans logo.' : ''}`)
+      notify(`${savedKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${wasEditing ? 'modifié' : 'créé'} avec succès.${logoUnavailable ? ' Le logo était indisponible; le document a été créé sans logo.' : ''}`, 'success')
       formElement.reset(); setLineItems([{ designation: '', quantity: '1', unit_price: '' }])
       if (wasEditing) {
         setFormOpen(false)
         setArchiveRefresh(previous => ({ kind: savedKind, key: (previous?.key || 0) + 1 }))
       }
-    } catch { setMessage('La connexion au service de documents a échoué. Vérifiez votre connexion et réessayez.') } finally { setEditingDocument(null); setBusy(false) }
+    } catch { notify('La connexion au service de documents a échoué. Vérifiez votre connexion et réessayez.') } finally { setEditingDocument(null); setBusy(false) }
     })
   }
 
@@ -225,22 +229,24 @@ export default function HomePage() {
     })
   }
 
-  async function copyMessage(text: string) { await navigator.clipboard?.writeText(text); setMessage('Message copié.') }
+  async function copyMessage(text: string) { await navigator.clipboard?.writeText(text); notify('Message copié.') }
   async function deleteMessage() { if (!selectedMessage || deleteMessageGate.current.busy) return; return deleteMessageGate.current.run(async () => { const response = await fetch(`/api/conversations?id=${encodeURIComponent(selectedMessage)}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } }); if (response.ok) setChatMessages(previous => previous.map(item => item.id === selectedMessage ? { ...item, text: '[Message supprimé]' } : item)); setSelectedMessage('') }) }
-  async function sendMedia(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file || mediaGate.current.busy) return; return mediaGate.current.run(async () => { const form = new FormData(); form.append('file', file); form.append('text', file.name); const response = await fetch('/api/media', { method: 'POST', headers: { 'x-telegram-init-data': initData }, body: form }); const data = await response.json(); if (!response.ok) return setMessage(data.error || 'Envoi du média impossible.'); setChatMessages(previous => [...previous, { id: data.message.id, role: 'user', text: file.name, sentAt: data.message.sent_at }]); event.target.value = '' }) }
+  async function sendMedia(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file || mediaGate.current.busy) return; return mediaGate.current.run(async () => { const form = new FormData(); form.append('file', file); form.append('text', file.name); const response = await fetch('/api/media', { method: 'POST', headers: { 'x-telegram-init-data': initData }, body: form }); const data = await response.json(); if (!response.ok) return notify(data.error || 'Envoi du média impossible.'); setChatMessages(previous => [...previous, { id: data.message.id, role: 'user', text: file.name, sentAt: data.message.sent_at }]); event.target.value = '' }) }
+
+  useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 8000); return () => window.clearTimeout(timer) }, [message])
 
   if (!telegramAvailable || !hydrated) return <main className="browser-landing"><section className="browser-landing-card"><div className="brand-mark">T</div><p className="eyebrow accent">TERAINTERFACE</p><h1>Votre espace</h1><p>Accède plus rapidement à nos services via notre Application</p><a className="primary-button browser-open-button" href="https://t.me/Terainterface_bot?startapp" rel="noopener noreferrer">Ouvrir l’App</a><small>Telegram s’ouvrira pour lancer l’application.</small></section></main>
 
   return <main className="app-shell">
-    <header className="app-header"><div className="brand-mark">T</div><div><h1>Terainterface</h1></div><div className="header-actions">{desktopTelegram && <button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}<button className="header-icon" aria-label="Mon compte" onClick={() => openAccount()}><Headphones size={19} /></button></div></header>
+    <header className="app-header"><div className="brand-mark">T</div><div><h1>Terainterface</h1></div><div className="header-actions">{desktopTelegram && <button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}</div></header>
     <div className="content">
       {tab === 'accueil' && <section className="screen"><p className="eyebrow accent">ESPACE CLIENT</p><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => navigate('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
       {tab === 'services' && <section className="screen"><p className="eyebrow accent">NOS SOLUTIONS</p><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.filter(service => !service.documentKind).map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}<button className="service-card" onClick={() => navigate('facture')}><span className="service-icon"><FileText size={20} /></span><span className="service-copy"><strong>Devis et Facture</strong><small>Créer et retrouver vos devis et factures générés.</small></span><span className="chevron">›</span></button></div></section>}
       {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} onClose={() => navigate('services')} onBackReady={handler => { invoiceBackRef.current = handler }} archiveRefresh={archiveRefresh} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} /></section>}
       {tab === 'profil' && <AccountScreen accountPage={accountPage} navigateAccount={navigateAccount} profile={profile} setProfile={setProfile} profileMessage={profileMessage} setProfileMessage={setProfileMessage} language={language} updateLanguage={updateLanguage} adminAvailable={adminAvailable} openMichelle={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} onAdmin={() => { window.location.href = '/adm' }} />}
     </div>
-    {message && <div className="toast" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Fermer"><X size={16} /></button></div>}
-    {michelleOpen && <div className="chat-backdrop"><section className="chat-sheet"><div className="chat-header"><div><p className="eyebrow accent">ASSISTANTE TERAINTERFACE</p><h2>Michelle</h2></div><button className="close-button" onClick={() => setMichelleOpen(false)} aria-label="Fermer"><X size={20} /></button></div><div ref={chatMessagesRef} className="chat-messages" aria-live="polite">{chatMessages.map((item, index) => <div className={`chat-bubble ${item.role}`} key={item.id || `${item.role}-${index}`} onClick={() => item.id && setSelectedMessage(item.id)}><span>{item.text}</span><time>{item.sentAt ? new Date(item.sentAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</time>{selectedMessage === item.id && item.role === 'user' && <span className="message-actions"><button type="button" onClick={() => copyMessage(item.text)} aria-label="Copier"><Clipboard size={14} /></button><button type="button" onClick={deleteMessage} aria-label="Supprimer"><Trash2 size={14} /></button></span>}</div>)}{chatBusy && <div className="chat-bubble assistant"><span className="typing">Michelle écrit…</span></div>}</div><form className="chat-composer" onSubmit={sendToMichelle}><button type="button" className="composer-tool" title="Note vocale bientôt disponible" aria-label="Note vocale"><Mic size={18} /></button><button type="button" className="composer-tool" title="Envoyer un média" aria-label="Envoyer un média" onClick={() => fileInputRef.current?.click()}><Paperclip size={18} /></button><input ref={fileInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp,audio/ogg,audio/mpeg,audio/mp4,application/pdf" onChange={sendMedia} /><input value={chatInput} onChange={event => setChatInput(event.target.value)} placeholder="Écrire à Michelle…" aria-label="Message à Michelle" /><button type="submit" disabled={chatBusy || !chatInput.trim()} aria-label="Envoyer"><ArrowLeft size={18} /></button></form><p className="chat-note">Les médias et notes vocales seront ajoutés après validation du stockage sécurisé.</p></section></div>}
+    {message && <div className={`toast ${messageKind}`} role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Fermer"><X size={16} /></button></div>}
+    {michelleOpen && <div className="chat-backdrop"><section className="chat-sheet"><div className="chat-header"><div><p className="eyebrow accent">ASSISTANTE TERAINTERFACE</p><h2>Michelle</h2></div></div><div ref={chatMessagesRef} className="chat-messages" aria-live="polite">{chatMessages.map((item, index) => <div className={`chat-bubble ${item.role}`} key={item.id || `${item.role}-${index}`} onClick={() => item.id && setSelectedMessage(item.id)}><span>{item.text}</span><time>{item.sentAt ? new Date(item.sentAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</time>{selectedMessage === item.id && item.role === 'user' && <span className="message-actions"><button type="button" onClick={() => copyMessage(item.text)} aria-label="Copier"><Clipboard size={14} /></button><button type="button" onClick={deleteMessage} aria-label="Supprimer"><Trash2 size={14} /></button></span>}</div>)}{chatBusy && <div className="chat-bubble assistant"><span className="typing">Michelle écrit…</span></div>}</div><form className="chat-composer" onSubmit={sendToMichelle}><button type="button" className="composer-tool" title="Note vocale bientôt disponible" aria-label="Note vocale"><Mic size={18} /></button><button type="button" className="composer-tool" title="Envoyer un média" aria-label="Envoyer un média" onClick={() => fileInputRef.current?.click()}><Paperclip size={18} /></button><input ref={fileInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp,audio/ogg,audio/mpeg,audio/mp4,application/pdf" onChange={sendMedia} /><input value={chatInput} onChange={event => setChatInput(event.target.value)} placeholder="Écrire à Michelle…" aria-label="Message à Michelle" /><button type="submit" disabled={chatBusy || !chatInput.trim()} aria-label="Envoyer"><ArrowLeft size={18} /></button></form><p className="chat-note">Les médias et notes vocales seront ajoutés après validation du stockage sécurisé.</p></section></div>}
     {formOpen && (() => { const values = documentFormValues(editingDocument); return <div className="sheet-backdrop" onMouseDown={closeForm}><section className="form-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">{editingDocument ? 'MODIFIER LE DOCUMENT' : 'NOUVEAU DOCUMENT'}</p><h2>{editingDocument ? `Modifier ${documentKind === 'devis' ? 'le devis' : 'la facture'}` : documentKind === 'devis' ? 'Créer un devis' : 'Créer une facture'}</h2></div><button className="close-button" onClick={closeForm} aria-label="Fermer"><X size={20} /></button></div><form key={editingDocument?.id || `new-${documentKind}`} onSubmit={createDocument}><div className="form-grid"><Field name="client_name" label="Nom du client" defaultValue={values.client_name} required /><Field name="client_company" label="Entreprise du client" defaultValue={values.client_company} /><Field name="client_phone" label="Téléphone" type="tel" defaultValue={values.client_phone} required /><Field name="client_address" label="Adresse" defaultValue={values.client_address} required /><div className="document-lines"><div className="document-lines-heading"><strong>Articles et prestations</strong><small>{lineItems.length} ligne{lineItems.length > 1 ? 's' : ''}</small></div>{lineItems.map((item, index) => <div className="document-line" key={index}><div className="document-line-number">{index + 1}</div><div className="line-designation"><Field name="designation" label="Désignation" defaultValue={item.designation} required />{index === lineItems.length - 1 && <button type="button" className="add-line-icon" aria-label="Ajouter une ligne" title="Ajouter une ligne" onClick={() => setLineItems(previous => [...previous, { designation: '', quantity: '1', unit_price: '' }])}><Plus size={18} /></button>}</div><Field name="quantity" label="Quantité" type="number" min="1" defaultValue={item.quantity} required /><Field name="unit_price" label="Prix unitaire (FCFA)" type="number" min="1" defaultValue={item.unit_price} required />{lineItems.length > 1 && <button type="button" className="remove-line" aria-label={`Supprimer la ligne ${index + 1}`} title="Supprimer cette ligne" onClick={() => setLineItems(previous => previous.filter((_, lineIndex) => lineIndex !== index))}><Trash2 size={16} /></button>}</div>)}</div></div><button disabled={busy} className="primary-button" type="submit">{busy ? 'Enregistrement en cours…' : editingDocument ? 'Enregistrer les modifications' : `Créer ${documentKind === 'devis' ? 'le devis' : 'la facture'}`}</button>{message && <p className="form-message" role="status">{message}</p>}</form></section></div> })()}
     <nav className="bottom-nav"><NavButton active={tab === 'accueil'} icon={Home} label="Accueil" onClick={() => navigate('accueil')} /><NavButton active={tab === 'services'} icon={ShoppingBag} label="Services" onClick={() => navigate('services')} /><NavButton active={tab === 'profil'} icon={User} label="Mon compte" onClick={() => openAccount()} /></nav>
   </main>
