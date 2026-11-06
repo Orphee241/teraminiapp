@@ -230,7 +230,17 @@ button { cursor:pointer; }
 .admin-pagination button { padding:7px 10px; color:#dfe3ea; border:1px solid var(--line); border-radius:8px; background:var(--surface); font:inherit; }
 .admin-pagination button:disabled { cursor:not-allowed; opacity:.4; }
 .online-dot { display:inline-block; width:7px; height:7px; margin-left:5px; border-radius:50%; background:#52d68b; box-shadow:0 0 8px #52d68b; vertical-align:middle; }
-.admin-content { overscroll-behavior-y: contain; }
+.profile-avatar img { width:100%; height:100%; border-radius:inherit; object-fit:cover; }
+.profile-card { cursor:pointer; }
+.profile-detail-sheet { width:min(100%,720px); max-height:min(760px,calc(100dvh - var(--telegram-top-inset) - 24px)); overflow:auto; padding:22px; border:1px solid var(--line); border-radius:24px 24px 0 0; background:#11141b; }
+.profile-detail-identity { display:flex; align-items:center; gap:12px; margin-top:20px; padding:14px; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.035); }
+.profile-detail-identity img,.profile-detail-avatar { width:56px; height:56px; border-radius:16px; object-fit:cover; }
+.profile-detail-avatar { display:grid; place-items:center; color:white; background:var(--pink); font-family:var(--font-bebas); font-size:32px; }
+.profile-detail-identity strong,.profile-detail-identity span { display:block; }.profile-detail-identity span { margin-top:4px; color:var(--muted); font-size:12px; }
+.profile-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; margin-top:16px; overflow:hidden; border:1px solid var(--line); border-radius:14px; background:var(--line); }
+.profile-detail-item { min-width:0; padding:12px; background:#11141b; }.profile-detail-item small,.profile-detail-item strong { display:block; }.profile-detail-item small { color:var(--muted); font-size:11px; }.profile-detail-item strong { margin-top:4px; overflow-wrap:anywhere; font-size:14px; font-weight:500; }
+@media (max-width:650px) { .profile-detail-sheet { width:100%; max-height:calc(100dvh - var(--telegram-top-inset) - 16px); padding:16px; border-radius:18px 18px 0 0; } .profile-detail-grid { grid-template-columns:1fr; } }
+
 .stat-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; row-gap:14px; margin-bottom:42px; }
 .admin-mobile-carousel { gap:18px; margin-top:18px; }
 .admin-panel { min-width:0; margin-top:0; }
