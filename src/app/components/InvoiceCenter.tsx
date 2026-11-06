@@ -22,7 +22,8 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const loaded = useRef(false)
-  const loadGate = useRef(createActionGate())
+  const loadRequestId = useRef(0)
+  const currentSearch = useRef('')
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const removeGate = useRef(createActionGate())
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -52,24 +53,22 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
   }, [confirmDelete, menu, onBackReady, onClose, screen, selected])
 
   const load = async (nextSearch = search, nextKind = archiveKind) => {
-    if (loadGate.current.busy) return
-    return loadGate.current.run(async () => {
+    const requestId = ++loadRequestId.current
+    const normalizedSearch = nextSearch.trim()
+    currentSearch.current = normalizedSearch
     setLoading(true)
     setError('')
     try {
-      const query = new URLSearchParams({ search: nextSearch, status: 'genere', document_type: nextKind })
+      const query = new URLSearchParams({ search: normalizedSearch, status: 'genere', document_type: nextKind })
       const response = await fetch(`/api/documents?${query}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || data.detail || `Impossible de charger vos ${kindLabel(nextKind)}.`)
-      setDocuments(Array.isArray(data.documents) ? data.documents : [])
+      if (requestId === loadRequestId.current) setDocuments(Array.isArray(data.documents) ? data.documents : [])
     } catch (reason) {
-      // Keep the last authoritative list visible. A transient refresh failure must
-      // never make existing documents disappear from the archive.
-      setError(reason instanceof Error ? reason.message : `Impossible de charger vos ${kindLabel(archiveKind)}.`)
+      if (requestId === loadRequestId.current) setError(reason instanceof Error ? reason.message : `Impossible de charger vos ${kindLabel(nextKind)}.`)
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestId.current) setLoading(false)
     }
-    })
   }
 
   useEffect(() => {
@@ -93,9 +92,12 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
   }, [archiveRefresh?.key])
 
   useEffect(() => {
-    if (screen !== 'list' || !loaded.current || !search.trim()) return
+    if (screen !== 'list' || !loaded.current) return
+    const nextSearch = search.trim()
+    if (nextSearch === currentSearch.current) return
     if (searchTimer.current) clearTimeout(searchTimer.current)
-    searchTimer.current = setTimeout(() => { void load(search, archiveKind) }, 250)
+    setArchivePage(1)
+    searchTimer.current = setTimeout(() => { void load(nextSearch, archiveKind) }, 250)
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current) }
   }, [search, archiveKind, screen])
 

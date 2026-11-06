@@ -100,6 +100,37 @@ describe('InvoiceCenter archive performance contract', () => {
     expect(await screen.findByRole('button', { name: /FAC-ARCHIVE-88/i })).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([input]) => new URL(String(input), 'https://local').searchParams.get('document_type') === 'facture')).toBe(true)
   })
+  it.each(['devis', 'facture'] as const)('restores the full %s archive when the search is cleared', async kind => {
+    const prefix = kind === 'devis' ? 'DEV' : 'FAC'
+    const first = { ...documentRow, id: kind === 'devis' ? 101 : 201, type_document: kind, numero: `${prefix}-SEARCH-1` }
+    const second = { ...documentRow, id: kind === 'devis' ? 102 : 202, type_document: kind, numero: `${prefix}-SEARCH-2` }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const query = new URL(String(input), 'https://local').searchParams
+      const records = [first, second].filter(row => row.type_document === query.get('document_type') && row.numero.includes(query.get('search') || ''))
+      return Promise.resolve(new Response(JSON.stringify({ documents: records }), { status: 200 }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
+    if (kind === 'facture') {
+      await screen.findByRole('heading', { name: 'Mes devis' })
+      await user.click(screen.getByRole('button', { name: 'Mes factures' }))
+    }
+    const firstRowNumber = `${prefix}-SEARCH-1`
+    const secondRowNumber = `${prefix}-SEARCH-2`
+    await screen.findByRole('button', { name: new RegExp(firstRowNumber) })
+    const input = screen.getByRole('textbox', { name: 'Rechercher dans les devis et factures' })
+    await user.type(input, firstRowNumber)
+    await screen.findByRole('button', { name: new RegExp(firstRowNumber) })
+    await waitFor(() => expect(screen.queryByRole('button', { name: new RegExp(secondRowNumber) })).not.toBeInTheDocument())
+    await user.clear(input)
+    expect(await screen.findByRole('button', { name: new RegExp(secondRowNumber) })).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => {
+      const query = new URL(String(url), 'https://local').searchParams
+      return query.get('document_type') === kind && query.get('search') === ''
+    })).toBe(true)
+  })
   it('shows the invoice action from a quote preview and passes the selected quote', async () => {
     const onCreateFromQuote = vi.fn()
     const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ documents: [documentRow] }), { status: 200 })))
