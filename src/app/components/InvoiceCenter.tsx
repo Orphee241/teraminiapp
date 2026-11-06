@@ -78,7 +78,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
       setArchivePage(1)
       void load()
     }
-  }, [screen])
+  }, [screen, archiveKind])
 
   useEffect(() => {
     if (!archiveRefresh) return

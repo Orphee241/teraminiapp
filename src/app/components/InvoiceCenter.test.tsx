@@ -70,8 +70,35 @@ describe('InvoiceCenter archive performance contract', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('keeps pagination at four rows per document kind', () => {
-    expect(4).toBe(4)
+  it('shows four archive rows per page and reveals the fifth on the next page', async () => {
+    const quoteRows = Array.from({ length: 5 }, (_, index) => ({ ...documentRow, id: index + 1, numero: `DEV-PAGE-${index + 1}` }))
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ documents: quoteRows }), { status: 200 })))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
+    for (let i = 1; i <= 4; i++) expect(await screen.findByRole('button', { name: new RegExp(`DEV-PAGE-${i}`) })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /DEV-PAGE-5/ })).not.toBeInTheDocument()
+    expect(screen.getByText('Page 1 / 2')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Suivant' }))
+    expect(await screen.findByRole('button', { name: /DEV-PAGE-5/ })).toBeInTheDocument()
+    expect(screen.getByText('Page 2 / 2')).toBeInTheDocument()
+  })
+
+  it('reloads and displays invoices when switching from quotes to invoices', async () => {
+    const invoice = { ...documentRow, id: 88, type_document: 'facture', numero: 'FAC-ARCHIVE-88' }
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const kind = new URL(String(input), 'https://local').searchParams.get('document_type')
+      return Promise.resolve(new Response(JSON.stringify({ documents: kind === 'facture' ? [invoice] : [documentRow] }), { status: 200 }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
+    await screen.findByRole('button', { name: /DEV-TEST-42/i })
+    await user.click(screen.getByRole('button', { name: 'Mes factures' }))
+    expect(await screen.findByRole('button', { name: /FAC-ARCHIVE-88/i })).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input]) => new URL(String(input), 'https://local').searchParams.get('document_type') === 'facture')).toBe(true)
   })
   it('shows the invoice action from a quote preview and passes the selected quote', async () => {
     const onCreateFromQuote = vi.fn()
