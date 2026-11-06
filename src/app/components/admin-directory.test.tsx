@@ -6,6 +6,8 @@ const root = resolve(process.cwd(), 'src')
 const storage = readFileSync(resolve(root, 'lib/storage.ts'), 'utf8')
 const adminPage = readFileSync(resolve(root, 'app/adm/page.tsx'), 'utf8')
 const adminRoute = readFileSync(resolve(root, 'app/api/admin/conversations/route.ts'), 'utf8')
+const accessRoute = readFileSync(resolve(root, 'app/api/admin/access/route.ts'), 'utf8')
+const auth = readFileSync(resolve(root, 'app/api/_auth.ts'), 'utf8')
 
 describe('admin directory regression contracts', () => {
   it('renders the profile count and connection badge with dedicated breathing room', () => {
@@ -33,12 +35,23 @@ describe('admin directory regression contracts', () => {
     expect(adminRoute).not.toMatch(/username:\s*String\(body\.username/)
   })
 
-  it('stores last app visit separately from last Michelle conversation activity', () => {
-    expect(storage).toContain('last_app_visit_at')
-    expect(storage).toContain('strftime')
-    expect(storage).toContain('is_online')
-    expect(adminPage).toContain('Dernière activité')
-    expect(adminPage).toContain('En ligne')
-    expect(adminPage).not.toContain('profile.last_activity || profile.created_at')
+  it('reports online as Now only in Telegram live status window and never from conversation timestamps', () => {
+    expect(storage).toContain('CASE WHEN p.last_app_visit_at')
+    expect(storage).not.toContain('MAX(c.updated_at) AS last_activity')
+    expect(adminPage).toContain('const isProfileOnline = (profile: Profile)')
+    expect(adminPage).toContain("isProfileOnline(profile) ? 'Maintenant'")
+  })
+
+  it('keeps profile detail in an in-page view and suppresses add-admin action for existing admins', () => {
+    expect(adminPage).toContain('const onBack = () =>')
+    expect(adminPage).toContain('if (selectedProfile) setSelectedProfile(null)')
+    expect(adminPage).toContain("!isProfileAdmin(profile.telegram_id) &&")
+    expect(adminPage).toContain('selectedProfile &&')
+  })
+
+  it('creates the current Telegram user as the primary admin on first authenticated access', () => {
+    expect(auth).toContain('export function telegramProfile')
+    expect(accessRoute).toContain('upsertAdmin({ telegram_id: userId')
+    expect(accessRoute).toContain("auth.user?.username || ''")
   })
 })

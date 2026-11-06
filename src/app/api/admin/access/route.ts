@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
-import { authenticate, isAdmin, adminSessionValue, ADMIN_SESSION_COOKIE, hasAdminSession } from '../../_auth'
+import { authenticate, isAdmin, adminSessionValue, ADMIN_SESSION_COOKIE, hasAdminSession, telegramProfile } from '../../_auth'
 import { listAdmins, upsertAdmin } from '../../../../lib/storage'
 
 export async function GET(request: NextRequest) {
@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   if (auth.response) return auth.response
   const userId = String(auth.user?.id || '')
   const allowed = await isAdmin(userId)
+  if (allowed) { try { await upsertAdmin(telegramProfile(auth.user!)) } catch { /* Access remains governed by the existing allow-list. */ } }
   const unlocked = allowed && hasAdminSession(request, userId)
   const response = NextResponse.json({ allowed, unlocked })
   if (unlocked) response.cookies.set(ADMIN_SESSION_COOKIE, adminSessionValue(userId, Date.now() + 30 * 60 * 1000), { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 1800, path: '/' })
