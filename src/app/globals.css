@@ -179,7 +179,8 @@ button { cursor:pointer; }
 .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; margin-top: 14px; }
 .form-sheet .field { font-size:17px; line-height:1.25; }
 .form-sheet .field input { margin-top: 3px; min-height: 34px; padding: 7px 8px; font-size: 14px; }
-.form-sheet .primary-button { margin-top: 12px; padding: 10px 14px; }
+.form-sheet form { padding-bottom:32px; }
+.form-sheet form .primary-button { position:sticky; bottom:12px; z-index:2; margin-bottom:0; box-shadow:0 8px 20px rgba(0,0,0,.38); }
 @media (max-width: 460px) {
   .sheet-backdrop { align-items: flex-start; padding: calc(8px + var(--telegram-top-inset)) 8px 8px; }
   .form-sheet { width: 100%; max-height: calc(100dvh - var(--telegram-top-inset) - 16px); padding: 12px; border-radius: 16px; }

@@ -29,4 +29,10 @@ describe('admin responsive layout regression', () => {
     expect(css).toMatch(/\.sheet-backdrop\s*\{\s*align-items:\s*flex-start;\s*padding:\s*calc\(8px\s*\+\s*var\(--telegram-top-inset\)\)/)
     expect(css).toMatch(/\.form-sheet\s*\{\s*width:\s*100%;\s*max-height:\s*calc\(100dvh\s*-\s*var\(--telegram-top-inset\)\s*-\s*16px\)/)
   })
+
+  it('keeps the document submit action reachable after long mobile forms', () => {
+    expect(css).toMatch(/\.form-sheet form\s*\{[^}]*padding-bottom:\s*32px/)
+    expect(css).toMatch(/\.form-sheet form \.primary-button\s*\{[^}]*position:\s*sticky/)
+    expect(css).toMatch(/\.form-sheet form \.primary-button\s*\{[^}]*bottom:\s*12px/)
+  })
 })
