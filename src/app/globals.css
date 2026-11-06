@@ -226,19 +226,21 @@ button { cursor:pointer; }
 
 /* Final Telegram/admin layout corrections: keep host swipe gestures out of the private dashboard, preserve visible breathing room, and cap the admin form. */
 .admin-content { overscroll-behavior-y: contain; }
-.stat-grid { row-gap: 14px; margin-bottom: 42px; }
-.admin-mobile-carousel { gap: 18px; margin-top: 18px; }
-.admin-panel { margin-top: 0; }
-.admin-admin-form { width: min(100%, 560px); max-width: 560px; }
+.stat-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; row-gap:14px; margin-bottom:42px; }
+.admin-mobile-carousel { gap:18px; margin-top:18px; }
+.admin-panel { min-width:0; margin-top:0; }
+.admin-admin-form { width:min(100%,560px); max-width:560px; min-width:0; box-sizing:border-box; }
+.admin-admin-form input { width:100%; min-width:0; box-sizing:border-box; }
+.admin-admin-form .primary-button { min-width:0; max-width:100%; box-sizing:border-box; overflow-wrap:anywhere; word-break:break-word; }
 @media (max-width:650px) {
-  .stat-grid { row-gap: 12px; margin-bottom: 28px; }
-  .admin-mobile-carousel { gap: 16px; margin-top: 0; padding-top: 4px; }
-  .admin-mobile-carousel > .admin-panel { margin-top: 0; }
-  .admin-admin-form { width: min(100%, 420px); max-width: 420px; margin-right: auto; }
+  .stat-grid { grid-template-columns:1fr; row-gap:12px; margin-bottom:28px; }
+  .admin-mobile-carousel { gap:16px; margin-top:0; padding-top:4px; }
+  .admin-mobile-carousel > .admin-panel { min-width:0; margin-top:0; }
+  .admin-admin-form { width:min(100%,420px); max-width:420px; margin-right:auto; }
 }
 @media (min-width:651px) {
   .admin-mobile-carousel { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:start; gap:18px; margin-top:0; }
-  .admin-mobile-carousel > .admin-panel { margin-top:0; }
+  .admin-mobile-carousel > .admin-panel { min-width:0; margin-top:0; }
 }
 /* Add a deliberate second inset below Telegram's native top controls. */
 .sheet-backdrop { padding-top: calc(40px + var(--telegram-top-inset)); }
