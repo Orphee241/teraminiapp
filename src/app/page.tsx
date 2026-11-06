@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, BriefcaseBusiness, ChevronRight, Clipboard, ClipboardList, CreditCard, FilePlus2, FileText, Headphones, Home, Languages, Maximize2, MessageCircle, Mic, Minimize2, Paperclip, Plus, Settings, ShieldCheck, ShoppingBag, Trash2, User, X } from 'lucide-react'
 import InvoiceCenter from './components/InvoiceCenter'
-import { configureTelegramBackButton, openTelegramWindow, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
+import { configureTelegramBackButton, openTelegramWindow, setTelegramVerticalSwipes, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
 import { createActionGate } from '../lib/action-gate'
 import { documentOperationError } from '../lib/document-errors'
@@ -99,6 +99,7 @@ export default function HomePage() {
     setHydrated(true)
     if (!webApp) return
     const telegram = webApp
+    setTelegramVerticalSwipes(telegram, false)
     setDesktopTelegram(openTelegramWindow(telegram))
     const syncSafeAreas = () => {
       const safe = telegram.safeAreaInset || {}
@@ -128,6 +129,7 @@ export default function HomePage() {
       telegram.offEvent?.('fullscreenFailed', syncFullscreen)
       telegram.offEvent?.('safeAreaChanged', syncSafeAreas)
       telegram.offEvent?.('contentSafeAreaChanged', syncSafeAreas)
+      setTelegramVerticalSwipes(telegram, true)
     }
   }, [])
 

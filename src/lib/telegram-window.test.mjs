@@ -55,6 +55,14 @@ test('fullscreen control is explicit, reversible, and safe on unsupported hosts'
   assert.equal(toggleTelegramFullscreen({}), false)
 })
 
+test('full-screen app disables Telegram vertical close swipes and restores them on unmount/navigation', () => {
+  const calls = []
+  const telegram = { disableVerticalSwipes: () => calls.push('disabled'), enableVerticalSwipes: () => calls.push('enabled') }
+  assert.equal(setTelegramVerticalSwipes(telegram, false), true)
+  assert.equal(setTelegramVerticalSwipes(telegram, true), true)
+  assert.deepEqual(calls, ['disabled', 'enabled'])
+})
+
 test('disabling Telegram vertical swipes prevents host close gesture and restores it on cleanup', () => {
   const calls = []
   const webApp = { disableVerticalSwipes: () => calls.push('disabled'), enableVerticalSwipes: () => calls.push('enabled') }
