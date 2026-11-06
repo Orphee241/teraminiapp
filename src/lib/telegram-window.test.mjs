@@ -26,6 +26,12 @@ test('opening mobile Mini App requests native fullscreen when supported', () => 
   assert.deepEqual(calls, ['ready', 'expand', 'fullscreen'])
 })
 
+test('reopening an already fullscreen Mini App does not toggle fullscreen off', () => {
+  const calls = []
+  const webApp = { ready: () => calls.push('ready'), expand: () => calls.push('expand'), requestFullscreen: () => calls.push('fullscreen'), requestSafeArea: () => calls.push('safe-area'), requestContentSafeArea: () => calls.push('content-safe-area'), isFullscreen: true, platform: 'ios' }
+  openTelegramWindow(webApp)
+  assert.deepEqual(calls, ['ready', 'expand', 'safe-area', 'content-safe-area'])
+})
 test('native Telegram BackButton is shown only for a nested screen and is cleaned up', () => {
   const calls = []
   const backButton = { show: () => calls.push('show'), hide: () => calls.push('hide'), onClick: fn => calls.push(['on', fn]), offClick: fn => calls.push(['off', fn]) }

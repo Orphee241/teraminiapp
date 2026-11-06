@@ -49,7 +49,9 @@ export function openTelegramWindow(webApp: TelegramWindow): boolean {
   // Prefer the native fullscreen capability whenever the client exposes it.
   // Some Telegram clients expose the method without a reliable version helper.
   if (webApp.isVersionAtLeast?.('8.0') || webApp.requestFullscreen) {
-    toggleTelegramFullscreen(webApp)
+    // Opening/re-entering a page must be idempotent: toggle would exit fullscreen
+    // when Telegram reports that the Mini App is already fullscreen.
+    if (!webApp.isFullscreen) toggleTelegramFullscreen(webApp)
     webApp.requestSafeArea?.()
     webApp.requestContentSafeArea?.()
   }
