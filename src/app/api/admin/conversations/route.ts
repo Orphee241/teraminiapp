@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, isAdmin, hasAdminSession } from '../../_auth'
-import { adminConversations, adminMessages, adminProfiles, adminConversationStats, listAdmins, upsertAdmin, deleteAdmin } from '../../../../lib/storage'
+import { adminConversations, adminMessages, adminProfiles, adminConversationStats, listAdmins, lookupTelegramUser, upsertAdmin, deleteAdmin } from '../../../../lib/storage'
 export async function GET(request: NextRequest) {
   const auth = await authenticate(request); if (auth.response) return auth.response
   const userId = String(auth.user?.id || '')
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   const auth = await authenticate(request); if (auth.response) return auth.response
   const userId = String(auth.user?.id || ''); if (!(await isAdmin(userId)) || !hasAdminSession(request, userId)) return NextResponse.json({ error: 'Authentification Administration requise.' }, { status: 403 })
   const body = await request.json().catch(() => ({})); const telegramId = String(body.telegram_id || '').trim(); if (!/^\d+$/.test(telegramId)) return NextResponse.json({ error: 'Identifiant Telegram invalide.' }, { status: 400 })
-  try { return NextResponse.json({ admin: await upsertAdmin({ telegram_id: telegramId, username: String(body.username || ''), first_name: String(body.first_name || ''), last_name: String(body.last_name || '') }) }) } catch { return NextResponse.json({ error: 'Administrateur impossible à enregistrer.' }, { status: 503 }) }
+  try { const profile = await lookupTelegramUser(telegramId); return NextResponse.json({ admin: await upsertAdmin(profile) }) } catch { return NextResponse.json({ error: 'Administrateur impossible à enregistrer.' }, { status: 503 }) }
 }
 export async function DELETE(request: NextRequest) {
   const auth = await authenticate(request); if (auth.response) return auth.response

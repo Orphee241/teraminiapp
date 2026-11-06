@@ -225,6 +225,11 @@ button { cursor:pointer; }
 @media (min-width:651px) and (max-width:900px) { .admin-admin-form { grid-template-columns:1fr; } }
 
 /* Final Telegram/admin layout corrections: keep host swipe gestures out of the private dashboard, preserve visible breathing room, and cap the admin form. */
+.admin-intro { margin-bottom:24px; }
+.admin-pagination { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+.admin-pagination button { padding:7px 10px; color:#dfe3ea; border:1px solid var(--line); border-radius:8px; background:var(--surface); font:inherit; }
+.admin-pagination button:disabled { cursor:not-allowed; opacity:.4; }
+.online-dot { display:inline-block; width:7px; height:7px; margin-left:5px; border-radius:50%; background:#52d68b; box-shadow:0 0 8px #52d68b; vertical-align:middle; }
 .admin-content { overscroll-behavior-y: contain; }
 .stat-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; row-gap:14px; margin-bottom:42px; }
 .admin-mobile-carousel { gap:18px; margin-top:18px; }

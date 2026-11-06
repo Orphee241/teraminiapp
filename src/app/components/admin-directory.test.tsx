@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const root = resolve(process.cwd(), 'src')
+const storage = readFileSync(resolve(root, 'lib/storage.ts'), 'utf8')
+const adminPage = readFileSync(resolve(root, 'app/adm/page.tsx'), 'utf8')
+const adminRoute = readFileSync(resolve(root, 'app/api/admin/conversations/route.ts'), 'utf8')
+
+describe('admin directory regression contracts', () => {
+  it('renders the profile count and connection badge with dedicated breathing room', () => {
+    const css = readFileSync(resolve(root, 'app/globals.css'), 'utf8')
+    expect(css).toMatch(/\.admin-intro\s*\{[^}]*margin-bottom:\s*24px/)
+    expect(css).toMatch(/\.stat-grid\s*\{[^}]*margin-bottom:\s*42px/)
+  })
+
+  it('limits administrators, profiles, and conversations to their requested page sizes', () => {
+    expect(adminPage).toContain('slice((adminPage - 1) * 4, adminPage * 4)')
+    expect(adminPage).toContain('slice((profilePage - 1) * 3, profilePage * 3)')
+    expect(adminPage).toContain('slice((conversationPage - 1) * 6, conversationPage * 6)')
+    expect(adminPage).toContain('4 par page')
+    expect(adminPage).toContain('3 par page')
+    expect(adminPage).toContain('6 par page')
+  })
+
+  it('adds administrators by ID only and obtains their identity from the stored Telegram profile', () => {
+    expect(adminPage).toContain('placeholder="ID Telegram *"')
+    expect(adminPage).not.toContain('placeholder="Nom d’utilisateur"')
+    expect(adminPage).not.toContain('placeholder="Prénom"')
+    expect(adminPage).not.toContain('placeholder="Nom"')
+    expect(adminRoute).toContain('lookupTelegramUser(telegramId)')
+    expect(storage).toContain('async function lookupTelegramUser(telegramId: string)')
+    expect(adminRoute).not.toMatch(/username:\s*String\(body\.username/)
+  })
+
+  it('stores last app visit separately from last Michelle conversation activity', () => {
+    expect(storage).toContain('last_app_visit_at')
+    expect(storage).toContain('strftime')
+    expect(storage).toContain('is_online')
+    expect(adminPage).toContain('Dernière activité')
+    expect(adminPage).toContain('En ligne')
+    expect(adminPage).not.toContain('profile.last_activity || profile.created_at')
+  })
+})
