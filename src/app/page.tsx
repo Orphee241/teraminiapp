@@ -211,10 +211,10 @@ export default function HomePage() {
       const savedKind = documentKind
       notify(`${savedKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${wasEditing ? 'modifié' : 'créé'} avec succès.${logoUnavailable ? ' Le logo était indisponible; le document a été créé sans logo.' : ''}`, 'success')
       formElement.reset(); setLineItems([{ designation: '', quantity: '1', unit_price: '' }])
-      if (wasEditing) {
-        setFormOpen(false)
-        setArchiveRefresh(previous => ({ kind: savedKind, key: (previous?.key || 0) + 1 }))
-      }
+      setFormOpen(false)
+      setEditingDocument(null)
+      setSeededDocument(null)
+      setArchiveRefresh(previous => ({ kind: savedKind, key: (previous?.key || 0) + 1 }))
     } catch { notify('La connexion au service de documents a échoué. Vérifiez votre connexion et réessayez.') } finally { setEditingDocument(null); setBusy(false) }
     })
   }

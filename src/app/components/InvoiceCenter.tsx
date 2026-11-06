@@ -96,6 +96,8 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
     setArchiveKind(kind)
     setScreen('list')
     loaded.current = false
+    setDocuments([])
+    setError('')
   }
 
   const title = (document: DocumentRecord) => {

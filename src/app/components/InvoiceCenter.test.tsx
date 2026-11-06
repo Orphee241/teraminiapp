@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { readFileSync } from 'node:fs'
 import { describe, expect, afterEach, it, vi } from 'vitest'
 import InvoiceCenter from './InvoiceCenter'
 
@@ -70,7 +71,14 @@ describe('InvoiceCenter archive performance contract', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('offers invoice creation from a quote preview and passes the quote data without editing the quote', async () => {
+  it('requests the correct archive after a successful document form submission', () => {
+    const source = readFileSync(`${process.cwd()}/src/app/page.tsx`, 'utf8')
+    expect(source).toContain('setFormOpen(false)')
+    expect(source).toContain('setSeededDocument(null)')
+    expect(source).toContain('setArchiveRefresh(previous => ({ kind: savedKind, key: (previous?.key || 0) + 1 }))')
+    expect(source).toContain('const savedKind = documentKind')
+  })
+  it('shows the invoice action from a quote preview and passes the selected quote', async () => {
     const onCreateFromQuote = vi.fn()
     const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ documents: [documentRow] }), { status: 200 })))
     vi.stubGlobal('fetch', fetchMock)
@@ -82,6 +90,7 @@ describe('InvoiceCenter archive performance contract', () => {
     expect(onCreateFromQuote).toHaveBeenCalledWith(documentRow)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
   it('removes a deleted row immediately and does not reload the archive', async () => {
     let resolveDelete!: (response: Response) => void
     const deletePending = new Promise<Response>(resolve => { resolveDelete = resolve })
