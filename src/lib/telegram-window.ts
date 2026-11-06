@@ -12,6 +12,8 @@ export type TelegramWindow = {
   safeAreaInset?: { top?: number; right?: number; bottom?: number; left?: number }
   contentSafeAreaInset?: { top?: number; right?: number; bottom?: number; left?: number }
   isFullscreen?: boolean
+  disableVerticalSwipes?: () => void
+  enableVerticalSwipes?: () => void
   onEvent?: (event: string, callback: () => void) => void
   offEvent?: (event: string, callback: () => void) => void
   close?: () => void
@@ -56,6 +58,17 @@ export function openTelegramWindow(webApp: TelegramWindow): boolean {
     webApp.requestContentSafeArea?.()
   }
   return desktop
+}
+
+export function setTelegramVerticalSwipes(webApp: Pick<TelegramWindow, 'disableVerticalSwipes' | 'enableVerticalSwipes'>, enabled: boolean): boolean {
+  const method = enabled ? webApp.enableVerticalSwipes : webApp.disableVerticalSwipes
+  if (!method) return false
+  try {
+    method()
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function configureTelegramBackButton(

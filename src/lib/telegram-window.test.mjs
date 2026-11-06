@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { isDesktopTelegram, openTelegramWindow, toggleTelegramFullscreen, closeTelegramWindow, configureTelegramBackButton } from './telegram-window.ts'
+import { isDesktopTelegram, openTelegramWindow, toggleTelegramFullscreen, closeTelegramWindow, configureTelegramBackButton, setTelegramVerticalSwipes } from './telegram-window.ts'
 
 test('desktop platforms are recognized without mistaking mobile Telegram for desktop', () => {
   for (const platform of ['tdesktop', 'windows', 'macos', 'linux', 'weba', 'webk', 'web']) assert.equal(isDesktopTelegram(platform), true)
@@ -55,6 +55,14 @@ test('fullscreen control is explicit, reversible, and safe on unsupported hosts'
   assert.equal(toggleTelegramFullscreen({}), false)
 })
 
+test('disabling Telegram vertical swipes prevents host close gesture and restores it on cleanup', () => {
+  const calls = []
+  const webApp = { disableVerticalSwipes: () => calls.push('disabled'), enableVerticalSwipes: () => calls.push('enabled') }
+  setTelegramVerticalSwipes(webApp, false)
+  setTelegramVerticalSwipes(webApp, true)
+  assert.deepEqual(calls, ['disabled', 'enabled'])
+  assert.equal(setTelegramVerticalSwipes({}, false), false)
+})
 test('close uses Telegram host; no fake minimize action is exposed', () => {
   let closed = false
   assert.equal(closeTelegramWindow({ close: () => { closed = true } }), true)
