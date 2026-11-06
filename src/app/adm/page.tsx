@@ -72,7 +72,7 @@ export default function AdminPage() {
     return configureTelegramBackButton(webApp, true, onBack)
   }, [selectedProfile, selected])
   useEffect(() => { if (!error) return; const timer = window.setTimeout(() => setError(''), 8000); return () => window.clearTimeout(timer) }, [error])
-  useEffect(() => { if (!unlocked) return; const timer = window.setInterval(() => { setNow(Date.now()); void refresh() }, 60_000); return () => window.clearInterval(timer) }, [unlocked])
+  useEffect(() => { if (!unlocked) return; const timer = window.setInterval(() => { setNow(Date.now()); void refresh() }, 240_000); return () => window.clearInterval(timer) }, [unlocked])
   useEffect(() => { if (initData && unlocked) void refresh() }, [initData, unlocked])
   useEffect(() => { setAdminPage(1) }, [adminQuery])
   useEffect(() => { setProfilePage(1) }, [profileQuery])
