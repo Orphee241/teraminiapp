@@ -70,6 +70,18 @@ describe('InvoiceCenter archive performance contract', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('offers invoice creation from a quote preview and passes the quote data without editing the quote', async () => {
+    const onCreateFromQuote = vi.fn()
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ documents: [documentRow] }), { status: 200 })))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} onCreateFromQuote={onCreateFromQuote} />)
+    await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
+    await user.click(await screen.findByRole('button', { name: /DEV-TEST-42/i }))
+    await user.click(await screen.findByRole('button', { name: /générer la facture/i }))
+    expect(onCreateFromQuote).toHaveBeenCalledWith(documentRow)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
   it('removes a deleted row immediately and does not reload the archive', async () => {
     let resolveDelete!: (response: Response) => void
     const deletePending = new Promise<Response>(resolve => { resolveDelete = resolve })

@@ -131,6 +131,7 @@ button { cursor:pointer; }
 .detail-card { position: relative; margin-top: 18px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #11141b; }
 .detail-card .close-button { position: absolute; top: 12px; right: 12px; display: grid; }
 .detail-card h3 { margin: 4px 0 10px; font-family: var(--font-bebas); font-size: 30px; font-weight: 400; }
+.invoice-from-quote { display:block; width:100%; margin:16px auto 4px; }
 .detail-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: calc(18px + var(--telegram-top-inset)) 18px 18px; background: rgba(0,0,0,.62); }
 .detail-sheet { width: min(100%, 720px); max-height: min(90dvh, calc(100dvh - var(--telegram-top-inset) - 36px), 820px); overflow: auto; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #11141b; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
 .action-sheet { display: grid; gap: 6px; width: min(100%, 320px); padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: #11141b; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
