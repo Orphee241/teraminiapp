@@ -56,6 +56,11 @@ button { cursor:pointer; }
 .orders-card { position:relative; margin-top:16px; padding:16px; color:#fff; }
 .orders-card > svg { flex:none; color:var(--pink-soft); }.orders-card .chevron { margin-left:auto; color:#687181; font-size:25px; }
 .profile-list { display:grid; gap:10px; margin-top:26px; }.profile-row { display:flex; align-items:center; gap:12px; padding:15px; }.profile-row .row-icon { flex:none; }.profile-row strong { font-size:16px; }
+.profile-info-block { gap:0; overflow:hidden; border:1px solid var(--line); border-radius:18px; background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.025)); }
+.profile-info-block .profile-row { border:0; border-radius:0; background:transparent; transition:none; }
+.profile-info-block .profile-row + .profile-row { border-top:1px solid var(--line); }
+.profile-info-block .profile-row:hover { transform:none; }
+
 .bottom-nav { position:fixed; right:0; bottom:0; left:0; z-index:20; display:flex; justify-content:center; gap:6px; padding:10px 14px calc(10px + env(safe-area-inset-bottom)); background:rgba(8,9,13,.92); border-top:1px solid var(--line); backdrop-filter:blur(18px); }
 .nav-button { display:flex; flex:1; max-width:150px; flex-direction:column; align-items:center; gap:4px; padding:8px 10px; color:#737c8d; border:0; border-radius:12px; background:transparent; font-size:11px; }.nav-button.active { color:#fff; background:rgba(212,46,91,.16); }.nav-button.active svg { color:var(--pink-soft); }
 .toast { position:fixed; right:16px; bottom:88px; left:16px; z-index:40; display:flex; align-items:center; gap:10px; padding:13px 14px; color:#e9edf4; border:1px solid rgba(212,46,91,.5); border-radius:14px; background:#21121a; box-shadow:0 15px 40px rgba(0,0,0,.35); font-size:13px; }.toast.success { border-color:rgba(82,214,139,.55); background:#10271d; }.toast span { flex:1; }.toast button { display:grid; place-items:center; color:#abb3c1; border:0; background:transparent; }
