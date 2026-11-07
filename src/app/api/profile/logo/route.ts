@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ logo, profile })
   } catch (error) {
     const code = error instanceof Error ? error.message : ''
-    const status = code === 'logo_type_forbidden' || code === 'logo_too_large' ? 400 : 503
-    return NextResponse.json({ error: status === 400 ? 'Choisissez un logo PNG, JPG ou WebP de 5 Mo maximum.' : 'Stockage du logo indisponible.' }, { status })
+    const status = code === 'logo_type_forbidden' || code === 'logo_too_large' || code === 'media_signature_invalid' ? 400 : 503
+    return NextResponse.json({ error: status === 400 ? code === 'media_signature_invalid' ? 'Le contenu du fichier ne correspond pas à son format.' : 'Choisissez un logo PNG, JPG ou WebP de 5 Mo maximum.' : 'Stockage du logo indisponible.' }, { status })
   }
 }

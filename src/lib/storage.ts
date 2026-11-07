@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { logoObjectKeyFromReference } from './logo-reference'
+import { matchesDeclaredMediaType } from './media-validation'
 
 // Conversation storage belongs to Michelle's identity database. Do not fall
 // back to a generic TURSO_* pair: in Coolify that pair may point to a tenant
@@ -99,15 +100,17 @@ export async function uploadLogo(userId: string, file: File) {
   const allowed = new Set(['image/jpeg', 'image/png', 'image/webp'])
   if (!allowed.has(file.type)) throw new Error('logo_type_forbidden')
   if (file.size > 5 * 1024 * 1024) throw new Error('logo_too_large')
+  const bytes = Buffer.from(await file.arrayBuffer())
+  if (!matchesDeclaredMediaType(file.type, Uint8Array.from(bytes))) throw new Error('media_signature_invalid')
   const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
   const key = `${logoNamespace(userId)}/logo.${extension}`
   const internal = internalTelegramIds().has(String(userId))
-  await client.send(new PutObjectCommand({ Bucket: targetBucket, Key: key, Body: Buffer.from(await file.arrayBuffer()), ContentType: file.type, CacheControl: 'public, max-age=31536000, immutable', Metadata: { owner: userId, application: 'terainterface-miniapp', asset: 'company-logo', ownerScope: internal ? 'terainterface' : 'client' } }))
+  await client.send(new PutObjectCommand({ Bucket: targetBucket, Key: key, Body: bytes, ContentType: file.type, CacheControl: 'public, max-age=31536000, immutable', Metadata: { owner: userId, application: 'terainterface-miniapp', asset: 'company-logo', ownerScope: internal ? 'terainterface' : 'client' } }))
   const url = await getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket, Key: key }), { expiresIn: 86400 })
   return { key, url, type: file.type, size: file.size }
 }
 
-export async function uploadObject(userId: string, file: File) { const client = s3(), targetBucket = bucket(); if (!client) throw new Error('media_storage_unconfigured'); const allowed = new Set(['image/jpeg','image/png','image/webp','audio/ogg','audio/mpeg','audio/mp4','application/pdf']); if (!allowed.has(file.type)) throw new Error('media_type_forbidden'); if (file.size > 15 * 1024 * 1024) throw new Error('media_too_large'); const key = `teraminiapp/${userId}/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`; await client.send(new PutObjectCommand({ Bucket: targetBucket, Key: key, Body: Buffer.from(await file.arrayBuffer()), ContentType: file.type, Metadata: { owner: userId, application: 'terainterface-miniapp' } })); return { key, name: file.name, type: file.type, size: file.size, url: await getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket, Key: key }), { expiresIn: 900 }) } }
+export async function uploadObject(userId: string, file: File) { const client = s3(), targetBucket = bucket(); if (!client) throw new Error('media_storage_unconfigured'); const allowed = new Set(['image/jpeg','image/png','image/webp','audio/ogg','audio/mpeg','audio/mp4','application/pdf']); if (!allowed.has(file.type)) throw new Error('media_type_forbidden'); if (file.size > 15 * 1024 * 1024) throw new Error('media_too_large'); const bytes = Buffer.from(await file.arrayBuffer()); if (!matchesDeclaredMediaType(file.type, Uint8Array.from(bytes))) throw new Error('media_signature_invalid'); const key = `teraminiapp/${userId}/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`; await client.send(new PutObjectCommand({ Bucket: targetBucket, Key: key, Body: bytes, ContentType: file.type, Metadata: { owner: userId, application: 'terainterface-miniapp' } })); return { key, name: file.name.slice(0, 180).replace(/[^a-zA-Z0-9._-]/g, '-'), type: file.type, size: file.size, url: await getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket, Key: key }), { expiresIn: 900 }) } }
 
 export async function getProfile(telegramId: string) {
   await ensureSchema()
