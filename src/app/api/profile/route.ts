@@ -13,10 +13,11 @@ export async function PUT(request: NextRequest) {
   if (auth.response) return auth.response
   try {
     const body = await request.json()
-    const profile = await updateProfile(String(auth.user!.id), { company_name: String(body.company_name || '').trim(), phone: String(body.phone || '').trim(), address: String(body.address || '').trim(), nif: String(body.nif || '').trim(), rccm: String(body.rccm || '').trim(), logo_url: String(body.logo_url || '').trim() })
+    const profile = await updateProfile(String(auth.user!.id), { company_name: String(body.company_name || '').trim(), phone: String(body.phone || '').trim(), address: String(body.address || '').trim(), nif: String(body.nif || '').trim(), rccm: String(body.rccm || '').trim(), logo_url: String(body.logo_url || '').trim(), brand_color: String(body.brand_color || '#D71920').trim() })
     return NextResponse.json({ profile })
   } catch (error) {
     if (error instanceof Error && error.message === 'logo_reference_invalid') return NextResponse.json({ error: 'Le logo enregistré est invalide. Importez-le à nouveau.' }, { status: 400 })
+    if (error instanceof Error && error.message === 'brand_color_invalid') return NextResponse.json({ error: 'La couleur sélectionnée est invalide.' }, { status: 400 })
     return NextResponse.json({ error: 'Enregistrement du profil impossible.' }, { status: 503 })
   }
 }
