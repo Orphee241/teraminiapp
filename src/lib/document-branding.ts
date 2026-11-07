@@ -1,16 +1,5 @@
 export const DEFAULT_BRAND_COLOR = '#D71920'
 
-export const BRAND_PRESETS = [
-  { label: 'Rouge Terainterface', color: DEFAULT_BRAND_COLOR },
-  { label: 'Bleu', color: '#2563EB' },
-  { label: 'Bleu pétrole', color: '#0891B2' },
-  { label: 'Vert', color: '#16A34A' },
-  { label: 'Violet', color: '#7C3AED' },
-  { label: 'Orange', color: '#EA580C' },
-  { label: 'Or', color: '#CA8A04' },
-  { label: 'Anthracite', color: '#374151' },
-] as const
-
 export type BrandPalette = { primary: string; deep: string; pale: string; titleText: string; headerText: string }
 
 function rgb(hex: string): [number, number, number] {

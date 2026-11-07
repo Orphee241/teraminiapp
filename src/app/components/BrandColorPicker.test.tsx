@@ -3,20 +3,14 @@ import { describe, expect, it, vi } from 'vitest'
 import BrandColorPicker from './BrandColorPicker'
 
 describe('BrandColorPicker', () => {
-  it('changes the selected palette through the preset buttons', async () => {
-    const onChange = vi.fn()
-    render(<BrandColorPicker value="#D71920" onChange={onChange} />)
-    await screen.getByRole('button', { name: 'Choisir la palette Bleu' }).click()
-    expect(onChange).toHaveBeenCalledWith('#2563EB')
-  })
-
-  it('exposes a native color picker and previews derived colors', () => {
+  it('offers only a color picker and reports the normalized selected color', () => {
     const onChange = vi.fn()
     render(<BrandColorPicker value="#2563EB" onChange={onChange} />)
-    const picker = screen.getByLabelText('Couleur personnalisée')
-    fireEvent.change(picker, { target: { value: '#00aa77' } })
+    fireEvent.change(screen.getByLabelText('Choisir une couleur'), { target: { value: '#00aa77' } })
     expect(onChange).toHaveBeenCalledWith('#00AA77')
-    expect(screen.getByLabelText('Aperçu de la palette')).toBeInTheDocument()
-    expect(screen.getByText('NET À PAYER')).toHaveStyle({ color: '#FFFFFF' })
+    expect(screen.getByLabelText('Couleur sélectionnée')).toHaveTextContent('#2563EB')
+    expect(screen.queryByRole('group', { name: 'Palettes prédéfinies' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Rouge Terainterface')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Aperçu de la palette')).not.toBeInTheDocument()
   })
 })
