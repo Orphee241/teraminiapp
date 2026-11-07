@@ -10,6 +10,7 @@ import { configureTelegramBackButton, openTelegramWindow, setTelegramVerticalSwi
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
 import { createActionGate } from '../lib/action-gate'
 import { documentOperationError } from '../lib/document-errors'
+import { validateDocumentLines } from '../lib/document-form-validation'
 
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
@@ -178,8 +179,12 @@ export default function HomePage() {
     return createGate.current.run(async () => {
     setBusy(true); setMessage('')
     const form = new FormData(event.currentTarget)
-    const items = form.getAll('designation').map((designation, index) => ({ designation: String(designation).trim(), quantity: Number(form.getAll('quantity')[index] || 1), unit_price: Number(form.getAll('unit_price')[index] || 0) })).filter(item => item.designation)
-    if (!items.length || items.some(item => item.quantity < 1 || item.unit_price <= 0)) { notify('Ajoutez au moins une ligne complète avec une désignation, une quantité et un prix unitaire.'); setBusy(false); return }
+    const designations = form.getAll('designation')
+    const quantities = form.getAll('quantity')
+    const unitPrices = form.getAll('unit_price')
+    const lineValidation = validateDocumentLines(designations.map((designation, index) => ({ designation: String(designation), quantity: String(quantities[index] ?? ''), unit_price: String(unitPrices[index] ?? '') })))
+    if (lineValidation.error) { notify(lineValidation.error); setBusy(false); return }
+    const items = lineValidation.items
     let existingClient: { name?: string; address?: string; phone?: string; tax_id?: string; rccm?: string } = {}
     const sourceDocument = editingDocument || seededDocument
     let documentBrandColor = sourceDocument ? '#D71920' : (profile.brand_color || '#D71920')
