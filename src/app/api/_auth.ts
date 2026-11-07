@@ -16,6 +16,14 @@ export function verifyTelegramInitData(initData: string, botToken: string): Tele
   try { const user = JSON.parse(params.get('user') || '{}'); return Number.isSafeInteger(user.id) && user.id > 0 && user.id <= 9_999_999_999_999_999 ? user : null } catch { return null }
 }
 
+export function requireSameOrigin(request: NextRequest): NextResponse | null {
+  const origin = request.headers.get('origin')
+  if (origin && origin !== new URL(request.url).origin) return NextResponse.json({ error: 'Origine de requête refusée.' }, { status: 403 })
+  const fetchSite = request.headers.get('sec-fetch-site')
+  if (fetchSite && !['same-origin', 'same-site', 'none'].includes(fetchSite)) return NextResponse.json({ error: 'Origine de requête refusée.' }, { status: 403 })
+  return null
+}
+
 export async function authenticate(request: NextRequest) {
   const initData = request.headers.get('x-telegram-init-data') || ''
   const user = verifyTelegramInitData(initData, process.env.TELEGRAM_BOT_TOKEN || process.env.TERAINTERFACE_TELEGRAM_BOT_TOKEN || '')

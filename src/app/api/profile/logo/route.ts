@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticate } from '../../_auth'
+import { authenticate, requireSameOrigin } from '../../_auth'
 import { updateProfile, uploadLogo, getProfile, freshLogoUrl } from '../../../../lib/storage'
 
 export async function GET(request: NextRequest) {
@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = requireSameOrigin(request); if (originError) return originError
   const auth = await authenticate(request)
   if (auth.response) return auth.response
   const form = await request.formData()

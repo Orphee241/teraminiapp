@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
-import { authenticate, isAdmin, adminSessionValue, ADMIN_SESSION_COOKIE, hasAdminSession, telegramProfile } from '../../_auth'
+import { authenticate, isAdmin, adminSessionValue, ADMIN_SESSION_COOKIE, hasAdminSession, telegramProfile, requireSameOrigin } from '../../_auth'
 import { listAdmins, upsertAdmin } from '../../../../lib/storage'
 
 export async function GET(request: NextRequest) {
@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = requireSameOrigin(request); if (originError) return originError
   const auth = await authenticate(request); if (auth.response) return auth.response
   const userId = String(auth.user?.id || '')
   const body = await request.json().catch(() => ({})) as { password?: string }; const supplied = String(body.password || ''); const configured = process.env.TERAMINI_ADMIN_PASSWORD || ''

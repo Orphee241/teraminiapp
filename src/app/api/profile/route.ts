@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticate, telegramProfile } from '../_auth'
+import { authenticate, telegramProfile, requireSameOrigin } from '../_auth'
 import { getProfile, updateProfile, upsertProfile } from '../../../lib/storage'
 import { boundedText } from '../../../lib/input-security'
 
@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const originError = requireSameOrigin(request); if (originError) return originError
   const auth = await authenticate(request)
   if (auth.response) return auth.response
   try {
