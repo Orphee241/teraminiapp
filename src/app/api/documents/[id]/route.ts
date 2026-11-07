@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticate } from '../../_auth'
+import { authenticate, requireSameOrigin } from '../../_auth'
 import { documentOperationError } from '../../../../lib/document-errors'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const originError = requireSameOrigin(request); if (originError) return originError
   const auth = await authenticate(request)
   if (auth.response) return auth.response
   const owner = String(auth.user?.id || '')
@@ -46,6 +47,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const originError = requireSameOrigin(request); if (originError) return originError
   const auth = await authenticate(request)
   if (auth.response) return auth.response
   const owner = String(auth.user?.id || '')

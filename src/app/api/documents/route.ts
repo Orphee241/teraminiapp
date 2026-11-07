@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticate } from '../_auth'
+import { authenticate, requireSameOrigin } from '../_auth'
 import { documentOperationError } from '../../../lib/document-errors'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const originError = requireSameOrigin(request); if (originError) return originError
   const checked = await auth(request)
   if (checked.response) return checked.response
   const body = await request.json()
