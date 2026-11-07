@@ -15,7 +15,7 @@ describe('DocumentColorSimulator', () => {
   it('renders the real template zones and keeps ordinary document content neutral', () => {
     const palette = deriveBrandPalette('#FACC15')
     render(<DocumentColorSimulator color="#FACC15" />)
-    expect(screen.getByLabelText('En-tête coloré')).toBeInTheDocument()
+    expect(screen.getByLabelText('En-tête coloré').querySelector('.simulator-band-block')).not.toBeInTheDocument()
     expect(screen.getByText('CLIENT')).toBeInTheDocument()
     expect(screen.getByText('OBJET DU DEVIS')).toBeInTheDocument()
     expect(screen.getByText('Total HT : 50 000 FCFA')).toBeInTheDocument()
