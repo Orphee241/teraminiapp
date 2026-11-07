@@ -4,13 +4,17 @@ import { isStoredAdmin } from '../../lib/storage'
 
 export type TelegramUser = { id: number; username?: string; first_name?: string; last_name?: string; language_code?: string; photo_url?: string }
 
+if (process.env.NODE_ENV === 'production' && process.env.MINIAPP_DEV_MODE === 'true') {
+  throw new Error('MINIAPP_DEV_MODE is forbidden in production')
+}
+
 export function verifyTelegramInitData(initData: string, botToken: string): TelegramUser | null {
   if (!initData || !botToken) return null
   const params = new URLSearchParams(initData); const hash = params.get('hash'); if (!hash) return null
   const seen = new Set<string>(); let duplicate = false; params.forEach((_value, key) => { if (seen.has(key)) duplicate = true; seen.add(key) }); if (duplicate) return null
   params.delete('hash'); const entries: [string, string][] = []; params.forEach((value, key) => entries.push([key, value]))
   const dataCheckString = entries.sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join('\n')
-  const secret = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest(); const expected = crypto.createHmac('sha256', secret).update(dataCheckString).digest('hex')
+  const secret = Uint8Array.from(crypto.createHmac('sha256', botToken).update('WebAppData').digest()); const expected = crypto.createHmac('sha256', secret).update(dataCheckString).digest('hex')
   if (expected.length !== hash.length || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(hash))) return null
   const authDate = Number(params.get('auth_date') || 0); const now = Date.now() / 1000; if (!Number.isSafeInteger(authDate) || authDate <= 0 || authDate > now + 60 || now - authDate > 86400) return null
   try { const user = JSON.parse(params.get('user') || '{}'); return Number.isSafeInteger(user.id) && user.id > 0 && user.id <= 9_999_999_999_999_999 ? user : null } catch { return null }
@@ -27,8 +31,9 @@ export function requireSameOrigin(request: NextRequest): NextResponse | null {
 export async function authenticate(request: NextRequest) {
   const initData = request.headers.get('x-telegram-init-data') || ''
   const user = verifyTelegramInitData(initData, process.env.TELEGRAM_BOT_TOKEN || process.env.TERAINTERFACE_TELEGRAM_BOT_TOKEN || '')
-  if (!user && process.env.MINIAPP_DEV_MODE !== 'true') return { response: NextResponse.json({ error: 'Authentification Telegram requise.' }, { status: 401 }), user: null }
-  return { response: null, user: user || { id: 0, first_name: 'Utilisateur' } }
+  const developmentBypass = process.env.NODE_ENV !== 'production' && process.env.MINIAPP_DEV_MODE === 'true'
+  if (!user && !developmentBypass) return { response: NextResponse.json({ error: 'Authentification Telegram requise.' }, { status: 401 }), user: null }
+  return { response: null, user }
 }
 
 export function telegramProfile(user: TelegramUser) {
