@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, requireSameOrigin } from '../_auth'
 import { documentOperationError } from '../../../lib/document-errors'
+import { readBoundedJson, RequestBodyLimitError } from '../../../lib/request-body'
+import { takeRateLimit } from '../../../lib/rate-limit'
+import { invoiceOwnerHeaders } from '../../../lib/invoice-owner-signature'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 const apiKey = () => process.env.INVOICE_API_KEY || ''
 
-async function proxy(request: NextRequest, path: string, body?: unknown) {
+async function proxy(request: NextRequest, path: string, owner: string, body?: unknown) {
   const base = apiBase()
   if (!base || !apiKey()) return NextResponse.json({ error: 'Service de documents non configuré.' }, { status: 503 })
   try {
+    const bodyText = body === undefined ? '' : JSON.stringify(body)
+    const proof = invoiceOwnerHeaders(owner, request.method, path, bodyText)
     const response = await fetch(`${base}${path}`, {
       method: request.method,
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey() },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey(), ...proof },
+      body: body === undefined ? undefined : bodyText,
       cache: 'no-store',
     })
     if (!response.ok) {
@@ -38,16 +43,20 @@ async function auth(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const checked = await auth(request)
   if (checked.response) return checked.response
+  if (!takeRateLimit(`documents-read:user:${checked.owner}`, 90, 60_000) || !takeRateLimit('documents-read:global', 3000, 60_000)) return NextResponse.json({ error: 'Trop de consultations rapprochées. Réessayez dans un instant.' }, { status: 429 })
   const params = request.nextUrl.searchParams
   const query = new URLSearchParams({ owner_telegram_id: checked.owner, search: params.get('search') || '', status_filter: params.get('status') || '' })
-  return proxy(request, `/v1/documents?${query.toString()}`)
+  return proxy(request, `/v1/documents?${query.toString()}`, checked.owner)
 }
 
 export async function POST(request: NextRequest) {
   const originError = requireSameOrigin(request); if (originError) return originError
   const checked = await auth(request)
   if (checked.response) return checked.response
-  const body = await request.json()
+  if (!takeRateLimit(`documents-create:user:${checked.owner}`, 8, 60 * 60_000) || !takeRateLimit('documents-create:global', 600, 60 * 60_000)) return NextResponse.json({ error: 'Trop de créations rapprochées. Réessayez plus tard.' }, { status: 429 })
+  let body: any
+  try { body = await readBoundedJson(request, 64 * 1024) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Document trop volumineux.' : 'Données du document invalides.' }, { status: tooLarge ? 413 : 400 }) }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Données du document invalides.' }, { status: 400 })
   body.owner_telegram_id = checked.owner
-  return proxy(request, '/v1/documents', body)
+  return proxy(request, '/v1/documents', checked.owner, body)
 }

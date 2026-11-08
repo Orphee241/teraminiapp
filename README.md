@@ -11,6 +11,8 @@ Variables à configurer dans Coolify, sans les committer :
 ```text
 INVOICE_API_URL=https://<adresse-privee-de-l-invoice-api>
 INVOICE_API_KEY=<cle-interne-de-l-invoice-api>
+INVOICE_OWNER_SIGNING_SECRET=<secret-HMAC-partage-entre-la-mini-app-et-l-API-invoice>
+TERAMINI_ADMIN_SESSION_SECRET=<secret-de-session-administrateur-distinct-et-aleatoire-de-32-octets-minimum>
 MICHELLE_API_URL=https://<url-publique-de-michelle-api>
 MICHELLE_API_KEY=<cle-interne-de-michelle-api>
 TELEGRAM_BOT_TOKEN=<token-du-bot-utilise-pour-la-mini-app>
@@ -25,7 +27,7 @@ GARAGE_REGION=garage
 TERAMINI_ADMIN_TELEGRAM_IDS=<identifiants-Telegram-admin-séparés-par-des-virgules>
 ```
 
-`INVOICE_API_URL` et `INVOICE_API_KEY` sont nécessaires pour créer réellement les devis/factures. Le token Telegram permet de vérifier `initData` côté serveur. Ne jamais exposer ces valeurs dans `NEXT_PUBLIC_*`.
+`INVOICE_API_URL` et `INVOICE_API_KEY` sont nécessaires pour créer réellement les devis/factures. `INVOICE_OWNER_SIGNING_SECRET` doit être le même secret aléatoire (au moins 32 octets) dans cette application et l’Invoice API ; il signe chaque requête propriétaire avec expiration et nonce anti-rejeu. `TERAMINI_ADMIN_SESSION_SECRET` est un secret distinct, utilisé uniquement pour les cookies de session administrateur. Le token Telegram permet de vérifier `initData` côté serveur. Ne jamais exposer ces valeurs dans `NEXT_PUBLIC_*`.
 
 - Prévoir une migration non destructive pour créer `miniapp_profiles` sur la base Michelle.
 - Après déploiement, vérifier l’accès réel à `/adm` depuis Telegram avec l’identifiant administrateur autorisé.
