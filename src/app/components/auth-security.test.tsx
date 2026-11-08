@@ -7,7 +7,7 @@ function signedData(authDate = Math.floor(Date.now() / 1000), user: { id: number
   const params = new URLSearchParams({ auth_date: String(authDate), user: JSON.stringify(user) })
   const entries: [string, string][] = []; params.forEach((value, key) => entries.push([key, value]))
   const check = entries.sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join('\n')
-  const secret = Uint8Array.from(crypto.createHmac('sha256', token).update('WebAppData').digest())
+  const secret = Uint8Array.from(crypto.createHmac('sha256', 'WebAppData').update(token).digest())
   params.set('hash', crypto.createHmac('sha256', secret).update(check).digest('hex'))
   return params.toString()
 }

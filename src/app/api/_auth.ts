@@ -14,7 +14,7 @@ export function verifyTelegramInitData(initData: string, botToken: string): Tele
   const seen = new Set<string>(); let duplicate = false; params.forEach((_value, key) => { if (seen.has(key)) duplicate = true; seen.add(key) }); if (duplicate) return null
   params.delete('hash'); const entries: [string, string][] = []; params.forEach((value, key) => entries.push([key, value]))
   const dataCheckString = entries.sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join('\n')
-  const secret = Uint8Array.from(crypto.createHmac('sha256', botToken).update('WebAppData').digest()); const expected = crypto.createHmac('sha256', secret).update(dataCheckString).digest('hex')
+  const secret = Uint8Array.from(crypto.createHmac('sha256', 'WebAppData').update(botToken).digest()); const expected = crypto.createHmac('sha256', secret).update(dataCheckString).digest('hex')
   if (expected.length !== hash.length || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(hash))) return null
   const authDate = Number(params.get('auth_date') || 0); const now = Date.now() / 1000; if (!Number.isSafeInteger(authDate) || authDate <= 0 || authDate > now + 60 || now - authDate > 86400) return null
   try { const user = JSON.parse(params.get('user') || '{}'); return Number.isSafeInteger(user.id) && user.id > 0 && user.id <= 9_999_999_999_999_999 ? user : null } catch { return null }
