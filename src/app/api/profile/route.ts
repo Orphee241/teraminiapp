@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, telegramProfile, requireSameOrigin } from '../_auth'
-import { getProfile, updateProfile, upsertProfile } from '../../../lib/storage'
+import { getProfile, updateProfileFields, upsertProfile } from '../../../lib/storage'
 import { boundedText } from '../../../lib/input-security'
 import { readBoundedJson, RequestBodyLimitError } from '../../../lib/request-body'
 import { takeRateLimit } from '../../../lib/rate-limit'
@@ -28,7 +28,11 @@ export async function PUT(request: NextRequest) {
     let body: any
     try { body = await readBoundedJson(request, 16 * 1024) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Données du profil trop volumineuses.' : 'Données du profil invalides.' }, { status: tooLarge ? 413 : 400 }) }
     if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Données du profil invalides.' }, { status: 400 })
-    const profile = await updateProfile(userId, { company_name: boundedText(body.company_name, 160), phone: boundedText(body.phone, 40), address: boundedText(body.address, 240), nif: boundedText(body.nif, 80), rccm: boundedText(body.rccm, 120), logo_url: boundedText(body.logo_url, 500), brand_color: boundedText(body.brand_color || '#D71920', 7) })
+    const profileFields: Record<string, string> = {}
+    for (const key of ['company_name', 'phone', 'address', 'nif', 'rccm', 'logo_url', 'brand_color']) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) profileFields[key] = boundedText(body[key], key === 'company_name' ? 160 : key === 'phone' ? 40 : key === 'address' ? 240 : key === 'nif' ? 80 : key === 'rccm' ? 120 : key === 'logo_url' ? 500 : 7)
+    }
+    const profile = await updateProfileFields(userId, profileFields)
     return NextResponse.json({ profile })
   } catch (error) {
     if (error instanceof Error && error.message === 'logo_reference_invalid') return NextResponse.json({ error: 'Le logo enregistré est invalide. Importez-le à nouveau.' }, { status: 400 })
