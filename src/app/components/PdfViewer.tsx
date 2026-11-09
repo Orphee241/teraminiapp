@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Maximize2, Minimize2 } from 'lucide-react'
+import { Download, Maximize2, Minimize2 } from 'lucide-react'
 
 let workerConfigured = false
 const pdfPromiseCache = new Map<string, Promise<any>>()
@@ -16,6 +16,30 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
   const [expanded, setExpanded] = useState(false)
   const [page, setPage] = useState(1)
   const [pageCount, setPageCount] = useState(1)
+  const [downloading, setDownloading] = useState(false)
+
+  const downloadPdf = async () => {
+    setDownloading(true)
+    try {
+      const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+      if (!response.ok) throw new Error(`Téléchargement indisponible (${response.status})`)
+      const bytes = await response.arrayBuffer()
+      if (!bytes.byteLength) throw new Error('Le PDF reçu est vide.')
+      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+      const anchor = document.createElement('a')
+      anchor.href = blobUrl
+      anchor.download = `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(blobUrl)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Impossible de télécharger ce document.')
+      setState('error')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -99,6 +123,9 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
       <span aria-live="polite">Page {page} / {pageCount}</span>
       <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= pageCount || state === 'loading'} aria-label="Page suivante">›</button>
     </div>
+    <button className="pdf-download" type="button" onClick={() => void downloadPdf()} disabled={downloading || state === 'loading'} aria-label={downloading ? 'Téléchargement en cours' : 'Télécharger le document'} title={downloading ? 'Téléchargement…' : 'Télécharger'}>
+      <Download size={18} />
+    </button>
     <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher le PDF en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
       {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
     </button>
