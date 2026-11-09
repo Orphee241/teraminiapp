@@ -28,6 +28,8 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
   const removeGate = useRef(createActionGate())
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressClick = useRef(false)
+  const archiveCache = useRef(new Map<string, { documents: DocumentRecord[]; expiresAt: number }>())
+  const cacheTtlMs = 30_000
 
   const kindLabel = (kind: DocumentKind) => kind === 'devis' ? 'devis' : 'facture'
   const kindTitle = (kind: DocumentKind) => kind === 'devis' ? 'Devis' : 'Facture'
@@ -56,6 +58,14 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
     const requestId = ++loadRequestId.current
     const normalizedSearch = nextSearch.trim()
     currentSearch.current = normalizedSearch
+    const cacheKey = `${nextKind}:${normalizedSearch}`
+    const cached = archiveCache.current.get(cacheKey)
+    if (cached && cached.expiresAt > Date.now()) {
+      setDocuments(cached.documents)
+      setLoading(false)
+      setError('')
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -63,7 +73,11 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
       const response = await fetch(`/api/documents?${query}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || data.detail || `Impossible de charger vos ${kindLabel(nextKind)}.`)
-      if (requestId === loadRequestId.current) setDocuments(Array.isArray(data.documents) ? data.documents : [])
+      if (requestId === loadRequestId.current) {
+        const nextDocuments = Array.isArray(data.documents) ? data.documents : []
+        archiveCache.current.set(cacheKey, { documents: nextDocuments, expiresAt: Date.now() + cacheTtlMs })
+        setDocuments(nextDocuments)
+      }
     } catch (reason) {
       if (requestId === loadRequestId.current) setError(reason instanceof Error ? reason.message : `Impossible de charger vos ${kindLabel(nextKind)}.`)
     } finally {
@@ -88,6 +102,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
     setSelected(null)
     setMenu(null)
     loaded.current = true
+    archiveCache.current.clear()
     void load('', archiveRefresh.kind)
   }, [archiveRefresh?.key])
 
@@ -106,7 +121,6 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
     setScreen('list')
     loaded.current = false
     setArchivePage(1)
-    setDocuments([])
     setError('')
   }
 
@@ -114,7 +128,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
     setArchiveKind(kind)
     setArchivePage(1)
     setSearch('')
-    setDocuments([])
+    archiveCache.current.clear()
     loaded.current = false
   }
 
@@ -162,6 +176,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
     // Optimistic UI: hide the row immediately after confirmation. If the
     // authoritative request fails, restore the exact previous list.
     setDocuments(previous => previous.filter(document => document.id !== target.id))
+    archiveCache.current.clear()
     try {
       const response = await fetch(`/api/documents/${target.id}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } })
       if (!response.ok) {
