@@ -4,6 +4,7 @@ import { documentOperationError } from '../../../../lib/document-errors'
 import { readBoundedJson, RequestBodyLimitError } from '../../../../lib/request-body'
 import { takeRateLimit } from '../../../../lib/rate-limit'
 import { invoiceOwnerHeaders } from '../../../../lib/invoice-owner-signature'
+import { invalidateDocumentLists } from '../../../../lib/document-cache'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 const validDocumentId = (value: string) => /^\d{1,18}$/.test(value)
@@ -64,6 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try { body = await readBoundedJson(request, 64 * 1024) } catch (error) { return bodyFailure(error) }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Données du document invalides.' }, { status: 400 })
   body.owner_telegram_id = owner
+  invalidateDocumentLists(owner)
   return proxy(request, `/v1/documents/${id}?owner_telegram_id=${encodeURIComponent(owner)}`, owner, body)
 }
 
@@ -75,5 +77,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const id = (await params).id
   if (!validDocumentId(id)) return NextResponse.json({ error: 'Document introuvable.' }, { status: 404 })
   if (!takeRateLimit(`document-mutate:user:${owner}`, 20, 60_000)) return NextResponse.json({ error: 'Trop de suppressions rapprochées.' }, { status: 429 })
+  invalidateDocumentLists(owner)
   return proxy(request, `/v1/documents/${id}?owner_telegram_id=${encodeURIComponent(owner)}`, owner)
 }
