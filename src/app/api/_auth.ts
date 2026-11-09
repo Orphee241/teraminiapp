@@ -21,10 +21,20 @@ export function verifyTelegramInitData(initData: string, botToken: string): Tele
 }
 
 export function requireSameOrigin(request: NextRequest): NextResponse | null {
+  const expectedOrigin = new URL(request.url).origin
   const origin = request.headers.get('origin')
-  if (!origin || origin !== new URL(request.url).origin) return NextResponse.json({ error: 'Origine de requête refusée.' }, { status: 403 })
   const fetchSite = request.headers.get('sec-fetch-site')
-  if (fetchSite && !['same-origin', 'same-site', 'none'].includes(fetchSite)) return NextResponse.json({ error: 'Origine de requête refusée.' }, { status: 403 })
+  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
+  const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
+  const forwardedOrigin = forwardedProto && forwardedHost ? `${forwardedProto}://${forwardedHost}` : ''
+  const trustedOrigins = new Set([expectedOrigin, forwardedOrigin].filter(Boolean))
+
+  // Reverse proxies may expose the app internally as HTTP while clients use HTTPS.
+  // Accept the browser Origin only when it matches the proxy-asserted public host/scheme.
+  const safeFetchSite = fetchSite && ['same-origin', 'same-site', 'none'].includes(fetchSite)
+  if (origin ? !trustedOrigins.has(origin) : !safeFetchSite) {
+    return NextResponse.json({ error: 'Origine de requête refusée.' }, { status: 403 })
+  }
   return null
 }
 

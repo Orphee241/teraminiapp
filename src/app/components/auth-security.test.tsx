@@ -38,8 +38,10 @@ describe('Telegram initData security', () => {
 
   it('requires same-origin metadata on mutations', () => {
     expect(requireSameOrigin(new NextRequest('https://app.example/api/save', { method: 'POST', headers: { origin: 'https://app.example', 'sec-fetch-site': 'same-origin' } }))).toBeNull()
+    expect(requireSameOrigin(new NextRequest('https://internal.service/api/save', { method: 'POST', headers: { origin: 'https://app.example', 'x-forwarded-proto': 'https', 'x-forwarded-host': 'app.example', 'sec-fetch-site': 'same-origin' } }))).toBeNull()
     expect(requireSameOrigin(new NextRequest('https://app.example/api/save', { method: 'POST' }))).not.toBeNull()
-    expect(requireSameOrigin(new NextRequest('https://app.example/api/save', { method: 'POST', headers: { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' } }))).not.toBeNull()
+    expect(requireSameOrigin(new NextRequest('https://internal.service/api/save', { method: 'POST', headers: { origin: 'https://evil.example', 'x-forwarded-proto': 'https', 'x-forwarded-host': 'app.example', 'sec-fetch-site': 'cross-site' } }))).not.toBeNull()
+    expect(requireSameOrigin(new NextRequest('https://app.example/api/save', { method: 'POST', headers: { origin: 'https://evil.example', 'sec-fetch-site': 'same-origin' } }))).not.toBeNull()
   })
 
 
