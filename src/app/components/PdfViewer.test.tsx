@@ -91,6 +91,24 @@ describe('PdfViewer responsive preview', () => {
     expect(events).toEqual(['picker', 'fetch', 'write', 'close'])
     delete (window as Window & { showSaveFilePicker?: unknown }).showSaveFilePicker
   })
+  it('uses Telegram native download whenever the host exposes it, even without a version helper', async () => {
+    const downloadFile = vi.fn()
+    Object.defineProperty(window, 'Telegram', { configurable: true, value: { WebApp: { downloadFile } } })
+    const fetchTelegram = vi.fn((input: RequestInfo | URL, options?: RequestInit) => Promise.resolve(
+      options?.method === 'POST'
+        ? new Response(JSON.stringify({ url: `${window.location.origin}/api/documents/73/pdf?download_ticket=signed&owner_telegram_id=123` }), { status: 200 })
+        : new Response(new Uint8Array([37, 80, 68, 70]), { status: 200 }),
+    ))
+    vi.stubGlobal('fetch', fetchTelegram)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    render(<PdfViewer src="/api/documents/73/pdf" title="DEV-73" initData="telegram-init-data" />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Télécharger le document' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Télécharger le document' }))
+    await waitFor(() => expect(downloadFile).toHaveBeenCalledOnce())
+    expect(fetchTelegram).toHaveBeenCalledWith('/api/documents/73/pdf', expect.objectContaining({ method: 'POST' }))
+    delete (window as Window & { Telegram?: unknown }).Telegram
+  })
+
   it('asks Telegram for its native PDF download popup using an HTTPS signed URL', async () => {
     const downloadFile = vi.fn()
     Object.defineProperty(window, 'Telegram', { configurable: true, value: { WebApp: { downloadFile, isVersionAtLeast: () => true } } })

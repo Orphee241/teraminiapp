@@ -26,7 +26,7 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
     setDownloading(true)
     setDownloadError('')
     try {
-      if (webApp?.downloadFile && webApp.isVersionAtLeast?.('8.0')) {
+      if (webApp?.downloadFile) {
         const target = new URL(src, window.location.origin)
         const tokenResponse = await fetch(`/api/documents/${encodeURIComponent(target.pathname.split('/').at(-2) || '')}/pdf`, {
           method: 'POST',
