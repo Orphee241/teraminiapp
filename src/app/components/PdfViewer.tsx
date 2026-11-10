@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Download, Maximize2, Minimize2 } from 'lucide-react'
-import { savePdf } from '../../lib/document-download'
+import { pickPdfFile, savePdf } from '../../lib/document-download'
 import type { TelegramWindow } from '../../lib/telegram-window'
 
 let workerConfigured = false
@@ -40,11 +40,14 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
         webApp.downloadFile({ url: signed.toString(), file_name: `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf` })
         return
       }
+      // Invoke the picker during the click, before any network await loses user activation.
+      const filename = `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf`
+      const handle = await pickPdfFile(filename)
       const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
       if (!response.ok) throw new Error(`Téléchargement indisponible (${response.status})`)
       const bytes = await response.arrayBuffer()
       if (!bytes.byteLength) throw new Error('Le PDF reçu est vide.')
-      await savePdf(bytes, `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf`)
+      await savePdf(bytes, filename, handle)
     } catch (reason) {
       if (reason instanceof DOMException && reason.name === 'AbortError') return
       setDownloadError(reason instanceof Error ? reason.message : 'Impossible de télécharger ce document.')

@@ -131,14 +131,16 @@ describe('InvoiceCenter archive performance contract', () => {
       return query.get('document_type') === kind && query.get('search') === ''
     })).toBe(true)
   })
-  it('returns from the PDF detail to the archive using the visible back button', async () => {
+  it('omits the in-app back button and keeps the close action', async () => {
     const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ documents: [documentRow] }), { status: 200 })))
     vi.stubGlobal('fetch', fetchMock)
     const user = userEvent.setup()
     render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
     await user.click(await screen.findByRole('button', { name: /DEV-TEST-42/i }))
-    await user.click(screen.getByRole('button', { name: 'Retour aux archives' }))
+    expect(screen.queryByRole('button', { name: 'Retour aux archives' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('pdf-viewer')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Fermer' }))
     expect(await screen.findByRole('heading', { name: 'Mes devis' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /DEV-TEST-42/i })).toBeInTheDocument()
   })
@@ -151,7 +153,9 @@ describe('InvoiceCenter archive performance contract', () => {
     render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} onBackReady={handler => { back = handler }} />)
     await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
     await user.click(await screen.findByRole('button', { name: /DEV-TEST-42/i }))
+    expect(screen.getByTestId('pdf-viewer')).toBeInTheDocument()
     act(() => back())
+    expect(screen.queryByTestId('pdf-viewer')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retour aux archives' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /DEV-TEST-42/i })).toBeInTheDocument()
   })

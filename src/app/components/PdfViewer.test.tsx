@@ -71,7 +71,25 @@ describe('PdfViewer responsive preview', () => {
     expect((fetchMock.mock.calls as unknown as Array<[RequestInfo | URL, RequestInit?]>)[1][1]).toEqual({ headers: { 'x-telegram-init-data': 'telegram-init-data' }, cache: 'no-store' })
     expect(createObjectURL).toHaveBeenCalledOnce()
     expect(click).toHaveBeenCalledOnce()
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:document')
+    expect((createObjectURL.mock.calls as unknown as Array<[Blob]>)[0][0].size).toBe(4)
+    expect(revokeObjectURL).not.toHaveBeenCalled()
+  })
+  it('opens the desktop picker before fetching and writes all bytes before closing', async () => {
+    const events: string[] = []
+    const write = vi.fn(async (blob: Blob) => { events.push('write'); expect(blob.size).toBe(4); expect(blob.type).toBe('application/pdf') })
+    const close = vi.fn(async () => { events.push('close') })
+    const picker = vi.fn(() => { events.push('picker'); return Promise.resolve({ createWritable: async () => ({ write, close }) }) })
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: picker })
+    vi.stubGlobal('fetch', vi.fn(async () => { events.push('fetch'); return new Response(new Uint8Array([37, 80, 68, 70])) }))
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    render(<PdfViewer src="/api/documents/picker/pdf" title="DEV-picker" initData="telegram-init-data" />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Télécharger le document' })).toBeEnabled())
+    events.length = 0
+    fireEvent.click(screen.getByRole('button', { name: 'Télécharger le document' }))
+    expect(events[0]).toBe('picker')
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(events).toEqual(['picker', 'fetch', 'write', 'close'])
+    delete (window as Window & { showSaveFilePicker?: unknown }).showSaveFilePicker
   })
   it('asks Telegram for its native PDF download popup using an HTTPS signed URL', async () => {
     const downloadFile = vi.fn()
