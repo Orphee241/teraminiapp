@@ -65,17 +65,19 @@ async function streamPdf(request: NextRequest, id: string, owner: string, ticket
     const proof = invoiceOwnerHeaders(owner, 'GET', path)
     const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': key, ...proof }, cache: 'no-store' })
     if (!response.ok) return NextResponse.json({ error: 'Document indisponible.' }, { status: response.status })
+    const pdf = await response.arrayBuffer()
     const headers = new Headers({
       'content-type': 'application/pdf',
       'content-disposition': ticketExpiry ? `attachment; filename="document-${id}.pdf"` : (response.headers.get('content-disposition') || 'inline'),
       'cache-control': 'private, no-store',
+      'content-length': String(pdf.byteLength),
     })
     if (ticketExpiry) {
-      headers.set('access-control-allow-origin', '*')
+      headers.set('access-control-allow-origin', 'https://web.telegram.org')
       headers.set('access-control-expose-headers', 'Content-Disposition')
       headers.set('content-disposition', `attachment; filename="document-${id}.pdf"`)
     }
-    return new NextResponse(await response.arrayBuffer(), { status: 200, headers })
+    return new NextResponse(pdf, { status: 200, headers })
   } catch {
     return NextResponse.json({ error: 'Service de documents momentanément indisponible.' }, { status: 503 })
   }
