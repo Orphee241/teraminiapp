@@ -221,7 +221,7 @@ button { cursor:pointer; }
 @media (max-width: 460px) {
   .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 10px; }
   .form-sheet .field input { min-height: 44px; padding: 10px 9px; font-size: 15px; }
-  .document-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "number number" "designation designation" "quantity price" "actions actions"; gap: 9px 10px; align-items: end; }
+  .document-line { grid-template-columns: minmax(0, 1fr); grid-template-areas: "number" "designation" "quantity" "price" "actions"; gap: 9px 10px; align-items: end; }
   .document-line-number { grid-area: number; justify-self: start; margin: 0; }
   .line-designation { grid-area: designation; grid-column: auto; }
   .document-line .line-quantity { grid-area: quantity; }
