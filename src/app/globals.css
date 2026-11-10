@@ -218,11 +218,12 @@ button { cursor:pointer; }
 @media (max-width: 460px) {
   .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 10px; }
   .form-sheet .field input { min-height: 44px; padding: 10px 9px; font-size: 15px; }
-  .document-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px; gap: 7px; }
-  .document-line-number { grid-column: 1 / -1; margin: 0; }
-  .line-designation { grid-column: 1 / -1; }
-  .document-line .field { grid-column: auto; }
-  .document-line .remove-line { grid-column: 3; grid-row: 3; }
+  .document-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "number number" "designation designation" "quantity price" "remove remove"; gap: 9px 10px; align-items: end; }
+  .document-line-number { grid-area: number; justify-self: start; margin: 0; }
+  .line-designation { grid-area: designation; grid-column: auto; }
+  .document-line .line-quantity { grid-area: quantity; }
+  .document-line .line-unit-price { grid-area: price; }
+  .document-line .remove-line { grid-area: remove; justify-self: end; margin: 0; }
 }
 
 .brand-color-setting { display:grid; gap:11px; padding:13px; border:1px solid var(--line); border-radius:13px; background:rgba(255,255,255,.035); }
