@@ -206,24 +206,27 @@ button { cursor:pointer; }
 .document-lines { grid-column: 1 / -1; display: grid; gap: 10px; margin-top: 4px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
 .document-lines-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .document-lines-heading small { color: var(--muted); font-size: 12px; }
-.document-line { display: grid; grid-template-columns: 28px minmax(0, 1fr) 90px minmax(120px, .8fr) 34px; align-items: end; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
-.document-line-number { display: grid; place-items: center; width: 26px; height: 26px; margin-bottom: 9px; color: var(--pink-soft); border-radius: 50%; background: rgba(212,46,91,.14); font-size: 12px; font-weight: 700; }
-.line-designation { display: grid; grid-template-columns: minmax(0, 1fr) 38px; align-items: end; gap: 6px; min-width: 0; }
+.document-line { display: grid; grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "number designation" ". quantity" ". price" ". actions"; align-items: end; gap: 10px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.document-line-number { grid-area: number; display: grid; place-items: center; width: 26px; height: 26px; margin-bottom: 9px; color: var(--pink-soft); border-radius: 50%; background: rgba(212,46,91,.14); font-size: 12px; font-weight: 700; }
+.line-designation { grid-area: designation; min-width: 0; }
+.document-line .line-quantity { grid-area: quantity; }
+.document-line .line-unit-price { grid-area: price; }
 .document-line .field { min-width: 0; }
-.add-line-icon { display: grid; place-items: center; width: 38px; height: 38px; margin-bottom: 5px; color: #fff; border: 0; border-radius: 10px; background: linear-gradient(135deg, #d42e5b, #a8234a); box-shadow: 0 6px 14px rgba(212,46,91,.22); cursor: pointer; }
+.line-actions { grid-area: actions; display: flex; justify-content: flex-end; gap: 8px; }
+.add-line-icon { display: grid; place-items: center; width: 38px; height: 38px; margin: 0; color: #fff; border: 0; border-radius: 10px; background: linear-gradient(135deg, #d42e5b, #a8234a); box-shadow: 0 6px 14px rgba(212,46,91,.22); cursor: pointer; }
 .add-line-icon:hover { filter: brightness(1.12); transform: translateY(-1px); }
-.remove-line { display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 5px; color: #ff8fa8; border: 1px solid rgba(255,100,130,.35); border-radius: 9px; background: transparent; cursor: pointer; }
+.remove-line { display: grid; place-items: center; width: 34px; height: 34px; margin: 0; color: #ff8fa8; border: 1px solid rgba(255,100,130,.35); border-radius: 9px; background: transparent; cursor: pointer; }
 .remove-line:hover { background: rgba(255,100,130,.1); }
 
 @media (max-width: 460px) {
   .form-sheet .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 10px; }
   .form-sheet .field input { min-height: 44px; padding: 10px 9px; font-size: 15px; }
-  .document-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "number number" "designation designation" "quantity price" "remove remove"; gap: 9px 10px; align-items: end; }
+  .document-line { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "number number" "designation designation" "quantity price" "actions actions"; gap: 9px 10px; align-items: end; }
   .document-line-number { grid-area: number; justify-self: start; margin: 0; }
   .line-designation { grid-area: designation; grid-column: auto; }
   .document-line .line-quantity { grid-area: quantity; }
   .document-line .line-unit-price { grid-area: price; }
-  .document-line .remove-line { grid-area: remove; justify-self: end; margin: 0; }
+  .line-actions { grid-area: actions; }
 }
 
 .brand-color-setting { display:grid; gap:11px; padding:13px; border:1px solid var(--line); border-radius:13px; background:rgba(255,255,255,.035); }
