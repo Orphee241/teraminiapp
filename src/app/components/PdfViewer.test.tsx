@@ -96,7 +96,7 @@ describe('PdfViewer responsive preview', () => {
     Object.defineProperty(window, 'Telegram', { configurable: true, value: { WebApp: { downloadFile } } })
     const fetchTelegram = vi.fn((input: RequestInfo | URL, options?: RequestInit) => Promise.resolve(
       options?.method === 'POST'
-        ? new Response(JSON.stringify({ url: `${window.location.origin}/api/documents/73/pdf?download_ticket=signed&owner_telegram_id=123` }), { status: 200 })
+        ? new Response(JSON.stringify({ url: 'https://b2.example/private.pdf?X-Amz-Signature=signed&response-content-disposition=attachment' }), { status: 200 })
         : new Response(new Uint8Array([37, 80, 68, 70]), { status: 200 }),
     ))
     vi.stubGlobal('fetch', fetchTelegram)
@@ -114,7 +114,7 @@ describe('PdfViewer responsive preview', () => {
     Object.defineProperty(window, 'Telegram', { configurable: true, value: { WebApp: { downloadFile, isVersionAtLeast: () => true } } })
     const fetchTelegram = vi.fn((input: RequestInfo | URL, options?: RequestInit) => Promise.resolve(
       options?.method === 'POST'
-        ? new Response(JSON.stringify({ url: `${window.location.origin}/api/documents/72/pdf?download_ticket=signed&owner_telegram_id=123` }), { status: 200 })
+        ? new Response(JSON.stringify({ url: 'https://b2.example/private.pdf?X-Amz-Signature=signed&response-content-disposition=attachment' }), { status: 200 })
         : new Response(new Uint8Array([37, 80, 68, 70]), { status: 200 }),
     ))
     vi.stubGlobal('fetch', fetchTelegram)
@@ -127,7 +127,7 @@ describe('PdfViewer responsive preview', () => {
     expect(fetchTelegram).toHaveBeenCalledWith('/api/documents/72/pdf', expect.objectContaining({ method: 'POST', headers: { 'x-telegram-init-data': 'telegram-init-data' } }))
     const params = downloadFile.mock.calls[0][0]
     expect(params.file_name).toBe('DEV-72.pdf')
-    expect(params.url).toBe(`${window.location.origin}/api/documents/72/pdf?download_ticket=signed&owner_telegram_id=123`)
+    expect(params.url).toBe('https://b2.example/private.pdf?X-Amz-Signature=signed&response-content-disposition=attachment')
     delete (window as Window & { Telegram?: unknown }).Telegram
   })
 })

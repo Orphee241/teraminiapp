@@ -36,7 +36,7 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
         if (!tokenResponse.ok) throw new Error(`Téléchargement indisponible (${tokenResponse.status})`)
         const { url } = await tokenResponse.json()
         const signed = new URL(url)
-        if (signed.origin !== window.location.origin) throw new Error('Le lien de téléchargement ne correspond pas au domaine de la Mini App.')
+        if (signed.protocol !== 'https:') throw new Error('Le lien de téléchargement sécurisé est indisponible.')
         webApp.downloadFile({ url: signed.toString(), file_name: `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf` })
         return
       }

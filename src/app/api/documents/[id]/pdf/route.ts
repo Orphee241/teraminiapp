@@ -30,12 +30,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!/^\d{1,18}$/.test(id)) return NextResponse.json({ error: 'Document indisponible.' }, { status: 404 })
   const owner = String(checked.user?.id || '')
   if (!takeRateLimit(`document-download-ticket:user:${owner}`, 10, 60_000)) return NextResponse.json({ error: 'Trop de demandes rapprochées.' }, { status: 429 })
+  const base = (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
+  const key = process.env.INVOICE_API_KEY || ''
+  if (!base || !key) return NextResponse.json({ error: 'Service de documents non configuré.' }, { status: 503 })
   try {
-    const ticket = issueDownloadTicket(id, owner)
-    const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://app.terainterface.com'
-    const origin = new URL(configuredOrigin).origin
-    const url = new URL(`/api/documents/${id}/pdf?download_ticket=${encodeURIComponent(ticket)}&owner_telegram_id=${encodeURIComponent(owner)}`, origin)
-    return NextResponse.json({ url: url.toString() }, { headers: { 'cache-control': 'no-store' } })
+    const path = `/v1/documents/${id}/download-url?owner_telegram_id=${encodeURIComponent(owner)}`
+    const proof = invoiceOwnerHeaders(owner, 'GET', path)
+    const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': key, ...proof }, cache: 'no-store' })
+    if (!response.ok) return NextResponse.json({ error: 'Téléchargement indisponible.' }, { status: response.status })
+    const data = await response.json()
+    const url = typeof data?.url === 'string' ? data.url : ''
+    if (!/^https:\/\//.test(url)) return NextResponse.json({ error: 'Téléchargement indisponible.' }, { status: 503 })
+    return NextResponse.json({ url }, { headers: { 'cache-control': 'no-store' } })
   } catch {
     return NextResponse.json({ error: 'Téléchargement indisponible.' }, { status: 503 })
   }
