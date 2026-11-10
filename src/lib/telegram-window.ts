@@ -15,8 +15,9 @@ export type TelegramWindow = {
   disableVerticalSwipes?: () => void
   enableVerticalSwipes?: () => void
   onEvent?: (event: string, callback: () => void) => void
-  offEvent?: (event: string, callback: () => void) => void
   close?: () => void
+  offEvent?: (event: string, callback: () => void) => void
+  downloadFile?: (params: { url: string; file_name: string }, callback?: (accepted: boolean) => void) => void
   BackButton?: {
     show: () => void
     hide: () => void

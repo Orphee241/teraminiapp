@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Download, Maximize2, Minimize2 } from 'lucide-react'
+import { savePdf } from '../../lib/document-download'
+import type { TelegramWindow } from '../../lib/telegram-window'
 
 let workerConfigured = false
 const pdfPromiseCache = new Map<string, Promise<any>>()
@@ -17,25 +19,35 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
   const [page, setPage] = useState(1)
   const [pageCount, setPageCount] = useState(1)
   const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+  const webApp = typeof window !== 'undefined' ? (window as Window & { Telegram?: { WebApp?: Pick<TelegramWindow, 'downloadFile' | 'isVersionAtLeast'> } }).Telegram?.WebApp : undefined
 
   const downloadPdf = async () => {
     setDownloading(true)
+    setDownloadError('')
     try {
+      if (webApp?.downloadFile && webApp.isVersionAtLeast?.('8.0')) {
+        const target = new URL(src, window.location.origin)
+        const tokenResponse = await fetch(`/api/documents/${encodeURIComponent(target.pathname.split('/').at(-2) || '')}/pdf`, {
+          method: 'POST',
+          headers: { 'x-telegram-init-data': initData },
+          cache: 'no-store',
+        })
+        if (!tokenResponse.ok) throw new Error(`Téléchargement indisponible (${tokenResponse.status})`)
+        const { url } = await tokenResponse.json()
+        const signed = new URL(url)
+        if (signed.origin !== window.location.origin) throw new Error('Le lien de téléchargement ne correspond pas au domaine de la Mini App.')
+        webApp.downloadFile({ url: signed.toString(), file_name: `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf` })
+        return
+      }
       const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
       if (!response.ok) throw new Error(`Téléchargement indisponible (${response.status})`)
       const bytes = await response.arrayBuffer()
       if (!bytes.byteLength) throw new Error('Le PDF reçu est vide.')
-      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
-      const anchor = document.createElement('a')
-      anchor.href = blobUrl
-      anchor.download = `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf`
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      URL.revokeObjectURL(blobUrl)
+      await savePdf(bytes, `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf`)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Impossible de télécharger ce document.')
-      setState('error')
+      if (reason instanceof DOMException && reason.name === 'AbortError') return
+      setDownloadError(reason instanceof Error ? reason.message : 'Impossible de télécharger ce document.')
     } finally {
       setDownloading(false)
     }
@@ -131,6 +143,7 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
     </button>
     {state === 'loading' && <div className="pdf-loading" role="status" aria-live="polite"><span className="pdf-spinner" aria-hidden="true" /><span className="pdf-loading-label">Chargement de l’aperçu…</span></div>}
     {state === 'error' && <p className="pdf-status pdf-error">{error}</p>}
+    {downloadError && <p className="pdf-status pdf-error" role="status">{downloadError}</p>}
     <canvas ref={canvasRef} />
   </div>
 }

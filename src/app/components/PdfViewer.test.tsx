@@ -73,4 +73,25 @@ describe('PdfViewer responsive preview', () => {
     expect(click).toHaveBeenCalledOnce()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:document')
   })
+  it('asks Telegram for its native PDF download popup using an HTTPS signed URL', async () => {
+    const downloadFile = vi.fn()
+    Object.defineProperty(window, 'Telegram', { configurable: true, value: { WebApp: { downloadFile, isVersionAtLeast: () => true } } })
+    const fetchTelegram = vi.fn((input: RequestInfo | URL, options?: RequestInit) => Promise.resolve(
+      options?.method === 'POST'
+        ? new Response(JSON.stringify({ url: `${window.location.origin}/api/documents/72/pdf?download_ticket=signed&owner_telegram_id=123` }), { status: 200 })
+        : new Response(new Uint8Array([37, 80, 68, 70]), { status: 200 }),
+    ))
+    vi.stubGlobal('fetch', fetchTelegram)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 640 })
+    render(<PdfViewer src="/api/documents/72/pdf" title="DEV-72" initData="telegram-init-data" />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Télécharger le document' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Télécharger le document' }))
+    await waitFor(() => expect(downloadFile).toHaveBeenCalledOnce())
+    expect(fetchTelegram).toHaveBeenCalledWith('/api/documents/72/pdf', expect.objectContaining({ method: 'POST', headers: { 'x-telegram-init-data': 'telegram-init-data' } }))
+    const params = downloadFile.mock.calls[0][0]
+    expect(params.file_name).toBe('DEV-72.pdf')
+    expect(params.url).toBe(`${window.location.origin}/api/documents/72/pdf?download_ticket=signed&owner_telegram_id=123`)
+    delete (window as Window & { Telegram?: unknown }).Telegram
+  })
 })
