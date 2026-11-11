@@ -4,7 +4,6 @@
 .archive-bulk-controls button.danger-button { color:#fff; border-color:rgba(255,100,130,.42); background:#a8234a; }
 .archive-bulk-controls button:disabled { cursor:not-allowed; opacity:.5; }
 .inline-spinner { display:inline-block; width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; }
-.refresh-indicator { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; white-space:nowrap; }
 .invoice-row-selectable.selected { border-color:var(--pink); background:rgba(212,46,91,.10); }
 .invoice-row-selectable input[type="checkbox"] { width:18px; height:18px; flex:none; accent-color:var(--pink); }
 @media (max-width:620px) {
