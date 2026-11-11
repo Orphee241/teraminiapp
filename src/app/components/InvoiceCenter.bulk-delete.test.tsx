@@ -37,9 +37,19 @@ describe('InvoiceCenter bulk selection and deletion', () => {
       documentRow,
       { ...documentRow, id: 43, numero: 'DEV-TEST-43' },
       { ...documentRow, id: 44, numero: 'DEV-TEST-44' },
+      { ...documentRow, id: 45, numero: 'DEV-TEST-45' },
+      { ...documentRow, id: 46, numero: 'DEV-TEST-46' },
+    ]
+    const pageRows = [
+      ...rows.slice(0, 4),
+      ...rows.slice(4),
     ]
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input).startsWith('/api/documents?')) return Promise.resolve(new Response(JSON.stringify({ documents: rows }), { status: 200 }))
+      if (String(input).startsWith('/api/documents?')) {
+        const query = new URL(String(input), 'https://local').searchParams
+        const pageRowsForKind = query.get('search') ? pageRows.filter(row => row.numero.includes(query.get('search') || '')) : pageRows
+        return Promise.resolve(new Response(JSON.stringify({ documents: pageRowsForKind }), { status: 200 }))
+      }
       if (init?.method === 'DELETE') return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }))
       throw new Error(`unexpected request: ${String(input)}`)
     }) as unknown as typeof fetch
@@ -49,22 +59,23 @@ describe('InvoiceCenter bulk selection and deletion', () => {
 
     fireEvent.pointerDown(row)
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 600)) })
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 600)) })
-    expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).toBeChecked()
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).toBeChecked())
 
     await user.click(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i }))
-    expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeChecked()
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeChecked())
     await user.click(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i }))
     await user.click(screen.getByRole('button', { name: /tout sélectionner/i }))
-    expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-43/i })).toBeChecked()
-    expect(screen.getByText('3 sélectionnés')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Suivant' }))
+    expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-46/i })).toBeChecked()
+    expect(screen.getByText('5 sélectionnés')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Précédent' }))
 
-    await user.click(screen.getByRole('button', { name: /supprimer les 3 sélectionnés/i }))
-    expect(screen.getByRole('heading', { name: /supprimer 3 documents/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /supprimer les 5 sélectionnés/i }))
+    expect(screen.getByRole('heading', { name: /supprimer 5 documents/i })).toBeInTheDocument()
     expect(fetchSpy.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(0)
 
-    await user.click(screen.getByRole('button', { name: /^supprimer les 3$/i }))
-    await waitFor(() => expect(fetchSpy.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(3))
+    await user.click(screen.getByRole('button', { name: /^supprimer les 5$/i }))
+    await waitFor(() => expect(fetchSpy.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(5))
     expect(screen.queryByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeInTheDocument()
   })
 
