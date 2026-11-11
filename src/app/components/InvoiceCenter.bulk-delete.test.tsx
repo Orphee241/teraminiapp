@@ -55,14 +55,13 @@ describe('InvoiceCenter bulk selection and deletion', () => {
     }) as unknown as typeof fetch
     const fetchSpy = fetchMock as unknown as { mock: { calls: Array<[RequestInfo | URL, RequestInit?]> } }
     const user = await openArchive(fetchMock)
-    const row = await screen.findByRole('button', { name: /DEV-TEST-42/i })
 
-    fireEvent.pointerDown(row)
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 600)) })
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).toBeChecked())
+    await user.click(screen.getByRole('button', { name: /sélectionner des documents/i }))
+    await user.click(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i }))
+    expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).toBeChecked()
 
     await user.click(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i }))
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeChecked())
+    expect(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeChecked()
     await user.click(screen.getByRole('checkbox', { name: /sélectionner DEV-TEST-42/i }))
     await user.click(screen.getByRole('button', { name: /tout sélectionner/i }))
     await user.click(screen.getByRole('button', { name: 'Suivant' }))
@@ -77,6 +76,31 @@ describe('InvoiceCenter bulk selection and deletion', () => {
     await user.click(screen.getByRole('button', { name: /^supprimer les 5$/i }))
     await waitFor(() => expect(fetchSpy.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(5))
     expect(screen.queryByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeInTheDocument()
+  })
+
+  it('restores the single-document action sheet on long press while keeping selection an explicit toolbar action', async () => {
+    const onEdit = vi.fn()
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input).startsWith('/api/documents?')) return Promise.resolve(new Response(JSON.stringify({ documents: [documentRow] }), { status: 200 }))
+      if (String(input) === '/api/documents/42') return Promise.resolve(new Response(JSON.stringify({ document: documentRow }), { status: 200 }))
+      throw new Error(`unexpected request: ${String(input)}`)
+    }) as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={onEdit} />)
+    await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
+    const row = await screen.findByRole('button', { name: /DEV-TEST-42/i })
+
+    fireEvent.pointerDown(row)
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 600)) })
+    fireEvent.pointerUp(row)
+    expect(await screen.findByRole('button', { name: 'Modifier' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /sélectionner des documents/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Modifier' }))
+    await waitFor(() => expect(onEdit).toHaveBeenCalledWith('devis', documentRow))
   })
 
   it('offers selection without long-press delay on the archive toolbar', async () => {

@@ -157,8 +157,7 @@ export default function InvoiceCenter({ initData, onClose, onCreate, onEdit, onC
     suppressClick.current = false
     pressTimer.current = setTimeout(() => {
       suppressClick.current = true
-      setSelectionMode(true)
-      setSelectedIds(previous => new Set(previous).add(document.id))
+      setMenu(document)
     }, 550)
   }
   const editDocument = async (document: DocumentRecord) => {
