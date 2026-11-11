@@ -206,7 +206,7 @@ button { cursor:pointer; }
 .document-lines { grid-column: 1 / -1; display: grid; gap: 10px; margin-top: 4px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
 .document-lines-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .document-lines-heading small { color: var(--muted); font-size: 12px; }
-.document-line { display: grid; grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "number designation" ". quantity" ". price" ". actions"; align-items: end; gap: 10px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.document-line { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "number" "designation" "quantity" "price" "actions"; align-items: end; gap: 10px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .document-line-number { grid-area: number; display: grid; place-items: center; width: 26px; height: 26px; margin-bottom: 9px; color: var(--pink-soft); border-radius: 50%; background: rgba(212,46,91,.14); font-size: 12px; font-weight: 700; }
 .line-designation { grid-area: designation; min-width: 0; }
 .document-line .line-quantity { grid-area: quantity; }
