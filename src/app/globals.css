@@ -131,7 +131,6 @@ button { cursor:pointer; }
 .invoice-row strong, .invoice-row small { display:block; }
 .invoice-row strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .invoice-row small { margin-top:4px; overflow:hidden; color:var(--muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
-.invoice-row-status { flex:0 1 auto; min-width:0; max-width:28%; overflow:hidden; color:var(--muted); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
 .invoice-status { color:#9ee2b1; font-size:11px; white-space:nowrap; }
 .detail-card { position: relative; margin-top: 18px; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #11141b; }
 .detail-card .close-button { position: absolute; top: 12px; right: 12px; display: grid; }

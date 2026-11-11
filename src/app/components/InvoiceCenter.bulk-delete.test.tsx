@@ -26,6 +26,7 @@ async function openArchive(fetchMock: typeof fetch) {
   renderArchive(fetchMock)
   await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
   await screen.findByText('DEV-TEST-42')
+  expect(screen.queryByText('genere')).not.toBeInTheDocument()
   return user
 }
 
