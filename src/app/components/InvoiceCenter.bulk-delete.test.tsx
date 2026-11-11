@@ -103,6 +103,24 @@ describe('InvoiceCenter bulk selection and deletion', () => {
     await waitFor(() => expect(onEdit).toHaveBeenCalledWith('devis', documentRow))
   })
 
+  it('renders one edit icon in the long-press action sheet', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input).startsWith('/api/documents?')) return Promise.resolve(new Response(JSON.stringify({ documents: [documentRow] }), { status: 200 }))
+      if (String(input) === '/api/documents/42') return Promise.resolve(new Response(JSON.stringify({ document: documentRow }), { status: 200 }))
+      throw new Error(`unexpected request: ${String(input)}`)
+    }) as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<InvoiceCenter initData="telegram-init-data" onClose={vi.fn()} onCreate={vi.fn()} onEdit={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /voir mes devis et factures/i }))
+    const row = await screen.findByRole('button', { name: /DEV-TEST-42/i })
+    fireEvent.pointerDown(row)
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 600)) })
+    fireEvent.pointerUp(row)
+    expect(await screen.findByRole('button', { name: 'Modifier' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Modifier' }).querySelectorAll('svg')).toHaveLength(1)
+  })
+
   it('offers selection without long-press delay on the archive toolbar', async () => {
     const user = await openArchive(() => Promise.resolve(new Response(JSON.stringify({ documents: [documentRow] }), { status: 200 })))
     await user.click(screen.getByRole('button', { name: /sélectionner des documents/i }))
