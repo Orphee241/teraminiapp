@@ -8,7 +8,7 @@
 .browser-landing { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #09090b; color: #f4f4f5; }
 .browser-landing-card { box-sizing: border-box; width: min(100%, 340px); padding: 20px 18px 18px; border: 1px solid #27272a; border-radius: 18px; background: #111114; text-align: center; box-shadow: 0 16px 48px #0008; overflow: hidden; }
 .browser-landing-card .brand-mark { margin: 0 auto 10px; }
-.brand-mark.brand-logo { width:54px; height:54px; flex:none; overflow:hidden; padding:2px; border:1px solid rgba(255,255,255,.12); border-radius:13px; background:#fff; }
+.brand-mark.brand-logo { width:54px; height:54px; flex:none; overflow:hidden; padding:2px; border:1px solid rgba(255,255,255,.12); border-radius:13px; background:var(--pink); }
 .brand-mark.brand-logo img { display:block; width:100%; height:100%; object-fit:contain; border-radius:9px; }
 .app-header .brand-mark.brand-logo { width:52px; height:52px; }
 .admin-header .brand-mark.brand-logo { width:48px; height:48px; }

@@ -24,7 +24,7 @@ export default function DocumentColorSimulator({ color }: { color: string }) {
       <article className="document-simulator-paper" aria-label={`Aperçu ${kind}`} style={{ '--sim-primary': palette.primary, '--sim-deep': palette.deep, '--sim-pale': palette.pale, '--sim-title-text': palette.titleText, '--sim-header-text': palette.headerText } as React.CSSProperties}>
         <header className="simulator-top-band" aria-label="En-tête coloré"><span className="simulator-band-notch" /></header>
         <div className="simulator-document-head">
-          <div className="simulator-logo-zone"><div className="simulator-logo-mark"><img src="/terainterface-logo.jpg" alt="Terainterface" /></div><small>Terainterface</small></div>
+          <div className="simulator-logo-zone"><div className="simulator-logo-mark"><img src="/terainterface-logo.png" alt="Terainterface" /></div><small>Terainterface</small></div>
           <h3>{title}</h3>
         </div>
         <div className="simulator-identity-grid">
