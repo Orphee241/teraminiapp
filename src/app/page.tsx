@@ -11,6 +11,7 @@ import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
 import { createActionGate } from '../lib/action-gate'
 import { documentOperationError } from '../lib/document-errors'
 import { validateDocumentLines } from '../lib/document-form-validation'
+import { buildDocumentPayload } from '../lib/document-payload'
 
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
@@ -213,7 +214,7 @@ export default function HomePage() {
           logoUnavailable = !logoUrl
         } catch { logoUnavailable = true }
       }
-      const payload = { document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: String(form.get('client_nif') || existingClient.tax_id || ''), rccm: String(form.get('client_rccm') || existingClient.rccm || '') }, service_type: documentCategory === 'prestation_vente' ? 'Prestation + vente' : documentCategory === 'vente' ? 'Vente' : 'Prestation', template_profile: 'client_zero', logo_enabled: Boolean(logoUrl), client_logo_path: logoUrl, brand_color: documentBrandColor, vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
+      const payload = buildDocumentPayload({ document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: String(form.get('client_nif') || existingClient.tax_id || ''), rccm: String(form.get('client_rccm') || existingClient.rccm || '') }, service_type: documentCategory === 'prestation_vente' ? 'Prestation + vente' : documentCategory === 'vente' ? 'Vente' : 'Prestation', template_profile: 'client_zero', logo_enabled: Boolean(logoUrl), client_logo_path: logoUrl, brand_color: documentBrandColor, vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }, items)
       const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) })
       if (!response.ok) {
         notify(documentOperationError(response.status, editingDocument ? 'modification' : 'generation'))
