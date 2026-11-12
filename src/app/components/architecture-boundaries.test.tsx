@@ -26,7 +26,9 @@ describe('modular monolith boundaries', () => {
   it('provides explicit server adapters for each business module', () => {
     expect(read('modules/conversations/server/repository.ts')).toContain('listMessages')
     expect(read('modules/conversations/server/infrastructure.ts')).toContain('getConversation')
+    expect(read('modules/profiles/server/infrastructure.ts')).toContain('updateProfileFields')
     expect(read('modules/administration/server/infrastructure.ts')).toContain('adminProfiles')
+    expect(read('lib/storage.ts')).not.toMatch(/export async function (getProfile|updateProfile|updateProfileFields|freshLogoUrl)/)
     expect(read('lib/storage.ts')).not.toMatch(/export async function (getConversation|listMessages|saveMessage|editMessage|deleteMessage|adminProfiles|adminConversations|adminMessages|listAdmins|isStoredAdmin|upsertAdmin|deleteAdmin)/)
   })
 

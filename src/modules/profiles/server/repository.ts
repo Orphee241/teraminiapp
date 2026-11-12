@@ -1,9 +1,9 @@
-import * as storage from '../../../lib/storage'
+import * as profiles from './infrastructure'
+import { upsertProfile, uploadLogo } from '../../../lib/storage'
 
 /** Profile persistence boundary for identity, presence, and branding. */
-export function getProfile(telegramId: string) { return storage.getProfile(telegramId) }
-export function updateProfile(telegramId: string, profile: Record<string, string>) { return storage.updateProfile(telegramId, profile) }
-export function updateProfileFields(telegramId: string, fields: Record<string, string>) { return storage.updateProfileFields(telegramId, fields) }
-export function upsertProfile(profile: Record<string, string>) { return storage.upsertProfile(profile) }
-export function uploadLogo(userId: string, file: File) { return storage.uploadLogo(userId, file) }
-export function freshLogoUrl(telegramId: string) { return storage.freshLogoUrl(telegramId) }
+export function getProfile(telegramId: string) { return profiles.getProfile(telegramId) }
+export function updateProfile(telegramId: string, profile: Record<string, string>) { return profiles.updateProfile(telegramId, profile) }
+export function updateProfileFields(telegramId: string, fields: Record<string, string>) { return profiles.updateProfileFields(telegramId, fields) }
+export { upsertProfile, uploadLogo }
+export function freshLogoUrl(telegramId: string) { return profiles.freshLogoUrl(telegramId) }
