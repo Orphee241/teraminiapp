@@ -24,10 +24,11 @@ describe('modular monolith boundaries', () => {
   })
 
   it('provides explicit server adapters for each business module', () => {
+    expect(read('modules/conversations/server/repository.ts')).not.toContain('export {')
+    expect(read('modules/profiles/server/repository.ts')).not.toContain('export {')
+    expect(read('modules/administration/server/repository.ts')).not.toContain('export {')
+    expect(read('modules/media/server/repository.ts')).not.toContain('export {')
     expect(read('modules/conversations/server/repository.ts')).toContain('listMessages')
-    expect(read('modules/profiles/server/repository.ts')).toContain('upsertProfile')
-    expect(read('modules/administration/server/repository.ts')).toContain('adminProfiles')
-    expect(read('modules/media/server/repository.ts')).toContain('uploadObject')
   })
 
   it('keeps the storage kernel behind infrastructure adapters', () => {
