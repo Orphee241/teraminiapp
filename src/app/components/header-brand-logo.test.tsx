@@ -18,8 +18,13 @@ describe('Terainterface header brand asset', () => {
     expect(admin.match(/src="\/terainterface-logo\.png"/g)).toHaveLength(2)
   })
 
-  it('reduces only the desktop welcome title by fifteen percent', () => {
+  it('keeps the desktop welcome title sizing contract', () => {
     expect(css).toMatch(/\.hero-title\s*\{\s*font-size:clamp\(32px,8\.925vw,53px\)/)
-    expect(css).toMatch(/@media \(min-width:900px\) and \(max-height:700px\) \{ \.content \{ padding-top:36px; \} \.hero-title \{ font-size:41px; \} \}/)
+    expect(css).toMatch(/@media \(min-width:900px\) and \(max-height:700px\) \{ \.content \{ padding-top:66px; \} \.hero-title \{ font-size:41px; \} \}/)
+  })
+
+  it('provides an accessible close control for the Michelle conversation', () => {
+    expect(page).toContain('className="chat-sheet"')
+    expect(page).toContain('className="close-button" type="button" onClick={() => setMichelleOpen(false)} aria-label="Fermer la conversation"><X size={20} />')
   })
 })
