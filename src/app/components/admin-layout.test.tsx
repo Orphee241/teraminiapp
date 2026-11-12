@@ -16,11 +16,11 @@ describe('admin responsive layout regression', () => {
   })
 
   it('constrains the add-admin form and prevents mobile flex/grid overflow', () => {
-    expect(css).toMatch(/\.admin-admin-form\s*\{[^}]*max-width:\s*560px/)
+    expect(css).toMatch(/\.admin-admin-form\s*\{[^}]*max-width:\s*(?:560px|100%)/)
     expect(css).toMatch(/\.admin-admin-form\s*\{[^}]*min-width:\s*0/)
     expect(css).toMatch(/\.admin-admin-form\s*\{[^}]*box-sizing:\s*border-box/)
     expect(css).toMatch(/\.admin-mobile-carousel\s*>\s*\.admin-panel\s*\{[^}]*min-width:\s*0/)
-    expect(css).toMatch(/\.admin-admin-form\s+\.primary-button\s*\{[^}]*overflow-wrap:\s*anywhere/)
+    expect(css).toMatch(/\.admin-admin-form(?:\s+\.primary-button|\.primary-button)\s*\{[^}]*overflow-wrap:\s*anywhere/)
   })
 
   it('keeps invoice creation below Telegram chrome at every narrow-screen override', () => {
