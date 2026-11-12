@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
 import { authenticate, isAdmin, adminSessionValue, ADMIN_SESSION_COOKIE, hasAdminSession, telegramProfile, requireSameOrigin, isAdminSessionConfigured } from '../../_auth'
-import { listAdmins, upsertAdmin } from '../../../../lib/storage'
+import { listAdmins, upsertAdmin } from '../../../../modules/administration/server/repository'
 import { readBoundedJson, RequestBodyLimitError } from '../../../../lib/request-body'
 import { resetRateLimit, takeRateLimit } from '../../../../lib/rate-limit'
 import { enforcePersistentRateLimit, resetPersistentRateLimitForUser } from '../../../../lib/request-security'

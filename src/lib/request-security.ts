@@ -1,4 +1,4 @@
-import { consumePersistentRateLimit, resetPersistentRateLimit } from './storage'
+import { consumePersistentRateLimit, resetPersistentRateLimit } from '../modules/shared/server/persistent-rate-limit'
 
 export async function enforcePersistentRateLimit(userId: string, action: string, perUserMax: number, globalMax: number, windowMs: number) {
   try {

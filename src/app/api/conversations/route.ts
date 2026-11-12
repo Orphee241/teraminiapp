@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, requireSameOrigin } from '../_auth'
-import { listMessages, saveMessage, editMessage, deleteMessage } from '../../../lib/storage'
+import { listMessages, saveMessage, editMessage, deleteMessage } from '../../../modules/conversations/server/repository'
 import { validMessage } from '../../../lib/input-security'
 import { readBoundedJson, RequestBodyLimitError } from '../../../lib/request-body'
 import { takeRateLimit } from '../../../lib/rate-limit'

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, requireSameOrigin, telegramProfile } from '../../_auth'
-import { upsertProfile } from '../../../../lib/storage'
+import { upsertProfile } from '../../../../modules/profiles/server/repository'
 import { takeRateLimit } from '../../../../lib/rate-limit'
 import { enforcePersistentRateLimit } from '../../../../lib/request-security'
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, authHeaders, requireSameOrigin } from '../_auth'
 import { validMessage } from '../../../lib/input-security'
-import { saveMessage } from '../../../lib/storage'
+import { saveMessage } from '../../../modules/conversations/server/repository'
 import { readBoundedJson, RequestBodyLimitError } from '../../../lib/request-body'
 import { takeRateLimit } from '../../../lib/rate-limit'
 import { enforcePersistentRateLimit } from '../../../lib/request-security'

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, telegramProfile, requireSameOrigin } from '../_auth'
-import { getProfile, updateProfileFields, upsertProfile } from '../../../lib/storage'
+import { getProfile, updateProfileFields, upsertProfile } from '../../../modules/profiles/server/repository'
 import { boundedText } from '../../../lib/input-security'
 import { readBoundedJson, RequestBodyLimitError } from '../../../lib/request-body'
 import { takeRateLimit } from '../../../lib/rate-limit'

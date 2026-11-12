@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, isAdmin, hasAdminSession, requireSameOrigin } from '../../_auth'
-import { adminConversations, adminMessages, adminProfiles, adminConversationStats, listAdmins, lookupTelegramUser, upsertAdmin, deleteAdmin, markProfileOfflineBefore } from '../../../../lib/storage'
+import { adminConversations, adminMessages, adminProfiles, adminConversationStats, listAdmins, lookupTelegramUser, upsertAdmin, deleteAdmin, markProfileOfflineBefore } from '../../../../modules/administration/server/repository'
 import { validTelegramId } from '../../../../lib/input-security'
 import { readBoundedJson, RequestBodyLimitError } from '../../../../lib/request-body'
 import { takeRateLimit } from '../../../../lib/rate-limit'

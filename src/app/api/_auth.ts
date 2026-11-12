@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
-import { isStoredAdmin } from '../../lib/storage'
+import { isStoredAdmin } from '../../modules/administration/server/repository'
 
 export type TelegramUser = { id: number; username?: string; first_name?: string; last_name?: string; language_code?: string; photo_url?: string }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, requireSameOrigin } from '../_auth'
-import { uploadObject, saveMessage } from '../../../lib/storage'
+import { uploadObject, saveMessage } from '../../../modules/media/server/repository'
 import { readBoundedFormData, RequestBodyLimitError } from '../../../lib/request-body'
 import { takeRateLimit } from '../../../lib/rate-limit'
 import { enforcePersistentRateLimit } from '../../../lib/request-security'
