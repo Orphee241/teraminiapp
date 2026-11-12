@@ -14,8 +14,8 @@ const storageConfig = () => {
   if (provider === 'b2' || provider === 'backblaze' || provider === 'backblaze-b2') return { endpoint: process.env.B2_ENDPOINT, region: process.env.B2_REGION || 'us-east-005', accessKeyId: process.env.B2_KEY_ID, secretAccessKey: process.env.B2_APPLICATION_KEY, bucket: process.env.B2_BUCKET || 'Terainterface' }
   return { endpoint: process.env.GARAGE_ENDPOINT, region: process.env.GARAGE_REGION || 'garage', accessKeyId: process.env.GARAGE_ACCESS_KEY_ID, secretAccessKey: process.env.GARAGE_SECRET_ACCESS_KEY, bucket: process.env.GARAGE_BUCKET || 'terainterface' }
 }
-const s3 = () => { const config = storageConfig(); return config.endpoint && config.accessKeyId && config.secretAccessKey ? new S3Client({ endpoint: config.endpoint, region: config.region, forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey } }) : null }
-const bucket = () => storageConfig().bucket
+export const s3 = () => { const config = storageConfig(); return config.endpoint && config.accessKeyId && config.secretAccessKey ? new S3Client({ endpoint: config.endpoint, region: config.region, forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey } }) : null }
+export const bucket = () => storageConfig().bucket
 function internalTelegramIds() { return new Set(String(process.env.TERAMINI_INTERNAL_TELEGRAM_IDS || process.env.TERAINTERFACE_INTERNAL_TELEGRAM_IDS || '').split(',').map(value => value.trim()).filter(Boolean)) }
 function logoNamespace(userId: string) { return internalTelegramIds().has(String(userId)) ? `terainterface/logos/${userId}` : `clients/${userId}/logos` }
 export function ownedLogoKey(userId: string, reference: string) {
@@ -111,5 +111,3 @@ export async function uploadLogo(userId: string, file: File) {
   const url = await getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket, Key: key }), { expiresIn: 86400 })
   return { key, url, type: file.type, size: file.size }
 }
-
-export async function uploadObject(userId: string, file: File) { const client = s3(), targetBucket = bucket(); if (!client) throw new Error('media_storage_unconfigured'); const allowed = new Set(['image/jpeg','image/png','image/webp','audio/ogg','audio/mpeg','audio/mp4','application/pdf']); if (!allowed.has(file.type)) throw new Error('media_type_forbidden'); if (file.size > 15 * 1024 * 1024) throw new Error('media_too_large'); const bytes = Buffer.from(await file.arrayBuffer()); if (!matchesDeclaredMediaType(file.type, Uint8Array.from(bytes))) throw new Error('media_signature_invalid'); const key = `teraminiapp/${userId}/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`; await client.send(new PutObjectCommand({ Bucket: targetBucket, Key: key, Body: bytes, ContentType: file.type, Metadata: { owner: userId, application: 'terainterface-miniapp' } })); return { key, name: file.name.slice(0, 180).replace(/[^a-zA-Z0-9._-]/g, '-'), type: file.type, size: file.size, url: await getSignedUrl(client, new GetObjectCommand({ Bucket: targetBucket, Key: key }), { expiresIn: 900 }) } }
