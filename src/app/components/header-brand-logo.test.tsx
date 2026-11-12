@@ -18,8 +18,8 @@ describe('Terainterface header brand asset', () => {
     expect(admin.match(/src="\/terainterface-logo\.png"/g)).toHaveLength(2)
   })
 
-  it('aligns the desktop welcome heading with the top of the sidebar logo', () => {
-    expect(css).toMatch(/\.content\s*\{[^}]*margin:\s*0\s+auto;[^}]*padding:\s*36px\s+clamp\(32px,6vw,88px\)/)
-    expect(css).toMatch(/@media \(min-width:900px\) and \(max-height:700px\) \{ \.content \{ padding-top:36px;/)
+  it('reduces only the desktop welcome title by fifteen percent', () => {
+    expect(css).toMatch(/\.hero-title\s*\{\s*font-size:clamp\(32px,8\.925vw,53px\)/)
+    expect(css).toMatch(/@media \(min-width:900px\) and \(max-height:700px\) \{ \.content \{ padding-top:36px; \} \.hero-title \{ font-size:41px; \} \}/)
   })
 })
