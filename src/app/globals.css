@@ -80,7 +80,7 @@ button { cursor:pointer; }
   .app-header h1 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .app-header .header-actions { position:absolute; top:50%; right:12px; margin:0; transform:translateY(-50%); }
   .app-header .window-action { width:34px; height:34px; }
-  .content { width:min(1200px,100%); grid-column:2; grid-row:1 / span 2; align-self:start; padding:36px clamp(32px,6vw,88px) 72px; }
+  .content { width:min(1200px,100%); grid-column:2; grid-row:1 / span 2; align-self:start; padding:0 clamp(32px,6vw,88px) 72px; }
   .screen { max-width:1060px; margin:0 auto; }
   .home-grid { grid-template-columns:repeat(2,minmax(240px,1fr)); gap:18px; max-width:760px; }
   .home-card { min-height:175px; padding:18px; }
