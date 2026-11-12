@@ -21,12 +21,15 @@ The existing `src/lib/storage.ts` is the storage kernel during this migration. A
 4. Keep the current Turso schema and deployment topology unchanged during boundary extraction.
 5. Every extraction must preserve route status codes, ownership checks, signed downstream requests, and existing tests.
 
-## Migration sequence
+## Migration sequence and current state
 
-1. Establish adapters and import-boundary tests.
-2. Move conversation and profile queries behind module-owned repositories.
-3. Move administration and media queries behind their repositories.
-4. Split the storage kernel into module infrastructure files without changing the public routes.
-5. Introduce domain/application services only where business rules are duplicated or hard to test.
+1. ✅ Establish adapters and import-boundary tests.
+2. ✅ Move conversation queries into `modules/conversations/server/infrastructure.ts`.
+3. ✅ Move administration queries into `modules/administration/server/infrastructure.ts`.
+4. ✅ Move profile read/update queries into `modules/profiles/server/infrastructure.ts`.
+5. ✅ Move media uploads into `modules/media/server/infrastructure.ts`.
+6. ✅ Move persistent rate limits into `modules/shared/server/rate-limit-infrastructure.ts`.
+7. Keep the Turso query/cache kernel and shared object-storage primitives in `src/lib/storage.ts` as infrastructure seams.
+8. Move the remaining profile bootstrap/logo-upload primitives only when a dedicated shared object-storage/database adapter is ready.
 
-This is intentionally incremental: each stage can be reviewed, tested, committed, and reverted independently.
+Each completed extraction preserves the existing API contracts, ownership checks, schema, and deployment topology. The remaining `storage.ts` exports are infrastructure primitives or bootstrap operations deliberately shared by the module adapters; it is no longer the business-query hub.
