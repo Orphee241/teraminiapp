@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const page = readFileSync(resolve(process.cwd(), 'src/app/page.tsx'), 'utf8')
-const admin = readFileSync(resolve(process.cwd(), 'src/app/adm/page.tsx'), 'utf8')
+const adminPage = readFileSync(resolve(process.cwd(), 'src/app/adm/page.tsx'), 'utf8')
+const admin = adminPage
 const css = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
 
 describe('Terainterface header brand asset', () => {
@@ -18,6 +19,11 @@ describe('Terainterface header brand asset', () => {
     expect(admin.match(/src="\/terainterface-logo\.png"/g)).toHaveLength(2)
   })
 
+  it('does not render eyebrow labels above page headings', () => {
+    expect(page).not.toMatch(/<p className="eyebrow accent">NOS SOLUTIONS<\/p><h2 className="section-title">Services<\/h2>/)
+    expect(page).not.toMatch(/<p className="eyebrow accent">ESPACE PERSONNEL<\/p><h2 className="section-title">Mon compte<\/h2>/)
+    expect(adminPage).not.toMatch(/<p className="eyebrow accent">TABLEAU DE BORD<\/p><h2>Vue d’ensemble<\/h2>/)
+  })
   it('restores all page headings at a consistent 35px size', () => {
     expect(css).toMatch(/\.hero-title,\.section-title\s*\{[^}]*font-size:35px/)
     expect(css).not.toContain('.screen > .eyebrow + .section-title { display:none; }')
