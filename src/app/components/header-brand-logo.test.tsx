@@ -18,9 +18,11 @@ describe('Terainterface header brand asset', () => {
     expect(admin.match(/src="\/terainterface-logo\.png"/g)).toHaveLength(2)
   })
 
-  it('keeps the desktop welcome title twenty percent smaller and preserves short-screen spacing', () => {
-    expect(css).toMatch(/\.hero-title\s*\{\s*font-size:clamp\(25\.6px,7\.14vw,42\.4px\)/)
-    expect(css).toMatch(/@media \(min-width:900px\) and \(max-height:700px\) \{ \.content \{ padding-top:66px; \} \.hero-title \{ font-size:32\.8px; \} \}/)
+  it('restores all page headings at a consistent 35px size', () => {
+    expect(css).toMatch(/\.hero-title,\.section-title\s*\{[^}]*font-size:35px/)
+    expect(css).not.toContain('.screen > .eyebrow + .section-title { display:none; }')
+    expect(css).toMatch(/\.admin-header h1\s*\{[^}]*font-size:35px/)
+    expect(css).toMatch(/\.admin-intro h2\s*\{[^}]*font-size:35px/)
   })
 
   it('shows the Michelle close control on desktop only', () => {
@@ -32,11 +34,11 @@ describe('Terainterface header brand asset', () => {
   it('aligns customer page headings and reduces section titles by twenty percent', () => {
     expect(css).toMatch(/\.content\s*\{[^}]*padding:66px/)
     expect(css).toMatch(/\.screen\s*\{[^}]*max-width:1060px;\s*margin:0 auto/)
-    expect(css).toMatch(/\.screen\s*>\s*\.eyebrow\s*\+\s*\.section-title\s*\{\s*display:none;\s*\}/)
-    expect(css).toMatch(/\.section-title\s*\{\s*font-size:clamp\(27\.2px,7\.28vw,41\.6px\)/)
+    expect(css).not.toMatch(/\.screen\s*>\s*\.eyebrow\s*\+\s*\.section-title\s*\{\s*display:none;\s*\}/)
+    expect(css).toMatch(/\.section-title\s*\{\s*font-size:35px/)
   })
 
-  it('reduces authenticated admin dashboard titles by twenty percent', () => {
-    expect(css).toMatch(/\.admin-intro h2\s*\{[^}]*font-size:clamp\(41\.6px,6\.4vw,68\.8px\)/)
+  it('uses the same 35px size for the authenticated admin dashboard title', () => {
+    expect(css).toMatch(/\.admin-intro h2\s*\{[^}]*font-size:35px/)
   })
 })
