@@ -7,6 +7,8 @@ const storage = readFileSync(resolve(root, 'lib/storage.ts'), 'utf8')
 const adminPage = readFileSync(resolve(root, 'app/adm/page.tsx'), 'utf8')
 const adminRoute = readFileSync(resolve(root, 'app/api/admin/conversations/route.ts'), 'utf8')
 const accessRoute = readFileSync(resolve(root, 'app/api/admin/access/route.ts'), 'utf8')
+const presenceRoute = readFileSync(resolve(root, 'app/api/profile/presence/route.ts'), 'utf8')
+const homePage = readFileSync(resolve(root, 'app/page.tsx'), 'utf8')
 const auth = readFileSync(resolve(root, 'app/api/_auth.ts'), 'utf8')
 
 describe('admin directory regression contracts', () => {
@@ -37,11 +39,23 @@ describe('admin directory regression contracts', () => {
 
   it('reports online as Now only in Telegram live status window and never from conversation timestamps', () => {
     expect(storage).toContain('CASE WHEN p.last_app_visit_at')
+    expect(storage).toContain("(strftime('%s','now') - strftime('%s',p.last_app_visit_at)) >= 0")
     expect(storage).not.toContain('MAX(c.updated_at) AS last_activity')
     expect(adminPage).toContain('const isProfileOnline = (profile: Profile)')
+    expect(adminPage).toContain('age >= 0 && age < 5 * 60 * 1000')
     expect(adminPage).toContain("isProfileOnline(profile) ? 'Maintenant'")
   })
 
+  it('keeps profile presence fresh during active customer and admin sessions', () => {
+    expect(presenceRoute).toContain('requireSameOrigin(request)')
+    expect(presenceRoute).toContain('authenticate(request)')
+    expect(presenceRoute).toContain('const profile = telegramProfile(auth.user!)')
+    expect(presenceRoute).toContain('await upsertProfile(profile)')
+    expect(presenceRoute).toContain('last_app_visit_at = new Date().toISOString()')
+    expect(homePage).toContain("fetch('/api/profile/presence'")
+    expect(adminPage).toContain("fetch('/api/profile/presence'")
+    expect(adminPage).toContain('setInterval(heartbeatAndRefresh, 60_000)')
+  })
   it('keeps profile detail in an in-page view and suppresses add-admin action for existing admins', () => {
     expect(adminPage).toContain('const onBack = () =>')
     expect(adminPage).toContain('if (selectedProfile) setSelectedProfile(null)')

@@ -41,6 +41,7 @@ export default function AdminPage() {
   const [now, setNow] = useState(() => Date.now())
   const refreshGate = useRef(createActionGate())
   const mutationGate = useRef(createActionGate())
+  const initialLoadComplete = useRef(false)
 
   useEffect(() => {
     const webApp = window.Telegram?.WebApp
@@ -72,8 +73,25 @@ export default function AdminPage() {
     return configureTelegramBackButton(webApp, true, onBack)
   }, [selectedProfile, selected])
   useEffect(() => { if (!error) return; const timer = window.setTimeout(() => setError(''), 8000); return () => window.clearTimeout(timer) }, [error])
-  useEffect(() => { if (!unlocked) return; const timer = window.setInterval(() => { setNow(Date.now()); void refresh() }, 240_000); return () => window.clearInterval(timer) }, [unlocked])
-  useEffect(() => { if (initData && unlocked) void refresh() }, [initData, unlocked])
+  useEffect(() => {
+    if (!unlocked || !initData) return
+    let pending = false
+    const heartbeatAndRefresh = async () => {
+      if (pending || document.visibilityState === 'hidden') return
+      pending = true
+      try {
+        try { await fetch('/api/profile/presence', { method: 'POST', headers: { 'x-telegram-init-data': initData }, cache: 'no-store', keepalive: true }) } catch { /* Keep retrying while the admin session remains active. */ }
+        setNow(Date.now())
+        await refresh(initialLoadComplete.current)
+      } finally { pending = false }
+
+    }
+    void heartbeatAndRefresh()
+    const timer = window.setInterval(heartbeatAndRefresh, 60_000)
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void heartbeatAndRefresh() }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisibilityChange) }
+  }, [unlocked, initData])
   useEffect(() => { setAdminPage(1) }, [adminQuery])
   useEffect(() => { setProfilePage(1) }, [profileQuery])
   useEffect(() => { setConversationPage(1) }, [conversationQuery])
@@ -87,16 +105,16 @@ export default function AdminPage() {
     setPassword(''); setShowPassword(false); setNoticeKind('success'); setError('Mot de passe accepté. Accès administrateur ouvert.'); setUnlocked(true)
   }
 
-  async function refresh() {
+  async function refresh(silent = false) {
     if (refreshGate.current.busy) return
     return refreshGate.current.run(async () => {
-      setLoading(true); setError('')
+      if (!silent) { setLoading(true); setError('') }
       try {
         const response = await fetch('/api/admin/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'Accès refusé.')
         setData({ profiles: payload.profiles || [], conversations: payload.conversations || [], stats: payload.stats || {} }); setAdmins(payload.admins || [])
-      } catch (cause) { setError(cause instanceof Error ? cause.message : 'Tableau de bord indisponible.') } finally { setLoading(false) }
+      } catch (cause) { setError(cause instanceof Error ? cause.message : 'Tableau de bord indisponible.') } finally { if (!silent) { initialLoadComplete.current = true; setLoading(false) } }
     })
   }
 
@@ -116,12 +134,12 @@ export default function AdminPage() {
   const pagedProfiles = profiles.slice((profilePage - 1) * 3, profilePage * 3)
   const pagedConversations = conversations.slice((conversationPage - 1) * 6, conversationPage * 6)
   const isProfileAdmin = (telegramId: string) => admins.some(admin => admin.telegram_id === telegramId)
-  const isProfileOnline = (profile: Profile) => Boolean(profile.is_online) && Boolean(profile.last_app_visit_at) && now - new Date(profile.last_app_visit_at || 0).getTime() < 5 * 60 * 1000
+  const isProfileOnline = (profile: Profile) => { const age = now - new Date(profile.last_app_visit_at || 0).getTime(); return Boolean(profile.is_online) && Boolean(profile.last_app_visit_at) && Number.isFinite(age) && age >= 0 && age < 5 * 60 * 1000 }
 
   if (!unlocked) return <main className="admin-shell"><header className="admin-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div></header><div className="admin-content"><section className="settings-section admin-lock"><ShieldCheck size={24} /><h2>Accès sécurisé</h2><p>Entrez le mot de passe Administration pour continuer.</p><form noValidate onSubmit={unlock}><div className="admin-password-wrap"><input className="admin-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Mot de passe" /><button className="admin-password-toggle" type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><button className="primary-button" type="submit">Ouvrir Administration</button></form>{error && <p className={`form-message ${noticeKind}`} role="alert">{error}</p>}</section></div></main>
 
   return <main className="admin-shell">
-    <header className="admin-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div><button className="admin-refresh" onClick={refresh} disabled={loading} aria-label="Actualiser"><RefreshCw size={18} className={loading ? 'spin' : ''} /></button></header>
+    <header className="admin-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><p className="eyebrow accent">ESPACE PRIVÉ</p><h1>Administration</h1></div><button className="admin-refresh" onClick={() => { void refresh() }} disabled={loading} aria-label="Actualiser"><RefreshCw size={18} className={loading ? 'spin' : ''} /></button></header>
     <div className="admin-content">
       {error && <div className={`admin-alert ${noticeKind}`} role="status"><ShieldCheck size={18} /><span>{error}</span><button onClick={() => setError('')} aria-label="Fermer"><X size={16} /></button></div>}
       <section className="admin-intro"><div><p className="eyebrow accent">TABLEAU DE BORD</p><h2>Vue d’ensemble</h2><p>Suivez les utilisateurs Telegram et les échanges avec Michelle.</p></div><div className="admin-status"><span /><span>Connexion sécurisée</span></div></section>

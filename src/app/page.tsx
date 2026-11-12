@@ -143,6 +143,21 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
+    if (!initData) return
+    let pending = false
+    const heartbeat = async () => {
+      if (pending || document.visibilityState === 'hidden') return
+      pending = true
+      try { await fetch('/api/profile/presence', { method: 'POST', headers: { 'x-telegram-init-data': initData }, cache: 'no-store', keepalive: true }) } catch { /* A later heartbeat retries transient connection failures. */ } finally { pending = false }
+    }
+    void heartbeat()
+    const interval = window.setInterval(heartbeat, 60_000)
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void heartbeat() }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisibilityChange) }
+  }, [initData])
+
+  useEffect(() => {
     const telegram = window.Telegram?.WebApp
     if (!telegram) return
     const visible = tab !== 'accueil' || accountPage !== 'menu' || formOpen || michelleOpen
