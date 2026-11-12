@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 
 const root = resolve(process.cwd(), 'src')
 const storage = readFileSync(resolve(root, 'lib/storage.ts'), 'utf8')
+const administration = readFileSync(resolve(root, 'modules/administration/server/infrastructure.ts'), 'utf8')
 const adminPage = readFileSync(resolve(root, 'app/adm/page.tsx'), 'utf8')
 const adminRoute = readFileSync(resolve(root, 'app/api/admin/conversations/route.ts'), 'utf8')
 const accessRoute = readFileSync(resolve(root, 'app/api/admin/access/route.ts'), 'utf8')
@@ -33,13 +34,13 @@ describe('admin directory regression contracts', () => {
     expect(adminPage).not.toContain('placeholder="Prénom"')
     expect(adminPage).not.toContain('placeholder="Nom"')
     expect(adminRoute).toContain('lookupTelegramUser(telegramId)')
-    expect(storage).toContain('async function lookupTelegramUser(telegramId: string)')
+    expect(administration).toContain('async function lookupTelegramUser(telegramId: string)')
     expect(adminRoute).not.toMatch(/username:\s*String\(body\.username/)
   })
 
   it('reports online as Now only in Telegram live status window and never from conversation timestamps', () => {
-    expect(storage).toContain('CASE WHEN p.last_app_visit_at')
-    expect(storage).toContain("(strftime('%s','now') - strftime('%s',p.last_app_visit_at)) >= 0")
+    expect(administration).toContain('CASE WHEN p.last_app_visit_at')
+    expect(administration).toContain("(strftime('%s','now') - strftime('%s',p.last_app_visit_at)) >= 0")
     expect(storage).not.toContain('MAX(c.updated_at) AS last_activity')
     expect(adminPage).toContain('const isProfileOnline = (profile: Profile)')
     expect(adminPage).toContain('age >= 0 && age < 5 * 60 * 1000')

@@ -1,13 +1,13 @@
-import * as storage from '../../../lib/storage'
+import * as administration from './infrastructure'
 
 /** Administration persistence boundary. Admin routes do not reach storage directly. */
-export function adminConversations() { return storage.adminConversations() }
-export function adminMessages(id: string) { return storage.adminMessages(id) }
-export function adminProfiles() { return storage.adminProfiles() }
-export function adminConversationStats() { return storage.adminConversationStats() }
-export function listAdmins() { return storage.listAdmins() }
-export function lookupTelegramUser(telegramId: string) { return storage.lookupTelegramUser(telegramId) }
-export function upsertAdmin(admin: Record<string, string>) { return storage.upsertAdmin(admin) }
-export function deleteAdmin(telegramId: string) { return storage.deleteAdmin(telegramId) }
-export function markProfileOfflineBefore(cutoffIso: string) { return storage.markProfileOfflineBefore(cutoffIso) }
-export function isStoredAdmin(telegramId: string) { return storage.isStoredAdmin(telegramId) }
+export function adminConversations() { return administration.adminConversations() }
+export function adminMessages(id: string) { return administration.adminMessages(id) }
+export function adminProfiles() { return administration.adminProfiles() }
+export function adminConversationStats() { return administration.adminConversationStats() }
+export function listAdmins() { return administration.listAdmins() }
+export function lookupTelegramUser(telegramId: string) { return administration.lookupTelegramUser(telegramId) }
+export function upsertAdmin(admin: Record<string, string>) { return administration.upsertAdmin(admin) }
+export function deleteAdmin(telegramId: string) { return administration.deleteAdmin(telegramId) }
+export function markProfileOfflineBefore(cutoffIso: string) { return administration.markProfileOfflineBefore(cutoffIso) }
+export function isStoredAdmin(telegramId: string) { return administration.isStoredAdmin(telegramId) }
