@@ -6,12 +6,14 @@ import InvoiceCenter from './components/InvoiceCenter'
 import BrandColorPicker from './components/BrandColorPicker'
 import SettingsCarousel from './components/SettingsCarousel'
 import DocumentColorSimulator from './components/DocumentColorSimulator'
+import CountryOnboarding from './components/CountryOnboarding'
 import { configureTelegramBackButton, openTelegramWindow, setTelegramVerticalSwipes, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
 import { createActionGate } from '../lib/action-gate'
 import { documentOperationError } from '../lib/document-errors'
 import { validateDocumentLines } from '../lib/document-form-validation'
 import { buildDocumentPayload } from '../lib/document-payload'
+import { COUNTRY_OPTIONS } from '../modules/profiles/country-catalog'
 
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
@@ -44,7 +46,7 @@ function documentFormValues(document: EditableDocument | null): DocumentFormValu
     }
   } catch { return empty }
 }
-type TelegramProfile = { telegram_id: string; username: string; first_name: string; last_name: string; language_code: string; photo_url: string; email: string; phone: string; address: string; company_name: string; nif: string; rccm: string; logo_url: string; brand_color: string }
+type TelegramProfile = { telegram_id: string; username: string; first_name: string; last_name: string; language_code: string; photo_url: string; email: string; phone: string; address: string; company_name: string; nif: string; rccm: string; logo_url: string; brand_color: string; country_code: string; country_name: string; phone_country_code: string; currency_code: string }
 type TelegramWebApp = TelegramWindow & { initData: string; isExpanded?: boolean; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void }
 declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
 
@@ -79,7 +81,8 @@ export default function HomePage() {
   const [fullscreen, setFullscreen] = useState(false)
   const invoiceBackRef = useRef<() => void>(() => undefined)
   const [telegramAvailable, setTelegramAvailable] = useState(false)
-  const [profile, setProfile] = useState<TelegramProfile>({ telegram_id: '', username: '', first_name: '', last_name: '', language_code: '', photo_url: '', email: '', phone: '', address: '', company_name: '', nif: '', rccm: '', logo_url: '', brand_color: '#D71920' })
+  const [profileReady, setProfileReady] = useState(false)
+  const [profile, setProfile] = useState<TelegramProfile>({ telegram_id: '', username: '', first_name: '', last_name: '', language_code: '', photo_url: '', email: '', phone: '', address: '', company_name: '', nif: '', rccm: '', logo_url: '', brand_color: '#D71920', country_code: '', country_name: '', phone_country_code: '', currency_code: '' })
   const [profileMessage, setProfileMessage] = useState('')
   const [accountPage, setAccountPage] = useState<AccountPage>('menu')
   const [language, setLanguage] = useState('fr')
@@ -129,7 +132,7 @@ export default function HomePage() {
     const data = telegram.initData || ''
     setInitData(data)
     if (data) {
-      void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).then(response => response.ok ? response.json() : null).then(value => value?.profile && setProfile(value.profile)).catch(() => undefined)
+      void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).then(response => response.ok ? response.json() : null).then(value => value?.profile && setProfile(value.profile)).catch(() => undefined).finally(() => setProfileReady(true))
       void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => setAdminAvailable(Boolean(payload?.allowed))).catch(() => undefined)
     }
     return () => {
@@ -229,7 +232,7 @@ export default function HomePage() {
           logoUnavailable = !logoUrl
         } catch { logoUnavailable = true }
       }
-      const payload = buildDocumentPayload({ document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim(), rccm: profile.rccm.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: String(form.get('client_nif') || existingClient.tax_id || ''), rccm: String(form.get('client_rccm') || existingClient.rccm || '') }, service_type: documentCategory === 'prestation_vente' ? 'Prestation + vente' : documentCategory === 'vente' ? 'Vente' : 'Prestation', template_profile: 'client_zero', logo_enabled: Boolean(logoUrl), client_logo_path: logoUrl, brand_color: documentBrandColor, vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }, items)
+      const payload = buildDocumentPayload({ document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim(), rccm: profile.rccm.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: String(form.get('client_nif') || existingClient.tax_id || ''), rccm: String(form.get('client_rccm') || existingClient.rccm || '') }, service_type: documentCategory === 'prestation_vente' ? 'Prestation + vente' : documentCategory === 'vente' ? 'Vente' : 'Prestation', template_profile: 'client_zero', logo_enabled: Boolean(logoUrl), client_logo_path: logoUrl, brand_color: documentBrandColor, currency: profile.currency_code || 'XAF', vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }, items)
       const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) })
       if (!response.ok) {
         notify(documentOperationError(response.status, editingDocument ? 'modification' : 'generation'))
@@ -270,6 +273,8 @@ export default function HomePage() {
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 8000); return () => window.clearTimeout(timer) }, [message])
 
   if (!telegramAvailable || !hydrated) return <main className="browser-landing"><section className="browser-landing-card"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><p className="eyebrow accent">TERAINTERFACE</p><h1>Votre espace</h1><p>Accède plus rapidement à nos services via notre Application</p><a className="primary-button browser-open-button" href="https://t.me/Terainterface_bot?startapp" rel="noopener noreferrer">Ouvrir l’App</a><small>Telegram s’ouvrira pour lancer l’application.</small></section></main>
+  if (!profileReady) return <main className="country-onboarding"><section className="country-card"><p className="eyebrow accent">CONFIGURATION</p><h1>Chargement sécurisé…</h1></section></main>
+  if (!profile.country_code || !profile.currency_code || !profile.phone_country_code) return <CountryOnboarding initData={initData} onSaved={value => setProfile(value as TelegramProfile)} />
 
   return <main className="app-shell">
     <header className="app-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Terainterface</h1></div><div className="header-actions">{desktopTelegram && <button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}</div></header>
@@ -310,7 +315,7 @@ function AccountScreen({ accountPage, navigateAccount, profile, setProfile, prof
       setProfileMessage('Logo importé et enregistré. Il sera utilisé sur vos prochains devis et factures.')
     } catch { setProfileMessageKind('error'); setProfileMessage('Le logo ne peut pas être enregistré pour le moment. Vérifiez votre connexion et réessayez.') } finally { setLogoBusy(false) }
   }
-  const companyForm = <form noValidate className="profile-settings" onSubmit={saveProfile}><p className="settings-note">Ces informations apparaissent comme émetteur de vos propres devis et factures.</p><Field name="company_name" label="Nom de l’entreprise" value={profile.company_name} onChange={event => setProfile({ ...profile, company_name: event.target.value })} /><Field name="phone" label="Téléphone" value={profile.phone} onChange={event => setProfile({ ...profile, phone: event.target.value })} /><Field name="address" label="Adresse" value={profile.address} onChange={event => setProfile({ ...profile, address: event.target.value })} /><Field name="nif" label="NIF (facultatif)" value={profile.nif} onChange={event => setProfile({ ...profile, nif: event.target.value })} /><Field name="rccm" label="RCCM (facultatif)" value={profile.rccm} onChange={event => setProfile({ ...profile, rccm: event.target.value })} /><div className="logo-upload"><span className="logo-upload-label">Logo (facultatif)</span><input ref={logoInputRef} className="logo-upload-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadLogo} /><button className="logo-upload-button" type="button" disabled={logoBusy} onClick={() => logoInputRef.current?.click()}>{logoBusy ? 'Import en cours…' : profile.logo_url ? 'Changer le logo' : 'Importer le logo'}</button>{profile.logo_url && <img className="logo-upload-preview" src={profile.logo_url} alt="Logo de l’entreprise" />}</div><button className="primary-button" type="submit">Enregistrer</button>{profileMessage && <p className={`form-message ${profileMessageKind}`} role="status">{profileMessage}</p>}</form>
+  const companyForm = <form noValidate className="profile-settings" onSubmit={saveProfile}><p className="settings-note">Ces informations apparaissent comme émetteur de vos propres devis et factures.</p><label className="language-field">Pays<select value={profile.country_code} onChange={event => setProfile({ ...profile, country_code: event.target.value })}>{COUNTRY_OPTIONS.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}</select></label><p className="settings-note">Indicatif : {profile.phone_country_code || '—'} · Devise : {profile.currency_code || '—'}</p><Field name="company_name" label="Nom de l’entreprise" value={profile.company_name} onChange={event => setProfile({ ...profile, company_name: event.target.value })} /><Field name="phone" label="Téléphone" value={profile.phone} onChange={event => setProfile({ ...profile, phone: event.target.value })} /><Field name="address" label="Adresse" value={profile.address} onChange={event => setProfile({ ...profile, address: event.target.value })} /><Field name="nif" label="NIF (facultatif)" value={profile.nif} onChange={event => setProfile({ ...profile, nif: event.target.value })} /><Field name="rccm" label="RCCM (facultatif)" value={profile.rccm} onChange={event => setProfile({ ...profile, rccm: event.target.value })} /><div className="logo-upload"><span className="logo-upload-label">Logo (facultatif)</span><input ref={logoInputRef} className="logo-upload-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadLogo} /><button className="logo-upload-button" type="button" disabled={logoBusy} onClick={() => logoInputRef.current?.click()}>{logoBusy ? 'Import en cours…' : profile.logo_url ? 'Changer le logo' : 'Importer le logo'}</button>{profile.logo_url && <img className="logo-upload-preview" src={profile.logo_url} alt="Logo de l’entreprise" />}</div><button className="primary-button" type="submit">Enregistrer</button>{profileMessage && <p className={`form-message ${profileMessageKind}`} role="status">{profileMessage}</p>}</form>
   const page = accountPage
   return <section className="screen">
     {page === 'menu' && <><h2 className="section-title">Mon compte</h2><div className="account-list"><AccountRow icon={User} title="Profil" text="Consulter vos informations personnelles." onClick={() => navigateAccount('profile')} /><AccountRow icon={CreditCard} title="Abonnements" text="Gérer votre abonnement et vos offres." onClick={() => navigateAccount('subscriptions')} /><AccountRow icon={Settings} title="Paramètres" text="Gérer votre entreprise et vos préférences." onClick={() => navigateAccount('settings')} /><AccountRow icon={Headphones} title="Assistance" text="Obtenir de l’aide sur un service ou une commande." onClick={() => navigateAccount('assistance')} /><AccountRow icon={ShieldCheck} title="Administration" text="Gérer les utilisateurs et les conversations." onClick={onAdmin} /></div></>}

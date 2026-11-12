@@ -29,13 +29,14 @@ export async function PUT(request: NextRequest) {
     try { body = await readBoundedJson(request, 16 * 1024) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Données du profil trop volumineuses.' : 'Données du profil invalides.' }, { status: tooLarge ? 413 : 400 }) }
     if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Données du profil invalides.' }, { status: 400 })
     const profileFields: Record<string, string> = {}
-    for (const key of ['company_name', 'phone', 'address', 'nif', 'rccm', 'logo_url', 'brand_color']) {
-      if (Object.prototype.hasOwnProperty.call(body, key)) profileFields[key] = boundedText(body[key], key === 'company_name' ? 160 : key === 'phone' ? 40 : key === 'address' ? 240 : key === 'nif' ? 80 : key === 'rccm' ? 120 : key === 'logo_url' ? 500 : 7)
+    for (const key of ['company_name', 'phone', 'address', 'nif', 'rccm', 'logo_url', 'brand_color', 'country_code']) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) profileFields[key] = boundedText(body[key], key === 'company_name' ? 160 : key === 'phone' ? 40 : key === 'address' ? 240 : key === 'nif' ? 80 : key === 'rccm' ? 120 : key === 'country_code' ? 2 : key === 'logo_url' ? 500 : 7)
     }
     const profile = await updateProfileFields(userId, profileFields)
     return NextResponse.json({ profile })
   } catch (error) {
     if (error instanceof Error && error.message === 'logo_reference_invalid') return NextResponse.json({ error: 'Le logo enregistré est invalide. Importez-le à nouveau.' }, { status: 400 })
+    if (error instanceof Error && error.message === 'country_invalid') return NextResponse.json({ error: 'Pays non pris en charge.' }, { status: 400 })
     if (error instanceof Error && error.message === 'brand_color_invalid') return NextResponse.json({ error: 'La couleur sélectionnée est invalide.' }, { status: 400 })
     return NextResponse.json({ error: 'Enregistrement du profil impossible.' }, { status: 503 })
   }
