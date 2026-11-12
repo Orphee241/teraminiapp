@@ -27,6 +27,6 @@ describe('country catalogue', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
     expect(component).not.toContain('CONFIGURATION SÉCURISÉE')
     expect(css).toContain('width:min(364px,100%)')
-    expect(css).toContain('@media (max-width:899px) { .country-card select { min-height:37px; } }')
+    expect(css).toContain('@media (max-width:899px) { .country-card select { min-height:51px; } }')
   })
 })
