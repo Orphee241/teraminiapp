@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const css = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
+const invoiceCenter = readFileSync(resolve(process.cwd(), 'src/app/components/InvoiceCenter.tsx'), 'utf8')
 
 describe('document archive visual layout', () => {
   it('keeps archive rows compact without rendering the document status label', () => {
@@ -11,5 +12,10 @@ describe('document archive visual layout', () => {
     expect(css).toMatch(/\.invoice-row\s*>\s*span:nth-child\(2\)\s*\{[^}]*overflow:\s*hidden/)
     expect(css).toMatch(/\.invoice-row strong\s*\{[^}]*text-overflow:\s*ellipsis/)
     expect(css).not.toMatch(/\.invoice-row-status\s*\{/)
+
+  })
+
+  it('does not render the red SERVICE eyebrow above document services', () => {
+    expect(invoiceCenter).not.toContain('>SERVICE<')
   })
 })

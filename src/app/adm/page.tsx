@@ -39,6 +39,7 @@ export default function AdminPage() {
   const [unlocked, setUnlocked] = useState(false)
   const [noticeKind, setNoticeKind] = useState<'error' | 'success'>('error')
   const [now, setNow] = useState(() => Date.now())
+  const [adminLogoutOpen, setAdminLogoutOpen] = useState(false)
   const refreshGate = useRef(createActionGate())
   const mutationGate = useRef(createActionGate())
   const initialLoadComplete = useRef(false)
@@ -72,7 +73,11 @@ export default function AdminPage() {
     const onBack = () => { if (selectedProfile) setSelectedProfile(null); else if (selected) setSelected(null); else window.location.href = '/' }
     return configureTelegramBackButton(webApp, true, onBack)
   }, [selectedProfile, selected])
-  useEffect(() => { if (!error) return; const timer = window.setTimeout(() => setError(''), 8000); return () => window.clearTimeout(timer) }, [error])
+  useEffect(() => {
+    const handleExit = () => { setUnlocked(false); setPassword(''); setSelected(null); setSelectedProfile(null) }
+    window.addEventListener('pagehide', handleExit)
+    return () => window.removeEventListener('pagehide', handleExit)
+  }, [])
   useEffect(() => {
     if (!unlocked || !initData) return
     let pending = false
@@ -139,7 +144,7 @@ export default function AdminPage() {
   if (!unlocked) return <main className="admin-shell"><header className="admin-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Administration</h1></div></header><div className="admin-content"><section className="settings-section admin-lock"><ShieldCheck size={24} /><h2>Accès sécurisé</h2><p>Entrez le mot de passe Administration pour continuer.</p><form noValidate onSubmit={unlock}><div className="admin-password-wrap"><input className="admin-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Mot de passe" /><button className="admin-password-toggle" type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><button className="primary-button" type="submit">Ouvrir Administration</button></form>{error && <p className={`form-message ${noticeKind}`} role="alert">{error}</p>}</section></div></main>
 
   return <main className="admin-shell">
-    <header className="admin-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Administration</h1></div><button className="admin-refresh" onClick={() => { void refresh() }} disabled={loading} aria-label="Actualiser"><RefreshCw size={18} className={loading ? 'spin' : ''} /></button></header>
+    <header className="admin-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Administration</h1></div><button className="admin-refresh" onClick={() => { void refresh() }} disabled={loading} aria-label="Actualiser"><RefreshCw size={18} className={loading ? 'spin' : ''} /></button><button className="admin-logout" type="button" onClick={() => setAdminLogoutOpen(true)}>Déconnexion</button></header>
     <div className="admin-content">
       {error && <div className={`admin-alert ${noticeKind}`} role="status"><ShieldCheck size={18} /><span>{error}</span><button onClick={() => setError('')} aria-label="Fermer"><X size={16} /></button></div>}
       <section className="admin-intro"><div><h2>Vue d’ensemble</h2><p>Suivez les utilisateurs Telegram et les échanges avec Michelle.</p></div><div className="admin-status"><span /><span>Connexion sécurisée</span></div></section>
@@ -151,7 +156,7 @@ export default function AdminPage() {
        </div>
     </div>
     {selectedProfile && <div className="admin-overlay" onMouseDown={() => setSelectedProfile(null)}><section className="profile-detail-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">PROFIL TELEGRAM</p><h2>{displayName(selectedProfile)}</h2><small>ID Telegram : {selectedProfile.telegram_id}</small></div><button className="close-button" onClick={() => setSelectedProfile(null)} aria-label="Fermer"><X size={20} /></button></div><div className="profile-detail-identity">{selectedProfile.photo_url ? <img src={selectedProfile.photo_url} alt="" /> : <div className="profile-detail-avatar">{(selectedProfile.first_name || 'T').slice(0, 1).toUpperCase()}</div>}<div><strong>{selectedProfile.username ? `@${selectedProfile.username}` : 'Sans nom d’utilisateur'}</strong><span>{isProfileOnline(selectedProfile) ? 'En ligne' : 'Hors ligne'}</span></div></div><div className="profile-detail-grid"><Detail label="Prénom" value={selectedProfile.first_name} /><Detail label="Nom" value={selectedProfile.last_name} /><Detail label="Nom d’utilisateur" value={selectedProfile.username ? `@${selectedProfile.username}` : undefined} /><Detail label="Langue" value={selectedProfile.language_code} /><Detail label="E-mail" value={selectedProfile.email} /><Detail label="Téléphone" value={selectedProfile.phone} /><Detail label="Adresse" value={selectedProfile.address} /><Detail label="Entreprise" value={selectedProfile.company_name} /><Detail label="NIF" value={selectedProfile.nif} /><Detail label="RCCM" value={selectedProfile.rccm} /><Detail label="Dernière activité" value={relativeDate(selectedProfile.last_app_visit_at || selectedProfile.created_at)} /><Detail label="Conversations" value={String(selectedProfile.conversation_count || 0)} /></div></section></div>}
-    {selected && <div className="admin-overlay" onMouseDown={() => setSelected(null)}><section className="conversation-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">CONVERSATION</p><h2>{selected.title || 'Michelle'}</h2><small>Utilisateur Telegram : {selected.external_user_id}</small></div><button className="close-button" onClick={() => setSelected(null)} aria-label="Fermer"><X size={20} /></button></div><div className="admin-messages">{messages.length === 0 ? <Empty text="Aucun message dans cette conversation." /> : messages.map(message => <div className={`admin-message ${message.role}`} key={message.id}><span>{message.text}</span><time>{date(message.sent_at)}</time></div>)}</div></section></div>}
+    {adminLogoutOpen && <div className="admin-overlay" onMouseDown={() => setAdminLogoutOpen(false)}><section className="confirm-sheet confirm-sheet-compact" onMouseDown={event => event.stopPropagation()}><h2>Se déconnecter ?</h2><p>Voulez-vous vraiment fermer votre session d’administration ?</p><div className="confirm-actions"><button type="button" className="secondary-button" onClick={() => setAdminLogoutOpen(false)}>Non</button><button type="button" className="danger-button" onClick={() => { setAdminLogoutOpen(false); setUnlocked(false); setPassword(''); setSelected(null); setSelectedProfile(null); window.location.href = '/' }}>Oui, me déconnecter</button></div></section></div>}
   </main>
 }
 
