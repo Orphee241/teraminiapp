@@ -273,7 +273,7 @@ export default function HomePage() {
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 8000); return () => window.clearTimeout(timer) }, [message])
 
   if (!telegramAvailable || !hydrated) return <main className="browser-landing"><section className="browser-landing-card"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><p className="eyebrow accent">TERAINTERFACE</p><h1>Votre espace</h1><p>Accède plus rapidement à nos services via notre Application</p><a className="primary-button browser-open-button" href="https://t.me/Terainterface_bot?startapp" rel="noopener noreferrer">Ouvrir l’App</a><small>Telegram s’ouvrira pour lancer l’application.</small></section></main>
-  if (!profileReady) return <main className="country-onboarding"><section className="country-card"><h1>Chargement sécurisé…</h1></section></main>
+  if (!profileReady) return <main className="country-onboarding" aria-label="Chargement"><span className="secure-loading-spinner" style={{ '--spinner-color': profile.brand_color || '#D71920' } as React.CSSProperties} aria-label="Chargement" /></main>
   if (!profile.country_code || !profile.currency_code || !profile.phone_country_code) return <CountryOnboarding initData={initData} onSaved={value => setProfile(value as TelegramProfile)} />
 
   return <main className="app-shell">
