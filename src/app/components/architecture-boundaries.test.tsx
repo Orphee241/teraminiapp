@@ -34,6 +34,7 @@ describe('modular monolith boundaries', () => {
   })
 
   it('keeps the storage kernel behind infrastructure adapters', () => {
-    expect(read('modules/shared/server/persistent-rate-limit.ts')).toContain('consumePersistentRateLimit')
+    expect(read('modules/shared/server/rate-limit-infrastructure.ts')).toContain('consumePersistentRateLimit')
+    expect(read('lib/storage.ts')).not.toMatch(/export async function (consumePersistentRateLimit|resetPersistentRateLimit)/)
   })
 })

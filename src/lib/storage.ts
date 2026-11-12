@@ -78,23 +78,6 @@ export async function query(sql: string, args: unknown[] = []) {
 }
 let schemaReady: Promise<void> | null = null
 export async function ensureSchema() { if (schemaReady) return schemaReady; schemaReady = (async () => { for (const statement of conversationSchema.split(';').map(x => x.trim()).filter(Boolean)) await query(statement); for (const column of ["company_name TEXT NOT NULL DEFAULT ''", "nif TEXT NOT NULL DEFAULT ''", "rccm TEXT NOT NULL DEFAULT ''", "logo_url TEXT NOT NULL DEFAULT ''", "brand_color TEXT NOT NULL DEFAULT '#D71920'", "last_app_visit_at TEXT NOT NULL DEFAULT ''", "is_online INTEGER NOT NULL DEFAULT 0"]) { try { await query(`ALTER TABLE miniapp_profiles ADD COLUMN ${column}`) } catch { /* Existing deployments already have this profile column. */ } } })().catch(error => { schemaReady = null; throw error }); return schemaReady }
-export async function consumePersistentRateLimit(scope: string, maximum: number, windowMs: number, now = Date.now()) {
-  await ensureSchema()
-  const secret = process.env.TERAMINI_ADMIN_SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN || process.env.TERAINTERFACE_TELEGRAM_BOT_TOKEN || ''
-  if (!secret || !scope || scope.length > 256 || maximum < 1 || windowMs < 1) throw new Error('shared_rate_limit_unavailable')
-  const scopeKey = crypto.createHmac('sha256', secret).update(scope).digest('hex')
-  const rows = await query("INSERT INTO miniapp_rate_limits (scope_key,window_started_at,hits) VALUES (?1,?2,1) ON CONFLICT(scope_key) DO UPDATE SET hits=CASE WHEN miniapp_rate_limits.window_started_at<=?2-?3 THEN 1 ELSE miniapp_rate_limits.hits+1 END,window_started_at=CASE WHEN miniapp_rate_limits.window_started_at<=?2-?3 THEN ?2 ELSE miniapp_rate_limits.window_started_at END RETURNING hits", [scopeKey, now, windowMs])
-  return Number(rows[0]?.hits || 0) <= maximum
-}
-
-export async function resetPersistentRateLimit(scope: string) {
-  await ensureSchema()
-  const secret = process.env.TERAMINI_ADMIN_SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN || process.env.TERAINTERFACE_TELEGRAM_BOT_TOKEN || ''
-  if (!secret || !scope || scope.length > 256) throw new Error('shared_rate_limit_unavailable')
-  const scopeKey = crypto.createHmac('sha256', secret).update(scope).digest('hex')
-  await query('DELETE FROM miniapp_rate_limits WHERE scope_key=?1', [scopeKey])
-}
-
 export async function upsertProfile(profile: Record<string, string>) { await ensureSchema(); const now = new Date().toISOString(); await query("INSERT INTO miniapp_profiles (telegram_id,username,first_name,last_name,language_code,photo_url,last_app_visit_at,is_online,created_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,1,?7,?7) ON CONFLICT(telegram_id) DO UPDATE SET username=excluded.username,first_name=excluded.first_name,last_name=excluded.last_name,language_code=excluded.language_code,photo_url=excluded.photo_url,last_app_visit_at=excluded.last_app_visit_at,is_online=1,updated_at=excluded.updated_at", [profile.telegram_id, profile.username, profile.first_name, profile.last_name, profile.language_code, profile.photo_url, now]); return profile }
 export async function uploadLogo(userId: string, file: File) {
   const client = s3(), targetBucket = bucket()
