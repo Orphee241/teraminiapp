@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { DAILY_FREE_DOCUMENT_LIMIT, DOCUMENT_PACKS } from '../../modules/documents/billing-policy'
+import { DAILY_FREE_DOCUMENT_LIMITS, DOCUMENT_PACKS } from '../../modules/documents/billing-policy'
 
 describe('document billing policy', () => {
-  it('allows two free documents per day before showing packs', () => {
-    expect(DAILY_FREE_DOCUMENT_LIMIT).toBe(2)
+  it('allows one free quote and one free invoice per day', () => {
+    expect(DAILY_FREE_DOCUMENT_LIMITS).toEqual({ devis: 1, facture: 1 })
   })
 
   it('publishes the approved quote and invoice packs', () => {

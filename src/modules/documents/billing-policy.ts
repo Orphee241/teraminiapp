@@ -1,4 +1,4 @@
-export const DAILY_FREE_DOCUMENT_LIMIT = 2
+export const DAILY_FREE_DOCUMENT_LIMITS = { devis: 1, facture: 1 } as const
 export const DOCUMENT_PACKS = [
   { code: 'document-1', documents: 1, amount: 200, currency: 'XAF' },
   { code: 'document-50', documents: 50, amount: 5000, currency: 'XAF' },
