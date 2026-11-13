@@ -5,6 +5,7 @@ import { readBoundedJson, RequestBodyLimitError } from '../../../lib/request-bod
 import { takeRateLimit } from '../../../lib/rate-limit'
 import { invoiceOwnerHeaders } from '../../../lib/invoice-owner-signature'
 import { cachedDocumentList, cacheDocumentList, invalidateDocumentLists } from '../../../lib/document-cache'
+import { DAILY_FREE_DOCUMENT_LIMIT, DOCUMENT_PACKS } from '../../../modules/documents/billing-policy'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 const apiKey = () => process.env.INVOICE_API_KEY || ''
@@ -34,6 +35,20 @@ async function proxy(request: NextRequest, path: string, owner: string, body?: u
   } catch {
     return NextResponse.json({ error: 'Service de documents momentanément indisponible.' }, { status: 503 })
   }
+}
+
+async function dailyDocumentUsage(owner: string): Promise<number | null> {
+  const base = apiBase()
+  if (!base || !apiKey()) return null
+  const path = `/v1/documents?owner_telegram_id=${encodeURIComponent(owner)}&status_filter=&document_type=`
+  try {
+    const proof = invoiceOwnerHeaders(owner, 'GET', path)
+    const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': apiKey(), ...proof }, cache: 'no-store' })
+    if (!response.ok) return null
+    const payload = await response.json().catch(() => ({})) as { documents?: Array<{ created_at?: string }> }
+    const today = new Date().toISOString().slice(0, 10)
+    return Array.isArray(payload.documents) ? payload.documents.filter(document => String(document.created_at || '').slice(0, 10) === today).length : 0
+  } catch { return null }
 }
 
 async function auth(request: NextRequest) {
@@ -66,6 +81,11 @@ export async function POST(request: NextRequest) {
   let body: any
   try { body = await readBoundedJson(request, 64 * 1024) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Document trop volumineux.' : 'Données du document invalides.' }, { status: tooLarge ? 413 : 400 }) }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Données du document invalides.' }, { status: 400 })
+  const usedToday = await dailyDocumentUsage(checked.owner)
+  if (usedToday === null) return NextResponse.json({ error: 'Impossible de vérifier votre quota de génération. Réessayez.' }, { status: 503 })
+  if (usedToday >= DAILY_FREE_DOCUMENT_LIMIT) {
+    return NextResponse.json({ error: 'Votre quota gratuit quotidien est atteint.', code: 'DOCUMENT_PACK_REQUIRED', freeLimit: DAILY_FREE_DOCUMENT_LIMIT, usedToday, packs: DOCUMENT_PACKS }, { status: 402 })
+  }
   body.owner_telegram_id = checked.owner
   invalidateDocumentLists(checked.owner)
   return proxy(request, '/v1/documents', checked.owner, body)
