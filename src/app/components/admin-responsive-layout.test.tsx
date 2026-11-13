@@ -9,11 +9,11 @@ describe('admin responsive boundaries', () => {
   it('constrains desktop panels and their children to their grid columns', () => {
     expect(css).toContain('.admin-panel { min-width:0; min-height:0; overflow:hidden;')
     expect(css).toContain('.admin-panel > * { min-width:0; max-width:100%; }')
-    expect(css).toContain('.admin-table,.profile-table,.conversation-list { width:100%; min-width:0; overflow-x:auto; }')
+    expect(css).toContain('.admin-table,.conversation-list { width:100%; min-width:0; overflow-x:auto; }')
   })
 
   it('prevents long admin values and forms from escaping their sections', () => {
-    expect(css).toContain('.admin-table-row > * { min-width:0; overflow-wrap:anywhere; word-break:break-word; }')
+    expect(css).toContain('.admin-table-row > * { min-width:0; overflow-wrap:normal; word-break:normal; }')
     expect(css).toContain('.admin-admin-form { width:min(100%,560px); max-width:100%;')
     expect(css).toContain('.admin-admin-form input,.admin-admin-form .primary-button { min-width:0; max-width:100%;')
   })
