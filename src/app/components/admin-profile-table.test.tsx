@@ -13,8 +13,8 @@ describe('admin profile table responsive layout', () => {
   })
 
   it('renders status and last connection columns for every profile', () => {
-    expect(admin).toContain('>Statut</span>')
-    expect(admin).toContain('>Dernière connexion</span>')
+    expect(admin).toContain('>Statut / dernière connexion</span>')
+    expect(admin).not.toContain('<span>Statut</span><span>Dernière connexion</span><span>Action</span>')
     expect(admin).toContain('En ligne')
     expect(admin).toContain('Hors ligne')
     expect(admin).toContain('relativeDate(profile.last_app_visit_at || profile.created_at)')
