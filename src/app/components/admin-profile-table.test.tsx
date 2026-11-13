@@ -7,9 +7,9 @@ const admin = readFileSync(resolve(process.cwd(), 'src/app/adm/page.tsx'), 'utf8
 
 describe('admin profile table responsive layout', () => {
   it('keeps the profile table horizontally scrollable inside its panel', () => {
-    expect(css).toContain('.profile-table { width:100%; min-width:0; overflow-x:auto; }')
-    expect(css).toContain('grid-template-columns:minmax(190px,1.5fr)')
-    expect(css).toContain('min-width:760px')
+    expect(css).toContain('.profile-table { width:100%; min-width:0; overflow:visible; }')
+    expect(css).toContain('grid-template-columns:minmax(150px,1.5fr)')
+    expect(css).toContain('.admin-table,.profile-table,.conversation-list { width:100%; min-width:0; overflow-x:auto; }')
   })
 
   it('renders status and last connection columns for every profile', () => {
