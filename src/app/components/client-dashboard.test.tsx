@@ -32,6 +32,7 @@ describe('client dashboard tabs', () => {
     expect(page).toContain("return 'Succès'")
     expect(page).toContain("return 'Échec'")
     expect(page).toContain('dashboard-list')
+    expect(page).toContain('billing-list-block')
     expect(page).not.toContain('crédit(s) confirmé(s)')
     expect(page).toContain('Devis et Factures')
   })
