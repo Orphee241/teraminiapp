@@ -16,7 +16,10 @@ describe('client dashboard tabs', () => {
     expect(page).toContain('role="tab" aria-selected={dashboardTab === \'billing\'}')
     expect(page).toContain('role="tab" aria-selected={dashboardTab === \'services\'}')
     expect(page).toContain('>Facturation</button>')
-    expect(page).toContain('title="Génération de devis et factures"')
+    expect(page).toContain('billingPage - 1) * 5')
+    expect(page).toContain('billingPageCount > 1')
+    expect(page).toContain('Télécharger la facture PDF')
+    expect(page).toContain('service-status-dot')
   })
 
   it('styles the tabs for mobile and desktop without horizontal overflow', () => {
