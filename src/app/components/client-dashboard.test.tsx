@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const page = readFileSync(resolve(process.cwd(), 'src/app/page.tsx'), 'utf8')
+const invoiceRoute = readFileSync(resolve(process.cwd(), 'src/app/api/billing/deposits/[id]/invoice/route.ts'), 'utf8')
 const css = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
 
 describe('client dashboard tabs', () => {
@@ -19,7 +20,11 @@ describe('client dashboard tabs', () => {
     expect(page).toContain('billingPage - 1) * 5')
     expect(page).toContain('billingPageCount > 1')
     expect(page).toContain('Télécharger la facture PDF')
-    expect(page).toContain('service-status-dot')
+    expect(page).toContain('Détail de la transaction')
+    expect(page).toContain('Devis et Factures')
+    expect(page).toContain('setSelectedPayment(payment)')
+    expect(invoiceRoute).toContain("application/pdf")
+    expect(invoiceRoute).toContain("status).toUpperCase() !== 'COMPLETED'")
     expect(page).toContain('invoice_id')
   })
 

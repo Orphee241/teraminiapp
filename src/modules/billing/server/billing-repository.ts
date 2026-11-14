@@ -37,8 +37,10 @@ export async function listPayments(owner: string): Promise<Array<{ deposit_id: s
   return query('SELECT deposit_id, pack_code, documents, amount, currency, provider, phone_number, status, credited_at, created_at, updated_at FROM miniapp_billing_payments WHERE owner_telegram_id = ? ORDER BY created_at DESC LIMIT 50', [owner]) as Promise<Array<{ deposit_id: string; pack_code: string; documents: number; amount: number; currency: string; provider: string; phone_number: string; status: string; credited_at?: string; created_at: string; updated_at: string }>>
 }
 
-export async function reconcilePendingPayments(owner: string): Promise<void> {
+export async function getPayment(owner: string, depositId: string): Promise<{ deposit_id: string; owner_telegram_id: string; pack_code: string; documents: number; amount: number; currency: string; provider: string; phone_number: string; status: string; credited_at?: string; created_at: string; updated_at: string } | null> {
   await ensureSchema()
+  const rows = await query('SELECT deposit_id, owner_telegram_id, pack_code, documents, amount, currency, provider, phone_number, status, credited_at, created_at, updated_at FROM miniapp_billing_payments WHERE deposit_id = ? AND owner_telegram_id = ? LIMIT 1', [depositId, owner])
+  return (rows[0] as { deposit_id: string; owner_telegram_id: string; pack_code: string; documents: number; amount: number; currency: string; provider: string; phone_number: string; status: string; credited_at?: string; created_at: string; updated_at: string } | undefined) || null
 }
 
 export async function availableDocumentCredits(owner: string): Promise<number> {
