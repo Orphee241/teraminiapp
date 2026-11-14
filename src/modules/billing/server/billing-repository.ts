@@ -32,6 +32,15 @@ async function ensureSchema() {
   return schemaReady
 }
 
+export async function listPayments(owner: string): Promise<Array<{ deposit_id: string; pack_code: string; documents: number; amount: number; currency: string; provider: string; phone_number: string; status: string; credited_at?: string; created_at: string; updated_at: string }>> {
+  await ensureSchema()
+  return query('SELECT deposit_id, pack_code, documents, amount, currency, provider, phone_number, status, credited_at, created_at, updated_at FROM miniapp_billing_payments WHERE owner_telegram_id = ? ORDER BY created_at DESC LIMIT 50', [owner]) as Promise<Array<{ deposit_id: string; pack_code: string; documents: number; amount: number; currency: string; provider: string; phone_number: string; status: string; credited_at?: string; created_at: string; updated_at: string }>>
+}
+
+export async function reconcilePendingPayments(owner: string): Promise<void> {
+  await ensureSchema()
+}
+
 export async function availableDocumentCredits(owner: string): Promise<number> {
   await ensureSchema()
   const rows = await query('SELECT document_credits FROM miniapp_billing_accounts WHERE owner_telegram_id = ? LIMIT 1', [owner])
