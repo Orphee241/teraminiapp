@@ -44,7 +44,7 @@ describe('admin directory regression contracts', () => {
     expect(storage).not.toContain('MAX(c.updated_at) AS last_activity')
     expect(adminPage).toContain('const isProfileOnline = (profile: Profile)')
     expect(adminPage).toContain('age >= 0 && age < 5 * 60 * 1000')
-    expect(adminPage).toContain("isProfileOnline(profile) ? 'Maintenant'")
+    expect(adminPage).toContain("isProfileOnline(profile) ? 'Activité : maintenant'")
   })
 
   it('keeps profile presence fresh during active customer and admin sessions', () => {
@@ -62,6 +62,15 @@ describe('admin directory regression contracts', () => {
     expect(adminPage).toContain('if (selectedProfile) setSelectedProfile(null)')
     expect(adminPage).toContain("!isProfileAdmin(profile.telegram_id) &&")
     expect(adminPage).toContain('selectedProfile &&')
+  })
+
+  it('shows administration only to authorized users and keeps user status plus admin action on each profile row', () => {
+    expect(homePage).toContain("const [adminAvailable, setAdminAvailable] = useState(false)")
+    expect(homePage).toContain('{adminAvailable && <AccountRow icon={ShieldCheck}')
+    expect(adminPage).toContain('aria-label={`Statut de ${displayName(profile)}`')
+    expect(adminPage).toContain("? <>En ligne")
+    expect(adminPage).toContain('Dernière activité')
+    expect(adminPage).toContain('Ajouter admin')
   })
 
   it('creates the current Telegram user as the primary admin on first authenticated access', () => {
