@@ -1,5 +1,7 @@
 name: Deploy Teraminiapp to Dokploy
 
+# Automation smoke-test marker: branch pushes must reach Dokploy.
+
 on:
   push:
     branches: [b2-crud]
