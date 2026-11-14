@@ -1,0 +1,24 @@
+name: Deploy Teraminiapp to Dokploy
+
+on:
+  push:
+    branches: [b2-crud]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Dokploy deployment
+        env:
+          DOKPLOY_API_URL: https://cluster.terainterface.com
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: 6m3n0tw8T7PX7OK3ncS3F
+        run: |
+          set -euo pipefail
+          test -n "$DOKPLOY_API_KEY"
+          curl --fail-with-body --silent --show-error \
+            -X POST "$DOKPLOY_API_URL/api/application.deploy" \
+            -H 'accept: application/json' \
+            -H 'content-type: application/json' \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            --data "{\"applicationId\":\"$DOKPLOY_APPLICATION_ID\"}"
