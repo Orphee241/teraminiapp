@@ -293,7 +293,11 @@ export default function HomePage() {
       }
       setPaymentPack(null); setPaymentPhone(''); setPackOffer(null)
       throw new Error('Le délai de paiement est expiré. Recommencez avec le bon numéro.')
-    } catch (error) { setPaymentStatus(error instanceof Error ? error.message : 'Le paiement n’a pas pu être confirmé.') } finally { setPaymentBusy(false) }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Le paiement n’a pas pu être confirmé.'
+      setPaymentPack(null); setPaymentPhone(''); setPackOffer(null); setPaymentStatus(''); setPaymentBusy(false)
+      notify(message, 'error')
+    } finally { setPaymentBusy(false) }
   }
   async function sendToMichelle(event: FormEvent) {
     event.preventDefault(); const text = chatInput.trim(); if (!text || chatBusy || messageGate.current.busy) return

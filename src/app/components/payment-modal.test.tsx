@@ -14,7 +14,7 @@ describe('payment modal regression contracts', () => {
   })
 
   it('keeps payment errors visible inside the payment modal', () => {
-    expect(page).toContain("setPaymentStatus(error instanceof Error ? error.message : 'Le paiement n’a pas pu être confirmé.')")
+    expect(page).toContain('notify(message, \'error\')')
     expect(page).toContain("{paymentStatus && <p role=\"alert\" className={`form-message ${paymentBusy ? '' : 'error'}`.trim()}>{paymentStatus}</p>}")
   })
 
