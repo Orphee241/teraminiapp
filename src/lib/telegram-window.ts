@@ -7,10 +7,23 @@ export type TelegramWindow = {
   isVersionAtLeast?: (version: string) => boolean
   requestFullscreen?: () => void
   exitFullscreen?: () => void
+  requestSafeArea?: () => void
+  requestContentSafeArea?: () => void
+  safeAreaInset?: { top?: number; right?: number; bottom?: number; left?: number }
+  contentSafeAreaInset?: { top?: number; right?: number; bottom?: number; left?: number }
   isFullscreen?: boolean
+  disableVerticalSwipes?: () => void
+  enableVerticalSwipes?: () => void
   onEvent?: (event: string, callback: () => void) => void
-  offEvent?: (event: string, callback: () => void) => void
   close?: () => void
+  offEvent?: (event: string, callback: () => void) => void
+  downloadFile?: (params: { url: string; file_name: string }, callback?: (accepted: boolean) => void) => void
+  BackButton?: {
+    show: () => void
+    hide: () => void
+    onClick: (callback: () => void) => void
+    offClick: (callback: () => void) => void
+  }
 }
 
 export function isDesktopTelegram(platform?: string): boolean {
@@ -36,10 +49,46 @@ export function openTelegramWindow(webApp: TelegramWindow): boolean {
   webApp.ready()
   webApp.expand()
   const desktop = isDesktopTelegram(webApp.platform)
-  if (desktop && webApp.isVersionAtLeast?.('8.0')) {
-    toggleTelegramFullscreen(webApp)
+  // Prefer the native fullscreen capability whenever the client exposes it.
+  // Some Telegram clients expose the method without a reliable version helper.
+  if (webApp.isVersionAtLeast?.('8.0') || webApp.requestFullscreen) {
+    // Opening/re-entering a page must be idempotent: toggle would exit fullscreen
+    // when Telegram reports that the Mini App is already fullscreen.
+    if (!webApp.isFullscreen) toggleTelegramFullscreen(webApp)
+    webApp.requestSafeArea?.()
+    webApp.requestContentSafeArea?.()
   }
   return desktop
+}
+
+export function setTelegramVerticalSwipes(webApp: Pick<TelegramWindow, 'disableVerticalSwipes' | 'enableVerticalSwipes'>, enabled: boolean): boolean {
+  const method = enabled ? webApp.enableVerticalSwipes : webApp.disableVerticalSwipes
+  if (!method) return false
+  try {
+    method()
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function configureTelegramBackButton(
+  webApp: Pick< TelegramWindow, 'BackButton'>,
+  visible: boolean,
+  onBack: () => void,
+): () => void {
+  const button = webApp.BackButton
+  if (!button) return () => undefined
+  if (visible) {
+    button.show()
+    button.onClick(onBack)
+  } else {
+    button.hide()
+  }
+  return () => {
+    button.offClick(onBack)
+    button.hide()
+  }
 }
 
 export function closeTelegramWindow(webApp: Pick<TelegramWindow, 'close'>): boolean {

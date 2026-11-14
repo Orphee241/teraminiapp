@@ -1,51 +1,59 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, BriefcaseBusiness, ChevronRight, Clipboard, ClipboardList, CreditCard, FilePlus2, FileText, Headphones, Home, Languages, Maximize2, MessageCircle, Mic, Minimize2, Paperclip, Pencil, Plus, Settings, ShieldCheck, ShoppingBag, Trash2, User, X } from 'lucide-react'
+import { ArrowLeft, BriefcaseBusiness, ChevronRight, Clipboard, ClipboardList, CreditCard, FilePlus2, FileText, Headphones, Home, Languages, Maximize2, MessageCircle, Mic, Minimize2, Paperclip, Plus, Settings, ShieldCheck, ShoppingBag, Trash2, User, X } from 'lucide-react'
 import InvoiceCenter from './components/InvoiceCenter'
-import { closeTelegramWindow, openTelegramWindow, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
+import BrandColorPicker from './components/BrandColorPicker'
+import SettingsCarousel from './components/SettingsCarousel'
+import DocumentColorSimulator from './components/DocumentColorSimulator'
+import CountryOnboarding from './components/CountryOnboarding'
+import { configureTelegramBackButton, openTelegramWindow, setTelegramVerticalSwipes, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
 import { createActionGate } from '../lib/action-gate'
+import { documentOperationError } from '../lib/document-errors'
+import { validateDocumentLines } from '../lib/document-form-validation'
+import { buildDocumentPayload } from '../lib/document-payload'
+import { COUNTRY_OPTIONS } from '../modules/profiles/country-catalog'
+import { DOCUMENT_PACKS, type DocumentPack } from '../modules/documents/billing-policy'
 
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'settings' | 'profile' | 'subscriptions' | 'assistance'
-type DocumentKind = 'devis' | 'facture'
+type NoticeKind = 'error' | 'success'
 type EditableDocument = { id: number; type_document: string; numero: string; montant: number; notes?: string | Record<string, unknown>; [key: string]: unknown }
-type DocumentFormValues = { client_name: string; client_company: string; client_phone: string; client_address: string; designation: string; quantity: string; unit_price: string }
+type DocumentKind = 'devis' | 'facture'
+type DocumentCategory = 'prestation' | 'vente' | 'prestation_vente'
+type DocumentLine = { designation: string; quantity: string; unit_price: string }
+type DocumentFormValues = { client_name: string; client_phone: string; client_address: string; client_nif: string; client_rccm: string; items: DocumentLine[] }
 
 function documentFormValues(document: EditableDocument | null): DocumentFormValues {
-  const empty = { client_name: '', client_company: '', client_phone: '', client_address: '', designation: '', quantity: '1', unit_price: '' }
+  const empty = { client_name: '', client_phone: '', client_address: '', client_nif: '', client_rccm: '', items: [{ designation: '', quantity: '1', unit_price: '' }] }
   if (!document) return empty
   try {
     const parsed = typeof document.notes === 'string' ? JSON.parse(document.notes || '{}') : document.notes || document.data || document.payload || document
 
     const client = parsed.client || {}
-    const item = parsed.items?.[0] || {}
+    const items = Array.isArray(parsed.items) && parsed.items.length ? parsed.items : [{}]
     return {
       client_name: String(client.name || client.full_name || ''),
-      client_company: String(client.company || ''),
       client_phone: String(client.phone || ''),
       client_address: String(client.address || ''),
-      designation: String(item.designation || item.description || ''),
-      quantity: String(item.quantity ?? 1),
-      unit_price: String(item.unit_price ?? ''),
+      client_nif: String(client.tax_id || client.nif || ''),
+      client_rccm: String(client.rccm || ''),
+      items: items.map((item: { designation?: string; description?: string; quantity?: number; unit_price?: number }) => ({
+        designation: String(item.designation || item.description || ''),
+        quantity: String(item.quantity ?? 1),
+        unit_price: String(item.unit_price ?? ''),
+      })),
     }
   } catch { return empty }
 }
-type TelegramProfile = { telegram_id: string; username: string; first_name: string; last_name: string; language_code: string; photo_url: string; email: string; phone: string; address: string; company_name: string; nif: string; rccm: string; logo_url: string }
-type TelegramWebApp = TelegramWindow & { initData: string; isExpanded?: boolean; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void; BackButton?: { show: () => void; hide: () => void; onClick: (fn: () => void) => void; offClick: (fn: () => void) => void } }
+type TelegramProfile = { telegram_id: string; username: string; first_name: string; last_name: string; language_code: string; photo_url: string; email: string; phone: string; address: string; company_name: string; nif: string; rccm: string; logo_url: string; brand_color: string; country_code: string; country_name: string; phone_country_code: string; currency_code: string }
+type TelegramWebApp = TelegramWindow & { initData: string; isExpanded?: boolean; setHeaderColor?: (color: string) => void; setBackgroundColor?: (color: string) => void }
 declare global { interface Window { Telegram?: { WebApp?: TelegramWebApp } } }
 
 type ServiceItem = { label: string; description: string; icon: typeof FileText; documentKind?: DocumentKind }
 
 const services: ServiceItem[] = [
-  { label: 'Développement web ou mobile', description: 'Sites web, applications mobiles et solutions métier.', icon: FileText },
-  { label: 'Design graphique', description: 'Identité visuelle, supports de communication et créations graphiques.', icon: Pencil },
-  { label: 'Montage vidéo', description: 'Montage, habillage et finition de vos contenus vidéo.', icon: FilePlus2 },
-  { label: 'Community Management', description: 'Animation, publication et suivi de vos réseaux sociaux.', icon: MessageCircle },
-  { label: 'Création digitale', description: 'Conception de contenus et expériences numériques.', icon: Plus },
-  { label: 'Couverture photo', description: 'Reportage et couverture photographique de vos événements.', icon: FileText },
-  { label: 'Couverture vidéo', description: 'Captation vidéo de vos événements et activités.', icon: FilePlus2 },
   { label: 'Créer un devis', description: 'Demander un devis professionnel personnalisé.', icon: Plus, documentKind: 'devis' },
   { label: 'Créer une facture', description: 'Créer une facture professionnelle.', icon: FilePlus2, documentKind: 'facture' },
   { label: 'E-commerce', description: 'Boutiques en ligne et solutions de vente digitale.', icon: ShoppingBag },
@@ -56,19 +64,31 @@ const services: ServiceItem[] = [
 export default function HomePage() {
   const [tab, setTab] = useState<Tab>('accueil')
   const [documentKind, setDocumentKind] = useState<DocumentKind>('facture')
+  const [documentCategory, setDocumentCategory] = useState<DocumentCategory>('prestation')
   const [editingDocument, setEditingDocument] = useState<EditableDocument | null>(null)
+  const [seededDocument, setSeededDocument] = useState<EditableDocument | null>(null)
+  const [lineItems, setLineItems] = useState<DocumentLine[]>([{ designation: '', quantity: '1', unit_price: '' }])
   const [formOpen, setFormOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageKind, setMessageKind] = useState<NoticeKind>('error')
+  const [packOffer, setPackOffer] = useState<{ usedToday: number; exhaustedType: DocumentKind; packs: readonly DocumentPack[] } | null>(null)
+  const [paymentPack, setPaymentPack] = useState<DocumentPack | null>(null)
+  const [paymentPhone, setPaymentPhone] = useState('')
+  const [paymentBusy, setPaymentBusy] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState('')
+  const [archiveRefresh, setArchiveRefresh] = useState<{ kind: DocumentKind; key: number } | null>(null)
   const [initData, setInitData] = useState('')
   const [michelleOpen, setMichelleOpen] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [chatBusy, setChatBusy] = useState(false)
-  const [adminAvailable, setAdminAvailable] = useState(false)
+  const [adminAvailable, setAdminAvailable] = useState(true)
   const [desktopTelegram, setDesktopTelegram] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const invoiceBackRef = useRef<() => void>(() => undefined)
   const [telegramAvailable, setTelegramAvailable] = useState(false)
-  const [profile, setProfile] = useState<TelegramProfile>({ telegram_id: '', username: '', first_name: '', last_name: '', language_code: '', photo_url: '', email: '', phone: '', address: '', company_name: '', nif: '', rccm: '', logo_url: '' })
+  const [profileReady, setProfileReady] = useState(false)
+  const [profile, setProfile] = useState<TelegramProfile>({ telegram_id: '', username: '', first_name: '', last_name: '', language_code: '', photo_url: '', email: '', phone: '', address: '', company_name: '', nif: '', rccm: '', logo_url: '', brand_color: '#D71920', country_code: '', country_name: '', phone_country_code: '', currency_code: '' })
   const [profileMessage, setProfileMessage] = useState('')
   const [accountPage, setAccountPage] = useState<AccountPage>('menu')
   const [language, setLanguage] = useState('fr')
@@ -81,6 +101,8 @@ export default function HomePage() {
   const messageGate = useRef(createActionGate())
   const mediaGate = useRef(createActionGate())
   const deleteMessageGate = useRef(createActionGate())
+
+  const notify = (text: string, kind: NoticeKind = 'error') => { setMessageKind(kind); setMessage(text) }
 
 
   useEffect(() => {
@@ -95,7 +117,17 @@ export default function HomePage() {
     setHydrated(true)
     if (!webApp) return
     const telegram = webApp
+    setTelegramVerticalSwipes(telegram, false)
     setDesktopTelegram(openTelegramWindow(telegram))
+    const syncSafeAreas = () => {
+      const safe = telegram.safeAreaInset || {}
+      const content = telegram.contentSafeAreaInset || {}
+      for (const [name, value] of Object.entries(safe)) document.documentElement.style.setProperty(`--tg-safe-area-inset-${name}`, `${Number(value) || 0}px`)
+      for (const [name, value] of Object.entries(content)) document.documentElement.style.setProperty(`--tg-content-safe-area-inset-${name}`, `${Number(value) || 0}px`)
+    }
+    syncSafeAreas()
+    telegram.onEvent?.('safeAreaChanged', syncSafeAreas)
+    telegram.onEvent?.('contentSafeAreaChanged', syncSafeAreas)
     telegram.BackButton?.hide()
     setFullscreen(Boolean(telegram.isFullscreen))
     const syncFullscreen = () => setFullscreen(Boolean(telegram.isFullscreen))
@@ -106,15 +138,47 @@ export default function HomePage() {
     const data = telegram.initData || ''
     setInitData(data)
     if (data) {
-      void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).then(response => response.ok ? response.json() : null).then(value => value?.profile && setProfile(value.profile)).catch(() => undefined)
+      void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).then(response => response.ok ? response.json() : null).then(value => value?.profile && setProfile(value.profile)).catch(() => undefined).finally(() => setProfileReady(true))
       void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => setAdminAvailable(Boolean(payload?.allowed))).catch(() => undefined)
     }
     return () => {
       window.removeEventListener('load', expandOnReady)
       telegram.offEvent?.('fullscreenChanged', syncFullscreen)
       telegram.offEvent?.('fullscreenFailed', syncFullscreen)
+      telegram.offEvent?.('safeAreaChanged', syncSafeAreas)
+      telegram.offEvent?.('contentSafeAreaChanged', syncSafeAreas)
+      setTelegramVerticalSwipes(telegram, true)
     }
   }, [])
+
+  useEffect(() => {
+    if (!initData) return
+    let pending = false
+    const heartbeat = async () => {
+      if (pending || document.visibilityState === 'hidden') return
+      pending = true
+      try { await fetch('/api/profile/presence', { method: 'POST', headers: { 'x-telegram-init-data': initData }, cache: 'no-store', keepalive: true }) } catch { /* A later heartbeat retries transient connection failures. */ } finally { pending = false }
+    }
+    void heartbeat()
+    const interval = window.setInterval(heartbeat, 60_000)
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void heartbeat() }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisibilityChange) }
+  }, [initData])
+
+  useEffect(() => {
+    const telegram = window.Telegram?.WebApp
+    if (!telegram) return
+    const visible = tab !== 'accueil' || accountPage !== 'menu' || formOpen || michelleOpen
+    const onBack = () => {
+      if (michelleOpen) return setMichelleOpen(false)
+      if (formOpen) return closeForm()
+      if (tab === 'facture') return invoiceBackRef.current()
+      if (tab === 'profil' && accountPage !== 'menu') return navigateAccount('menu')
+      if (tab !== 'accueil') return navigate('accueil')
+    }
+    return configureTelegramBackButton(telegram, visible, onBack)
+  }, [tab, accountPage, formOpen, michelleOpen])
 
   const toggleFullscreen = () => {
     const webApp = window.Telegram?.WebApp
@@ -124,41 +188,99 @@ export default function HomePage() {
   useEffect(() => { if (!michelleOpen || !initData || chatMessages.length) return; fetch('/api/conversations', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(data => data?.messages && setChatMessages(data.messages.map((item: { id: string; role: 'user' | 'assistant'; text: string; sent_at: string }) => ({ id: item.id, role: item.role, text: item.text, sentAt: item.sent_at })))).catch(() => undefined) }, [michelleOpen, initData, chatMessages.length])
   useEffect(() => { if (!michelleOpen) return; const node = chatMessagesRef.current; if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' }) }, [michelleOpen, chatMessages, chatBusy])
 
-  const openCreate = (kind: DocumentKind, document: EditableDocument | null = null) => { setDocumentKind(kind); setEditingDocument(document); setMessage(''); setFormOpen(true) }
-  const closeForm = () => { if (!busy) setFormOpen(false) }
-  const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : setMessage(`${service.label} : Michelle vous donnera les informations disponibles sur ce service.`)
+  const categoryFromDocument = (document: EditableDocument | null): DocumentCategory => { try { const parsed = document?.notes ? (typeof document.notes === 'string' ? JSON.parse(document.notes) : document.notes) : {}; const value = String(parsed.service_type || '').toLowerCase(); return value.includes('vente') && value.includes('prestation') ? 'prestation_vente' : value.includes('vente') ? 'vente' : 'prestation' } catch { return 'prestation' } }
+  const openCreate = (kind: DocumentKind, document: EditableDocument | null = null) => { const values = documentFormValues(document); setDocumentKind(kind); setDocumentCategory(categoryFromDocument(document)); setEditingDocument(document); setSeededDocument(null); setLineItems(values.items); setMessage(''); setFormOpen(true) }
+  const openInvoiceFromQuote = (document: { id: number; type_document: string; numero: string; montant: number; notes?: string }) => { const seed: EditableDocument = { ...document }; const values = documentFormValues(seed); setDocumentKind('facture'); setDocumentCategory(categoryFromDocument(seed)); setEditingDocument(null); setSeededDocument(seed); setLineItems(values.items); setMessage(''); setFormOpen(true) }
+  const closeForm = () => { if (!busy) { setFormOpen(false); setSeededDocument(null) } }
+  const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : notify('Ce service sera bientôt disponible.')
   const openAccount = (page: AccountPage = 'menu') => { setAccountPage(page); setTab('profil'); window.localStorage.setItem('terainterface-account-page', page); window.localStorage.setItem('terainterface-tab', 'profil') }
   const navigate = (value: Tab) => { setTab(value); if (value !== 'profil') setAccountPage('menu'); window.localStorage.setItem('terainterface-tab', value); if (value !== 'profil') window.localStorage.setItem('terainterface-account-page', 'menu') }
   const navigateAccount = (value: AccountPage) => { setAccountPage(value); window.localStorage.setItem('terainterface-account-page', value) }
-  const updateLanguage = (value: string) => { setLanguage(value); window.localStorage.setItem('terainterface-language', value); setMessage(value === 'fr' ? 'Langue française sélectionnée.' : 'English selected.') }
+  const updateLanguage = (value: string) => { setLanguage(value); window.localStorage.setItem('terainterface-language', value); notify(value === 'fr' ? 'Langue française sélectionnée.' : 'English selected.', 'success') }
 
   async function createDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (createGate.current.busy) return
     return createGate.current.run(async () => {
     setBusy(true); setMessage('')
-    const form = new FormData(event.currentTarget); const quantity = Number(form.get('quantity') || 1); const unitPrice = Number(form.get('unit_price') || 0)
-    let existingClient: { name?: string; company?: string; address?: string; phone?: string } = {}
-    if (editingDocument?.notes) { try { const parsed = typeof editingDocument.notes === 'string' ? JSON.parse(editingDocument.notes) : editingDocument.notes; existingClient = (parsed as { client?: typeof existingClient }).client || {} } catch { existingClient = {} } }
+    const form = new FormData(event.currentTarget)
+    const designations = form.getAll('designation')
+    const quantities = form.getAll('quantity')
+    const unitPrices = form.getAll('unit_price')
+    const lineValidation = validateDocumentLines(designations.map((designation, index) => ({ designation: String(designation), quantity: String(quantities[index] ?? ''), unit_price: String(unitPrices[index] ?? '') })))
+    if (lineValidation.error) { notify(lineValidation.error); setBusy(false); return }
+    const items = lineValidation.items
+    let existingClient: { name?: string; address?: string; phone?: string; tax_id?: string; rccm?: string } = {}
+    const sourceDocument = editingDocument || seededDocument
+    let documentBrandColor = sourceDocument ? '#D71920' : (profile.brand_color || '#D71920')
+    if (sourceDocument?.notes) { try { const parsed = typeof sourceDocument.notes === 'string' ? JSON.parse(sourceDocument.notes) : sourceDocument.notes; existingClient = (parsed as { client?: typeof existingClient }).client || {}; const storedColor = String((parsed as { brand_color?: string }).brand_color || ''); if (/^#[0-9a-fA-F]{6}$/.test(storedColor)) documentBrandColor = storedColor.toUpperCase() } catch { existingClient = {} } }
     const issuerName = profile.company_name.trim()
     const issuerPhone = profile.phone.trim()
     const issuerAddress = profile.address.trim()
     if (!issuerName || !issuerPhone || !issuerAddress) {
-      setMessage('Complétez le nom de votre entreprise, le téléphone et l’adresse dans Profil avant de créer le document.')
+      notify('Complétez les informations de votre entreprise dans Paramètres avant de créer le document.')
+      setAccountPage('settings')
+      setTab('profil')
+      window.localStorage.setItem('terainterface-account-page', 'settings')
+      window.localStorage.setItem('terainterface-tab', 'profil')
       setBusy(false)
       return
     }
-    const payload = { document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim(), nif: profile.nif.trim(), rccm: profile.rccm.trim(), registration_number: profile.rccm.trim(), logo_url: profile.logo_url.trim(), logo_path: profile.logo_url.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), company: String(form.get('client_company') || existingClient.company || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: '' }, items: [{ designation: String(form.get('designation') || ''), quantity, unit_price: unitPrice }], template_profile: 'client_zero', logo_enabled: Boolean(profile.logo_url.trim()), logo_path: profile.logo_url.trim(), client_logo_path: profile.logo_url.trim(), vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
     const formElement = event.currentTarget
     try {
-      const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) }); const data = await response.json()
-      if (!response.ok) throw new Error(data.error || data.detail || 'La création a échoué.')
-      setMessage(`${documentKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${editingDocument ? 'modifié' : 'créé'} avec succès.`)
-      formElement.reset()
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'La création a échoué.') } finally { setEditingDocument(null); setBusy(false) }
+      let logoUrl = ''
+      let logoUnavailable = false
+      if (profile.logo_url.trim()) {
+        try {
+          const logoResponse = await fetch('/api/profile/logo', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+          const logoData = await logoResponse.json().catch(() => ({}))
+          logoUrl = logoResponse.ok ? String(logoData.logo_url || '') : ''
+          logoUnavailable = !logoUrl
+        } catch { logoUnavailable = true }
+      }
+      const payload = buildDocumentPayload({ document_type: documentKind, number: editingDocument?.numero || '', issuer: { name: issuerName, company: issuerName, address: issuerAddress, phone: issuerPhone, tax_id: profile.nif.trim(), rccm: profile.rccm.trim() }, client: { name: String(form.get('client_name') || existingClient.name || ''), address: String(form.get('client_address') || existingClient.address || ''), phone: String(form.get('client_phone') || existingClient.phone || ''), tax_id: String(form.get('client_nif') || existingClient.tax_id || ''), rccm: String(form.get('client_rccm') || existingClient.rccm || '') }, service_type: documentCategory === 'prestation_vente' ? 'Prestation + vente' : documentCategory === 'vente' ? 'Vente' : 'Prestation', template_profile: 'client_zero', logo_enabled: Boolean(logoUrl), client_logo_path: logoUrl, brand_color: documentBrandColor, currency: profile.currency_code || 'XAF', vat_applied: false, persist_crm: true, idempotency_key: `${editingDocument ? `edit-${editingDocument.id}` : `miniapp-${documentKind}`}-${Date.now()}-${Math.random().toString(36).slice(2)}` }, items)
+      const response = await fetch(editingDocument ? `/api/documents/${editingDocument.id}` : '/api/documents', { method: editingDocument ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) })
+      const responseData = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        if (!editingDocument && response.status === 402 && responseData.code === 'DOCUMENT_PACK_REQUIRED') {
+          setPackOffer({ usedToday: Number(responseData.usedToday || 0), exhaustedType: responseData.exhaustedType === 'devis' ? 'devis' : 'facture', packs: Array.isArray(responseData.packs) ? responseData.packs : DOCUMENT_PACKS })
+        }
+        notify(responseData.error || documentOperationError(response.status, editingDocument ? 'modification' : 'generation'))
+        return
+      }
+      const data = responseData
+      const wasEditing = Boolean(editingDocument)
+      const savedKind = documentKind
+      notify(`${savedKind === 'devis' ? 'Devis' : 'Facture'} ${data.number ? `n° ${data.number} ` : ''}${wasEditing ? 'modifié' : 'créé'} avec succès.${logoUnavailable ? ' Le logo était indisponible; le document a été créé sans logo.' : ''}`, 'success')
+      formElement.reset(); setLineItems([{ designation: '', quantity: '1', unit_price: '' }])
+      setFormOpen(false)
+      setEditingDocument(null)
+      setSeededDocument(null)
+      setArchiveRefresh(previous => ({ kind: savedKind, key: (previous?.key || 0) + 1 }))
+    } catch { notify('La connexion au service de documents a échoué. Vérifiez votre connexion et réessayez.') } finally { setEditingDocument(null); setBusy(false) }
     })
   }
 
+  async function beginPackPayment(event: FormEvent) {
+    event.preventDefault()
+    if (!paymentPack || paymentBusy) return
+    setPaymentBusy(true); setPaymentStatus('Initialisation du paiement…')
+    try {
+      const response = await fetch('/api/billing/deposits', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ packCode: paymentPack.code, phoneNumber: paymentPhone, provider: 'AIRTEL_GAB' }) })
+      const payload = await response.json().catch(() => ({})) as { depositId?: string; error?: string }
+      if (!response.ok || !payload.depositId) throw new Error(payload.error || 'Le paiement n’a pas pu être initialisé.')
+      for (let attempt = 0; attempt < 24; attempt += 1) {
+        setPaymentStatus('Validation du paiement en cours…')
+        await new Promise(resolve => window.setTimeout(resolve, 5000))
+        const statusResponse = await fetch(`/api/billing/deposits/${payload.depositId}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+        const status = await statusResponse.json().catch(() => ({})) as { status?: string; credited?: boolean; error?: string }
+        if (!statusResponse.ok) throw new Error(status.error || 'Impossible de vérifier le paiement.')
+        if (status.status === 'COMPLETED' && status.credited) { setPaymentPack(null); setPaymentPhone(''); setPaymentStatus(''); setPackOffer(null); notify('Paiement confirmé. Votre pack est disponible.', 'success'); return }
+        if (['FAILED', 'REJECTED', 'CANCELLED', 'EXPIRED'].includes(String(status.status || '').toUpperCase())) throw new Error('Le paiement n’a pas été confirmé par l’opérateur.')
+      }
+      throw new Error('Le paiement est toujours en attente. Vous pouvez revenir vérifier son état dans quelques instants.')
+    } catch (error) { setPaymentStatus(''); notify(error instanceof Error ? error.message : 'Le paiement n’a pas pu être confirmé.') } finally { setPaymentBusy(false) }
+  }
   async function sendToMichelle(event: FormEvent) {
     event.preventDefault(); const text = chatInput.trim(); if (!text || chatBusy || messageGate.current.busy) return
     return messageGate.current.run(async () => {
@@ -174,30 +296,40 @@ export default function HomePage() {
     })
   }
 
-  async function copyMessage(text: string) { await navigator.clipboard?.writeText(text); setMessage('Message copié.') }
+  async function copyMessage(text: string) { await navigator.clipboard?.writeText(text); notify('Message copié.') }
   async function deleteMessage() { if (!selectedMessage || deleteMessageGate.current.busy) return; return deleteMessageGate.current.run(async () => { const response = await fetch(`/api/conversations?id=${encodeURIComponent(selectedMessage)}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } }); if (response.ok) setChatMessages(previous => previous.map(item => item.id === selectedMessage ? { ...item, text: '[Message supprimé]' } : item)); setSelectedMessage('') }) }
-  async function sendMedia(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file || mediaGate.current.busy) return; return mediaGate.current.run(async () => { const form = new FormData(); form.append('file', file); form.append('text', file.name); const response = await fetch('/api/media', { method: 'POST', headers: { 'x-telegram-init-data': initData }, body: form }); const data = await response.json(); if (!response.ok) return setMessage(data.error || 'Envoi du média impossible.'); setChatMessages(previous => [...previous, { id: data.message.id, role: 'user', text: file.name, sentAt: data.message.sent_at }]); event.target.value = '' }) }
+  async function sendMedia(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file || mediaGate.current.busy) return; return mediaGate.current.run(async () => { const form = new FormData(); form.append('file', file); form.append('text', file.name); const response = await fetch('/api/media', { method: 'POST', headers: { 'x-telegram-init-data': initData }, body: form }); const data = await response.json(); if (!response.ok) return notify(data.error || 'Envoi du média impossible.'); setChatMessages(previous => [...previous, { id: data.message.id, role: 'user', text: file.name, sentAt: data.message.sent_at }]); event.target.value = '' }) }
 
-  if (!telegramAvailable || !hydrated) return <main className="browser-landing"><section className="browser-landing-card"><div className="brand-mark">T</div><p className="eyebrow accent">TERAINTERFACE</p><h1>Votre espace</h1><p>Accède plus rapidement à nos services via notre Application</p><a className="primary-button browser-open-button" href="https://t.me/Terainterface_bot?startapp" rel="noopener noreferrer">Ouvrir l’App</a><small>Telegram s’ouvrira pour lancer l’application.</small></section></main>
+  useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 8000); return () => window.clearTimeout(timer) }, [message])
+
+  if (!telegramAvailable || !hydrated) return <main className="browser-landing"><section className="browser-landing-card"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><p className="eyebrow accent">TERAINTERFACE</p><h1>Votre espace</h1><p>Accède plus rapidement à nos services via notre Application</p><a className="primary-button browser-open-button" href="https://t.me/Terainterface_bot?startapp" rel="noopener noreferrer">Ouvrir l’App</a><small>Telegram s’ouvrira pour lancer l’application.</small></section></main>
+  if (!profileReady) return <main className="country-onboarding" aria-label="Chargement"><span className="secure-loading-spinner" style={{ '--spinner-color': profile.brand_color || '#D71920' } as React.CSSProperties} aria-label="Chargement" /></main>
+  if (!profile.country_code || !profile.currency_code || !profile.phone_country_code) return <CountryOnboarding initData={initData} onSaved={value => setProfile(value as TelegramProfile)} />
 
   return <main className="app-shell">
-    <header className="app-header"><div className="brand-mark">T</div><div><p className="eyebrow">TERAINTERFACE</p><h1>Votre espace</h1></div><div className="header-actions">{desktopTelegram && <><button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button><button className="window-action" type="button" title="Fermer la Mini App" aria-label="Fermer la Mini App" onClick={() => { const webApp = window.Telegram?.WebApp; if (webApp) closeTelegramWindow(webApp) }}><X size={18} /></button></>}<button className="header-icon" aria-label="Mon compte" onClick={() => openAccount()}><Headphones size={19} /></button></div></header>
+    <header className="app-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Terainterface</h1></div><div className="header-actions">{desktopTelegram && <button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}</div></header>
     <div className="content">
-      {tab === 'accueil' && <section className="screen"><p className="eyebrow accent">ESPACE CLIENT</p><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => navigate('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
-      {tab === 'services' && <section className="screen"><button className="back-link" onClick={() => navigate('accueil')}><ArrowLeft size={16} /> Accueil</button><p className="eyebrow accent">NOS SOLUTIONS</p><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.filter(service => !service.documentKind).map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}<button className="service-card" onClick={() => navigate('facture')}><span className="service-icon"><FileText size={20} /></span><span className="service-copy"><strong>Devis et Facture</strong><small>Créer et retrouver vos devis et factures générés.</small></span><span className="chevron">›</span></button></div></section>}
-      {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} onClose={() => navigate('services')} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} /></section>}
-      {tab === 'profil' && <AccountScreen accountPage={accountPage} navigateAccount={navigateAccount} onHome={() => navigate('accueil')} profile={profile} setProfile={setProfile} profileMessage={profileMessage} setProfileMessage={setProfileMessage} language={language} updateLanguage={updateLanguage} adminAvailable={adminAvailable} openMichelle={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} onAdmin={() => { window.location.href = '/adm' }} />}
+      {tab === 'accueil' && <section className="screen"><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => navigate('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
+      {tab === 'services' && <section className="screen"><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.filter(service => !service.documentKind).map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}<button className="service-card" onClick={() => navigate('facture')}><span className="service-icon"><FileText size={20} /></span><span className="service-copy"><strong>Devis et Facture</strong><small>Créer et retrouver vos devis et factures générés.</small></span><span className="chevron">›</span></button></div></section>}
+      {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} onClose={() => navigate('services')} onBackReady={handler => { invoiceBackRef.current = handler }} archiveRefresh={archiveRefresh} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} onCreateFromQuote={openInvoiceFromQuote} /></section>}
+      {tab === 'profil' && <AccountScreen accountPage={accountPage} navigateAccount={navigateAccount} profile={profile} setProfile={setProfile} profileMessage={profileMessage} setProfileMessage={setProfileMessage} language={language} updateLanguage={updateLanguage} adminAvailable={adminAvailable} openMichelle={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} onAdmin={() => { const webApp = window.Telegram?.WebApp; if (webApp) openTelegramWindow(webApp); window.location.href = '/adm' }} />}
     </div>
-    {message && <div className="toast" role="status"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Fermer"><X size={16} /></button></div>}
-    {michelleOpen && <div className="chat-backdrop"><section className="chat-sheet"><div className="chat-header"><div><p className="eyebrow accent">ASSISTANTE TERAINTERFACE</p><h2>Michelle</h2></div><button className="close-button" onClick={() => setMichelleOpen(false)} aria-label="Fermer"><X size={20} /></button></div><div ref={chatMessagesRef} className="chat-messages" aria-live="polite">{chatMessages.map((item, index) => <div className={`chat-bubble ${item.role}`} key={item.id || `${item.role}-${index}`} onClick={() => item.id && setSelectedMessage(item.id)}><span>{item.text}</span><time>{item.sentAt ? new Date(item.sentAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</time>{selectedMessage === item.id && item.role === 'user' && <span className="message-actions"><button type="button" onClick={() => copyMessage(item.text)} aria-label="Copier"><Clipboard size={14} /></button><button type="button" onClick={deleteMessage} aria-label="Supprimer"><Trash2 size={14} /></button></span>}</div>)}{chatBusy && <div className="chat-bubble assistant"><span className="typing">Michelle écrit…</span></div>}</div><form className="chat-composer" onSubmit={sendToMichelle}><button type="button" className="composer-tool" title="Note vocale bientôt disponible" aria-label="Note vocale"><Mic size={18} /></button><button type="button" className="composer-tool" title="Envoyer un média" aria-label="Envoyer un média" onClick={() => fileInputRef.current?.click()}><Paperclip size={18} /></button><input ref={fileInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp,audio/ogg,audio/mpeg,audio/mp4,application/pdf" onChange={sendMedia} /><input value={chatInput} onChange={event => setChatInput(event.target.value)} placeholder="Écrire à Michelle…" aria-label="Message à Michelle" /><button type="submit" disabled={chatBusy || !chatInput.trim()} aria-label="Envoyer"><ArrowLeft size={18} /></button></form><p className="chat-note">Les médias et notes vocales seront ajoutés après validation du stockage sécurisé.</p></section></div>}
-    {formOpen && (() => { const values = documentFormValues(editingDocument); return <div className="sheet-backdrop" onMouseDown={closeForm}><section className="form-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">{editingDocument ? 'MODIFIER LE DOCUMENT' : 'NOUVEAU DOCUMENT'}</p><h2>{editingDocument ? `Modifier ${documentKind === 'devis' ? 'le devis' : 'la facture'}` : documentKind === 'devis' ? 'Créer un devis' : 'Créer une facture'}</h2></div><button className="close-button" onClick={closeForm} aria-label="Fermer"><X size={20} /></button></div><form key={editingDocument?.id || `new-${documentKind}`} onSubmit={createDocument}><div className="form-grid"><Field name="client_name" label="Nom du client" defaultValue={values.client_name} required /><Field name="client_company" label="Entreprise du client" defaultValue={values.client_company} /><Field name="client_phone" label="Téléphone" type="tel" defaultValue={values.client_phone} required /><Field name="client_address" label="Adresse" defaultValue={values.client_address} required /><Field name="designation" label="Prestation ou article" defaultValue={values.designation} required /><Field name="quantity" label="Quantité" type="number" min="1" defaultValue={values.quantity} required /><Field name="unit_price" label="Prix unitaire (FCFA)" type="number" min="1" defaultValue={values.unit_price} required /></div><button disabled={busy} className="primary-button" type="submit">{busy ? 'Enregistrement en cours…' : editingDocument ? 'Enregistrer les modifications' : `Créer ${documentKind === 'devis' ? 'le devis' : 'la facture'}`}</button>{message && <p className="form-message" role="status">{message}</p>}</form></section></div> })()}
+    {packOffer && <div className="pack-offer-backdrop" onMouseDown={() => setPackOffer(null)}><section className="pack-offer-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">QUOTA QUOTIDIEN ATTEINT</p><h2>Choisissez un pack</h2><p className="pack-offer-note">Votre génération gratuite de {packOffer.exhaustedType === 'devis' ? 'devis' : 'facture'} est déjà utilisée aujourd’hui. Choisissez un pack pour continuer à générer vos devis et factures.</p></div><button className="close-button" type="button" onClick={() => setPackOffer(null)} aria-label="Fermer"><X size={20} /></button></div><div className="pack-offer-grid">{packOffer.packs.map(pack => <article className="pack-offer-card" key={pack.code}><strong>{pack.documents}</strong><span>devis ou factures</span><b>{pack.amount.toLocaleString('fr-FR')} {pack.currency}</b><button type="button" onClick={() => { setPaymentPack(pack); setPaymentPhone(profile.phone || ''); setPaymentStatus('') }}>{pack.documents === 1 ? 'Choisir' : 'Acheter'}</button></article>)}</div></section></div>}
+    {paymentPack && <div className="pack-offer-backdrop"><section className="pack-offer-sheet payment-sheet"><div className="sheet-heading"><div><p className="eyebrow accent">PAIEMENT SÉCURISÉ</p><h2>Pack de {paymentPack.documents} documents</h2><p className="pack-offer-note">Montant : {paymentPack.amount.toLocaleString('fr-FR')} {paymentPack.currency}. Le paiement sera confirmé avant tout crédit.</p></div><button className="close-button" type="button" disabled={paymentBusy} onClick={() => setPaymentPack(null)} aria-label="Fermer"><X size={20} /></button></div><form onSubmit={beginPackPayment} className="payment-form"><label htmlFor="payment-phone">Numéro Airtel Gabon</label><input id="payment-phone" type="tel" value={paymentPhone} onChange={event => setPaymentPhone(event.target.value)} placeholder="07 xx xx xx" required disabled={paymentBusy} /><button className="primary-button" type="submit" disabled={paymentBusy || !paymentPhone.trim()}>{paymentBusy ? 'Paiement en cours…' : `Payer ${paymentPack.amount.toLocaleString('fr-FR')} ${paymentPack.currency}`}</button>{paymentStatus && <p role="status" className="form-message">{paymentStatus}</p>}</form></section></div>}
+    {michelleOpen && <div className="chat-backdrop"><section className="chat-sheet"><div className="chat-header"><div><p className="eyebrow accent">ASSISTANTE TERAINTERFACE</p><h2>Michelle</h2></div><button className="close-button" type="button" onClick={() => setMichelleOpen(false)} aria-label="Fermer la conversation"><X size={20} /></button></div><div ref={chatMessagesRef} className="chat-messages" aria-live="polite">{chatMessages.map((item, index) => <div className={`chat-bubble ${item.role}`} key={item.id || `${item.role}-${index}`} onClick={() => item.id && setSelectedMessage(item.id)}><span>{item.text}</span><time>{item.sentAt ? new Date(item.sentAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</time>{selectedMessage === item.id && item.role === 'user' && <span className="message-actions"><button type="button" onClick={() => copyMessage(item.text)} aria-label="Copier"><Clipboard size={14} /></button><button type="button" onClick={deleteMessage} aria-label="Supprimer"><Trash2 size={14} /></button></span>}</div>)}{chatBusy && <div className="chat-bubble assistant"><span className="typing">Michelle écrit…</span></div>}</div><form noValidate className="chat-composer" onSubmit={sendToMichelle}><button type="button" className="composer-tool" title="Note vocale bientôt disponible" aria-label="Note vocale"><Mic size={18} /></button><button type="button" className="composer-tool" title="Envoyer un média" aria-label="Envoyer un média" onClick={() => fileInputRef.current?.click()}><Paperclip size={18} /></button><input ref={fileInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp,audio/ogg,audio/mpeg,audio/mp4,application/pdf" onChange={sendMedia} /><input value={chatInput} onChange={event => setChatInput(event.target.value)} placeholder="Écrire à Michelle…" aria-label="Message à Michelle" /><button type="submit" disabled={chatBusy || !chatInput.trim()} aria-label="Envoyer"><ArrowLeft size={18} /></button></form><p className="chat-note">Les médias et notes vocales seront ajoutés après validation du stockage sécurisé.</p></section></div>}
+    {formOpen && (() => { const values = documentFormValues(editingDocument || seededDocument); return <div className="sheet-backdrop" onMouseDown={closeForm}><section className="form-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">{editingDocument ? 'MODIFIER LE DOCUMENT' : 'NOUVEAU DOCUMENT'}</p><h2>{editingDocument ? `Modifier ${documentKind === 'devis' ? 'le devis' : 'la facture'}` : documentKind === 'devis' ? 'Créer un devis' : 'Créer une facture'}</h2></div><button className="close-button" onClick={closeForm} aria-label="Fermer"><X size={20} /></button></div><form noValidate onSubmit={createDocument}><div className="form-grid"><fieldset className="document-category-field"><legend>Type</legend><label><input type="radio" name="service_type" value="prestation" checked={documentCategory === 'prestation'} onChange={() => setDocumentCategory('prestation')} /> Prestation</label><label><input type="radio" name="service_type" value="vente" checked={documentCategory === 'vente'} onChange={() => setDocumentCategory('vente')} /> Vente</label><label><input type="radio" name="service_type" value="prestation_vente" checked={documentCategory === 'prestation_vente'} onChange={() => setDocumentCategory('prestation_vente')} /> Prestation + vente</label></fieldset><Field name="client_name" label="Nom du client" defaultValue={values.client_name} required /><Field name="client_phone" label="Téléphone" type="tel" defaultValue={values.client_phone} required /><Field name="client_address" label="Adresse" defaultValue={values.client_address} required /><Field className="client-tax-field" name="client_nif" label="NIF (facultatif)" defaultValue={values.client_nif} /><Field className="client-tax-field" name="client_rccm" label="RCCM (facultatif)" defaultValue={values.client_rccm} /><div className="document-lines"><div className="document-lines-heading"><strong>Articles et prestations</strong><small>{lineItems.length} ligne{lineItems.length > 1 ? 's' : ''}</small></div>{lineItems.map((item, index) => <div className="document-line" key={index}><div className="document-line-number">{index + 1}</div><Field className="line-designation" name="designation" label="Désignation" defaultValue={item.designation} required /><Field className="line-quantity" name="quantity" label="Quantité" type="number" min="1" defaultValue={item.quantity} required /><Field className="line-unit-price" name="unit_price" label="Prix unitaire (FCFA)" type="number" min="1" defaultValue={item.unit_price} required /><div className="line-actions">{index === lineItems.length - 1 && <button type="button" className="add-line-icon" aria-label="Ajouter une ligne" title="Ajouter une ligne" onClick={() => setLineItems(previous => [...previous, { designation: '', quantity: '1', unit_price: '' }])}><Plus size={18} /></button>}{lineItems.length > 1 && <button type="button" className="remove-line" aria-label={`Supprimer la ligne ${index + 1}`} title="Supprimer cette ligne" onClick={() => setLineItems(previous => previous.filter((_, lineIndex) => lineIndex !== index))}><Trash2 size={16} /></button>}</div></div>)}</div></div><button disabled={busy} className="primary-button" type="submit">{busy ? 'Enregistrement en cours…' : editingDocument ? 'Enregistrer les modifications' : `Créer ${documentKind === 'devis' ? 'le devis' : 'la facture'}`}</button>{message && <p className="form-message" role="status">{message}</p>}</form></section></div> })()}
     <nav className="bottom-nav"><NavButton active={tab === 'accueil'} icon={Home} label="Accueil" onClick={() => navigate('accueil')} /><NavButton active={tab === 'services'} icon={ShoppingBag} label="Services" onClick={() => navigate('services')} /><NavButton active={tab === 'profil'} icon={User} label="Mon compte" onClick={() => openAccount()} /></nav>
   </main>
 }
 
-function AccountScreen({ accountPage, navigateAccount, onHome, profile, setProfile, profileMessage, setProfileMessage, language, updateLanguage, adminAvailable, openMichelle, onAdmin }: { accountPage: AccountPage; navigateAccount: (page: AccountPage) => void; onHome: () => void; profile: TelegramProfile; setProfile: (profile: TelegramProfile) => void; profileMessage: string; setProfileMessage: (message: string) => void; language: string; updateLanguage: (value: string) => void; adminAvailable: boolean; openMichelle: () => void; onAdmin: () => void }) {
+function AccountScreen({ accountPage, navigateAccount, profile, setProfile, profileMessage, setProfileMessage, language, updateLanguage, adminAvailable, openMichelle, onAdmin }: { accountPage: AccountPage; navigateAccount: (page: AccountPage) => void; profile: TelegramProfile; setProfile: (profile: TelegramProfile) => void; profileMessage: string; setProfileMessage: (message: string) => void; language: string; updateLanguage: (value: string) => void; adminAvailable: boolean; openMichelle: () => void; onAdmin: () => void }) {
   const saveProfileGate = useRef(createActionGate())
-  const saveProfile = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (saveProfileGate.current.busy) return; return saveProfileGate.current.run(async () => { setProfileMessage(''); const response = await fetch('/api/profile', { method: 'PUT', headers: { 'content-type': 'application/json', 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '' }, body: JSON.stringify(profile) }); const value = await response.json().catch(() => ({})); if (response.ok) { setProfile(value.profile || profile); setProfileMessage('Informations enregistrées.'); } else setProfileMessage(value.error || 'Enregistrement impossible.') }) }
+  const [profileMessageKind, setProfileMessageKind] = useState<NoticeKind>('error')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [savingColor, setSavingColor] = useState(false)
+  useEffect(() => { if (!profileMessage) return; const timer = window.setTimeout(() => setProfileMessage(''), 8000); return () => window.clearTimeout(timer) }, [profileMessage, setProfileMessage])
+  const saveProfile = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (saveProfileGate.current.busy) return; setSavingProfile(true); return saveProfileGate.current.run(async () => { setProfileMessage(''); try { const response = await fetch('/api/profile', { method: 'PUT', headers: { 'content-type': 'application/json', 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '' }, body: JSON.stringify(profile) }); const value = await response.json().catch(() => ({})); if (response.ok) { setProfile(value.profile || profile); setProfileMessageKind('success'); setProfileMessage('Informations enregistrées.'); } else { setProfileMessageKind('error'); setProfileMessage(value.error || 'Enregistrement impossible.'); } } catch { setProfileMessageKind('error'); setProfileMessage('Enregistrement impossible. Vérifiez votre connexion et réessayez.') } finally { setSavingProfile(false) } }) }
+  const saveBrandColor = async () => { if (saveProfileGate.current.busy) return; setSavingColor(true); try { await saveProfileGate.current.run(async () => { setProfileMessage(''); try { const response = await fetch('/api/profile', { method: 'PUT', headers: { 'content-type': 'application/json', 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '' }, body: JSON.stringify(profile) }); const value = await response.json().catch(() => ({})); if (response.ok) { setProfile(value.profile || profile); setProfileMessageKind('success'); setProfileMessage('La couleur est enregistrée.'); } else { setProfileMessageKind('error'); setProfileMessage(value.error || 'Enregistrement impossible.'); } } catch { setProfileMessageKind('error'); setProfileMessage('Enregistrement impossible. Vérifiez votre connexion et réessayez.') } }) } finally { setSavingColor(false) } }
   const [logoBusy, setLogoBusy] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const uploadLogo = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,23 +341,24 @@ function AccountScreen({ accountPage, navigateAccount, onHome, profile, setProfi
       const form = new FormData(); form.append('file', file)
       const response = await fetch('/api/profile/logo', { method: 'POST', headers: { 'x-telegram-init-data': window.Telegram?.WebApp?.initData || '' }, body: form })
       const value = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(value.error || 'Import du logo impossible.')
-      setProfile({ ...profile, logo_url: value.logo.url })
+      if (!response.ok) { setProfileMessageKind('error'); setProfileMessage(value.error || 'Import du logo impossible.'); return }
+      setProfile(value.profile || { ...profile, logo_url: value.logo.url })
+      setProfileMessageKind('success')
       setProfileMessage('Logo importé et enregistré. Il sera utilisé sur vos prochains devis et factures.')
-    } catch (error) { setProfileMessage(error instanceof Error ? error.message : 'Import du logo impossible.') } finally { setLogoBusy(false) }
+    } catch { setProfileMessageKind('error'); setProfileMessage('Le logo ne peut pas être enregistré pour le moment. Vérifiez votre connexion et réessayez.') } finally { setLogoBusy(false) }
   }
-  const companyForm = <form className="profile-settings" onSubmit={saveProfile}><p className="settings-note">Ces informations apparaissent comme émetteur de vos propres devis et factures.</p><Field name="company_name" label="Nom de l’entreprise (facultatif)" value={profile.company_name} onChange={event => setProfile({ ...profile, company_name: event.target.value })} /><Field name="phone" label="Téléphone" value={profile.phone} onChange={event => setProfile({ ...profile, phone: event.target.value })} /><Field name="address" label="Adresse" value={profile.address} onChange={event => setProfile({ ...profile, address: event.target.value })} /><Field name="nif" label="NIF (facultatif)" value={profile.nif} onChange={event => setProfile({ ...profile, nif: event.target.value })} /><Field name="rccm" label="RCCM (facultatif)" value={profile.rccm} onChange={event => setProfile({ ...profile, rccm: event.target.value })} /><div className="logo-upload"><span className="logo-upload-label">Logo (facultatif)</span><input ref={logoInputRef} className="logo-upload-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadLogo} /><button className="logo-upload-button" type="button" disabled={logoBusy} onClick={() => logoInputRef.current?.click()}>{logoBusy ? 'Import en cours…' : profile.logo_url ? 'Changer le logo' : 'Importer le logo'}</button>{profile.logo_url && <img className="logo-upload-preview" src={profile.logo_url} alt="Logo de l’entreprise" />}</div><button className="primary-button" type="submit">Enregistrer</button>{profileMessage && <p className="form-message" role="status">{profileMessage}</p>}</form>
+  const companyForm = <form noValidate className="profile-settings" onSubmit={saveProfile}><p className="settings-note">Ces informations apparaissent comme émetteur de vos propres devis et factures.</p><label className="language-field">Pays<select value={profile.country_code} onChange={event => setProfile({ ...profile, country_code: event.target.value })}>{COUNTRY_OPTIONS.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}</select></label><p className="settings-note">Indicatif : {profile.phone_country_code || '—'} · Devise : {profile.currency_code || '—'}</p><Field name="company_name" label="Nom de l’entreprise" value={profile.company_name} onChange={event => setProfile({ ...profile, company_name: event.target.value })} /><Field name="phone" label="Téléphone" value={profile.phone} onChange={event => setProfile({ ...profile, phone: event.target.value })} /><Field name="address" label="Adresse" value={profile.address} onChange={event => setProfile({ ...profile, address: event.target.value })} /><Field name="nif" label="NIF (facultatif)" value={profile.nif} onChange={event => setProfile({ ...profile, nif: event.target.value })} /><Field name="rccm" label="RCCM (facultatif)" value={profile.rccm} onChange={event => setProfile({ ...profile, rccm: event.target.value })} /><div className="logo-upload"><span className="logo-upload-label">Logo (facultatif)</span><input ref={logoInputRef} className="logo-upload-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadLogo} /><button className="logo-upload-button" type="button" disabled={logoBusy} onClick={() => logoInputRef.current?.click()}>{logoBusy ? 'Import en cours…' : profile.logo_url ? 'Changer le logo' : 'Importer le logo'}</button>{profile.logo_url && <img className="logo-upload-preview" src={profile.logo_url} alt="Logo de l’entreprise" />}</div><button className="primary-button" type="submit" disabled={savingProfile}>{savingProfile ? <><span className="inline-spinner" aria-hidden="true" /> Enregistrement…</> : 'Enregistrer'}</button>{profileMessage && <p className={`form-message ${profileMessageKind}`} role="status">{profileMessage}</p>}</form>
   const page = accountPage
-  return <section className="screen"><button className="back-link" onClick={() => page === 'menu' ? onHome() : navigateAccount('menu')}><ArrowLeft size={16} /> {page === 'menu' ? 'Accueil' : 'Mon compte'}</button>
-    {page === 'menu' && <><p className="eyebrow accent">ESPACE PERSONNEL</p><h2 className="section-title">Mon compte</h2><div className="account-list"><AccountRow icon={User} title="Profil" text="Consulter vos informations personnelles." onClick={() => navigateAccount('profile')} /><AccountRow icon={CreditCard} title="Abonnements" text="Gérer votre abonnement et vos offres." onClick={() => navigateAccount('subscriptions')} /><AccountRow icon={Settings} title="Paramètres" text="Gérer votre entreprise et vos préférences." onClick={() => navigateAccount('settings')} /><AccountRow icon={Headphones} title="Assistance" text="Obtenir de l’aide sur un service ou une commande." onClick={() => navigateAccount('assistance')} />{adminAvailable && <AccountRow icon={ShieldCheck} title="Administration" text="Gérer les utilisateurs et les conversations." onClick={onAdmin} />}</div></>}
-    {page === 'settings' && <><p className="eyebrow accent">PRÉFÉRENCES</p><h2 className="section-title">Paramètres</h2><div className="settings-sections"><div className="settings-section"><div className="settings-section-title"><BriefcaseBusiness size={19} /><span><strong>Entreprise</strong><small>Informations utilisées sur vos devis et factures.</small></span></div>{companyForm}</div><div className="settings-section"><div className="settings-section-title"><Languages size={19} /><span><strong>Langue</strong><small>Choisissez la langue de l’application.</small></span></div><label className="language-field">Langue<select value={language} onChange={event => updateLanguage(event.target.value)}><option value="fr">Français</option><option value="en">English</option></select></label></div></div></>}
-    {page === 'profile' && <><p className="eyebrow accent">ESPACE PERSONNEL</p><h2 className="section-title">Profil</h2><div className="profile-list"><div className="profile-row profile-identity">{profile.photo_url ? <img src={profile.photo_url} alt="Photo Telegram" /> : <span className="row-icon"><User size={19} /></span>}<span><strong>{[profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Utilisateur Telegram'}</strong><small>{profile.username ? `@${profile.username}` : 'Profil Telegram'}</small></span></div><ProfileRow icon={User} title="Identifiant Telegram" text={profile.telegram_id || 'Non disponible'} /><ProfileRow icon={MessageCircle} title="Langue" text={profile.language_code || 'Non renseignée'} /><ProfileRow icon={FileText} title="Téléphone" text={profile.phone || 'Non renseigné'} /><ProfileRow icon={FileText} title="Adresse" text={profile.address || 'Non renseignée'} /></div></>}
-    {page === 'subscriptions' && <><p className="eyebrow accent">MON OFFRE</p><h2 className="section-title">Abonnements</h2><div className="profile-list"><ProfileRow icon={CreditCard} title="Historique des paiements" text="Aucun paiement d’abonnement enregistré." /></div></>}
-    {page === 'assistance' && <><p className="eyebrow accent">AIDE</p><h2 className="section-title">Assistance</h2><button className="profile-row account-action" onClick={openMichelle}><span className="row-icon"><MessageCircle size={19} /></span><span><strong>Contacter Michelle</strong><small>Parler à notre assistante.</small></span><ChevronRight size={18} /></button></>}
+  return <section className="screen">
+    {page === 'menu' && <><h2 className="section-title">Mon compte</h2><div className="account-list"><AccountRow icon={User} title="Profil" text="Consulter vos informations personnelles." onClick={() => navigateAccount('profile')} /><AccountRow icon={CreditCard} title="Abonnements" text="Gérer votre abonnement et vos offres." onClick={() => navigateAccount('subscriptions')} /><AccountRow icon={Settings} title="Paramètres" text="Gérer votre entreprise et vos préférences." onClick={() => navigateAccount('settings')} /><AccountRow icon={Headphones} title="Assistance" text="Obtenir de l’aide sur un service ou une commande." onClick={() => navigateAccount('assistance')} /><AccountRow icon={ShieldCheck} title="Administration" text="Gérer les utilisateurs et les conversations." onClick={onAdmin} /></div></>}
+    {page === 'settings' && <><h2 className="section-title">Paramètres</h2><SettingsCarousel company={<><div className="settings-section-title"><BriefcaseBusiness size={19} /><span><strong>Entreprise</strong><small>Informations utilisées sur vos devis et factures.</small></span></div>{companyForm}</>} preferences={<><div className="settings-section-title"><Settings size={19} /><span><strong>Préférences</strong><small>Personnalisez vos documents et la langue de l’application.</small></span></div><BrandColorPicker value={profile.brand_color || '#D71920'} onChange={brand_color => setProfile({ ...profile, brand_color })} /><DocumentColorSimulator color={profile.brand_color || '#D71920'} /><button type="button" className="primary-button preferences-save" disabled={savingColor} onClick={saveBrandColor}>{savingColor ? 'Enregistrement…' : 'Enregistrer la couleur'}</button>{profileMessage && <p className={`form-message ${profileMessageKind}`} role="status">{profileMessage}</p>}<label className="language-field">Langue<select value={language} onChange={event => updateLanguage(event.target.value)}><option value="fr">Français</option><option value="en">English</option></select></label></>} /></>}
+    {page === 'profile' && <><h2 className="section-title">Profil</h2><div className="profile-list profile-info-block"><div className="profile-row profile-identity">{profile.photo_url ? <img src={profile.photo_url} alt="Photo Telegram" /> : <span className="row-icon"><User size={19} /></span>}<span><strong>{[profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Utilisateur Telegram'}</strong><small>{profile.username ? `@${profile.username}` : 'Profil Telegram'}</small></span></div><ProfileRow icon={User} title="Identifiant Telegram" text={profile.telegram_id || 'Non disponible'} /><ProfileRow icon={MessageCircle} title="Langue" text={profile.language_code || 'Non renseignée'} /><ProfileRow icon={FileText} title="Téléphone" text={profile.phone || 'Non renseigné'} /><ProfileRow icon={FileText} title="Adresse" text={profile.address || 'Non renseignée'} /></div></>}
+    {page === 'subscriptions' && <><h2 className="section-title">Abonnements</h2><div className="profile-list"><ProfileRow icon={CreditCard} title="Historique des paiements" text="Aucun paiement d’abonnement enregistré." /></div></>}
+    {page === 'assistance' && <><h2 className="section-title">Assistance</h2><button className="profile-row account-action" onClick={openMichelle}><span className="row-icon"><MessageCircle size={19} /></span><span><strong>Contacter Michelle</strong><small>Parler à notre assistante.</small></span><ChevronRight size={18} /></button></>}
   </section>
 }
 function AccountRow({ icon: Icon, title, text, onClick }: { icon: typeof Settings; title: string; text: string; onClick: () => void }) { return <button className="profile-row account-row" onClick={onClick}><span className="row-icon"><Icon size={19} /></span><span><strong>{title}</strong><small>{text}</small></span><ChevronRight size={18} /></button> }
-function Field({ name, label, type = 'text', required = false, min, defaultValue, value, placeholder, onChange }: { name: string; label: string; type?: string; required?: boolean; min?: string; defaultValue?: string; value?: string; placeholder?: string; onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void }) { return <label className="field">{label}{required && <span>*</span>}<input name={name} type={type} min={min} defaultValue={defaultValue} value={value} placeholder={placeholder} onChange={onChange} required={required} /></label> }
+function Field({ name, label, type = 'text', required = false, min, defaultValue, value, placeholder, className = '', onChange }: { name: string; label: string; type?: string; required?: boolean; min?: string; defaultValue?: string; value?: string; placeholder?: string; className?: string; onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void }) { return <label className={`field ${className}`.trim()}>{label}{required && <span>*</span>}<input name={name} type={type} min={min} defaultValue={defaultValue} value={value} placeholder={placeholder} onChange={onChange} required={required} /></label> }
 function HomeCard({ icon: Icon, title, text, onClick }: { icon: typeof Home; title: string; text: string; onClick: () => void }) { return <button className="home-card" onClick={onClick}><span className="card-icon"><Icon size={22} /></span><strong>{title}</strong><span>{text}</span></button> }
 function ProfileRow({ icon: Icon, title, text }: { icon: typeof Settings; title: string; text: string }) { return <div className="profile-row"><span className="row-icon"><Icon size={19} /></span><span><strong>{title}</strong><small>{text}</small></span></div> }
 function NavButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: typeof Home; label: string; onClick: () => void }) { return <button className={`nav-button ${active ? 'active' : ''}`} onClick={onClick}><Icon size={20} /><span>{label}</span></button> }

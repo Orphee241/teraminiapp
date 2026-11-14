@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { isDesktopTelegram, openTelegramWindow, toggleTelegramFullscreen, closeTelegramWindow } from './telegram-window.ts'
+import { isDesktopTelegram, openTelegramWindow, toggleTelegramFullscreen, closeTelegramWindow, configureTelegramBackButton, setTelegramVerticalSwipes } from './telegram-window.ts'
 
 test('desktop platforms are recognized without mistaking mobile Telegram for desktop', () => {
   for (const platform of ['tdesktop', 'windows', 'macos', 'linux', 'weba', 'webk', 'web']) assert.equal(isDesktopTelegram(platform), true)
@@ -9,9 +9,9 @@ test('desktop platforms are recognized without mistaking mobile Telegram for des
 
 test('opening a supported desktop Mini App requests Telegram fullscreen for immediate wide view', () => {
   const calls = []
-  const webApp = { ready: () => calls.push('ready'), expand: () => calls.push('expand'), requestFullscreen: () => calls.push('fullscreen'), platform: 'tdesktop', isVersionAtLeast: (version) => version === '8.0' }
+  const webApp = { ready: () => calls.push('ready'), expand: () => calls.push('expand'), requestSafeArea: () => calls.push('safe-area'), requestContentSafeArea: () => calls.push('content-safe-area'), requestFullscreen: () => calls.push('fullscreen'), platform: 'tdesktop', isVersionAtLeast: (version) => version === '8.0' }
   assert.equal(openTelegramWindow(webApp), true)
-  assert.deepEqual(calls, ['ready', 'expand', 'fullscreen'])
+  assert.deepEqual(calls, ['ready', 'expand', 'fullscreen', 'safe-area', 'content-safe-area'])
 })
 
 test('older desktop clients fall back to expansion without throwing', () => {
@@ -20,10 +20,28 @@ test('older desktop clients fall back to expansion without throwing', () => {
   assert.deepEqual(calls, ['ready', 'expand'])
 })
 
-test('opening mobile Mini App remains expanded, with no desktop controls', () => {
+test('opening mobile Mini App requests native fullscreen when supported', () => {
   const calls = []
-  assert.equal(openTelegramWindow({ ready: () => calls.push('ready'), expand: () => calls.push('expand'), platform: 'ios' }), false)
-  assert.deepEqual(calls, ['ready', 'expand'])
+  assert.equal(openTelegramWindow({ ready: () => calls.push('ready'), expand: () => calls.push('expand'), requestFullscreen: () => calls.push('fullscreen'), platform: 'ios', isVersionAtLeast: () => true }), false)
+  assert.deepEqual(calls, ['ready', 'expand', 'fullscreen'])
+})
+
+test('reopening an already fullscreen Mini App does not toggle fullscreen off', () => {
+  const calls = []
+  const webApp = { ready: () => calls.push('ready'), expand: () => calls.push('expand'), requestFullscreen: () => calls.push('fullscreen'), requestSafeArea: () => calls.push('safe-area'), requestContentSafeArea: () => calls.push('content-safe-area'), isFullscreen: true, platform: 'ios' }
+  openTelegramWindow(webApp)
+  assert.deepEqual(calls, ['ready', 'expand', 'safe-area', 'content-safe-area'])
+})
+test('native Telegram BackButton is shown only for a nested screen and is cleaned up', () => {
+  const calls = []
+  const backButton = { show: () => calls.push('show'), hide: () => calls.push('hide'), onClick: fn => calls.push(['on', fn]), offClick: fn => calls.push(['off', fn]) }
+  const onBack = () => undefined
+  const cleanup = configureTelegramBackButton({ BackButton: backButton }, true, onBack)
+  cleanup()
+  assert.equal(calls[0], 'show')
+  assert.equal(calls[1][0], 'on')
+  assert.equal(calls[2][0], 'off')
+  assert.equal(calls[3], 'hide')
 })
 
 test('fullscreen control is explicit, reversible, and safe on unsupported hosts', () => {
@@ -37,6 +55,22 @@ test('fullscreen control is explicit, reversible, and safe on unsupported hosts'
   assert.equal(toggleTelegramFullscreen({}), false)
 })
 
+test('full-screen app disables Telegram vertical close swipes and restores them on unmount/navigation', () => {
+  const calls = []
+  const telegram = { disableVerticalSwipes: () => calls.push('disabled'), enableVerticalSwipes: () => calls.push('enabled') }
+  assert.equal(setTelegramVerticalSwipes(telegram, false), true)
+  assert.equal(setTelegramVerticalSwipes(telegram, true), true)
+  assert.deepEqual(calls, ['disabled', 'enabled'])
+})
+
+test('disabling Telegram vertical swipes prevents host close gesture and restores it on cleanup', () => {
+  const calls = []
+  const webApp = { disableVerticalSwipes: () => calls.push('disabled'), enableVerticalSwipes: () => calls.push('enabled') }
+  setTelegramVerticalSwipes(webApp, false)
+  setTelegramVerticalSwipes(webApp, true)
+  assert.deepEqual(calls, ['disabled', 'enabled'])
+  assert.equal(setTelegramVerticalSwipes({}, false), false)
+})
 test('close uses Telegram host; no fake minimize action is exposed', () => {
   let closed = false
   assert.equal(closeTelegramWindow({ close: () => { closed = true } }), true)

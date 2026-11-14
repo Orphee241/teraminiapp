@@ -1,0 +1,13 @@
+
+.archive-bulk-controls { display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:6px; color:var(--muted); font-size:12px; }
+.archive-bulk-controls button { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:36px; padding:7px 10px; color:#e9edf3; border:1px solid var(--line); border-radius:9px; background:var(--surface); font:inherit; cursor:pointer; }
+.archive-bulk-controls button.danger-button { color:#fff; border-color:rgba(255,100,130,.42); background:#a8234a; }
+.archive-bulk-controls button:disabled { cursor:not-allowed; opacity:.5; }
+.inline-spinner { display:inline-block; width:14px; height:14px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; }
+.invoice-row-selectable.selected { border-color:var(--pink); background:rgba(212,46,91,.10); }
+.invoice-row-selectable input[type="checkbox"] { width:18px; height:18px; flex:none; accent-color:var(--pink); }
+@media (max-width:620px) {
+  .invoice-toolbar { align-items:stretch; flex-direction:column; }
+  .archive-bulk-controls { justify-content:flex-start; }
+  .archive-bulk-controls button { flex:1; }
+}
