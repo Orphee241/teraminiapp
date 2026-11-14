@@ -8,3 +8,8 @@ export const DOCUMENT_PACKS = [
 ] as const
 
 export type DocumentPack = (typeof DOCUMENT_PACKS)[number]
+
+export function findDocumentPack(code: unknown): DocumentPack | null {
+  const value = String(code ?? '').trim()
+  return DOCUMENT_PACKS.find(pack => pack.code === value) || null
+}

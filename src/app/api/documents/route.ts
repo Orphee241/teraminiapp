@@ -6,6 +6,7 @@ import { takeRateLimit } from '../../../lib/rate-limit'
 import { invoiceOwnerHeaders } from '../../../lib/invoice-owner-signature'
 import { cachedDocumentList, cacheDocumentList, invalidateDocumentLists } from '../../../lib/document-cache'
 import { DAILY_FREE_DOCUMENT_LIMITS, DOCUMENT_PACKS } from '../../../modules/documents/billing-policy'
+import { availableDocumentCredits, refundDocumentCredit, reserveDocumentCredit } from '../../../modules/billing/server/billing-repository'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 const apiKey = () => process.env.INVOICE_API_KEY || ''
@@ -86,11 +87,17 @@ export async function POST(request: NextRequest) {
   const usedToday = await dailyDocumentUsage(checked.owner, documentType)
   if (usedToday === null) return NextResponse.json({ error: 'Impossible de vérifier votre quota de génération. Réessayez.' }, { status: 503 })
   const freeLimit = DAILY_FREE_DOCUMENT_LIMITS[documentType]
+  let paidCreditReserved = false
   if (usedToday >= freeLimit) {
-    const label = documentType === 'devis' ? 'devis' : 'facture'
-    return NextResponse.json({ error: `Votre génération gratuite de ${label} est déjà utilisée aujourd’hui.`, code: 'DOCUMENT_PACK_REQUIRED', documentType, exhaustedType: documentType, freeLimit, usedToday, packs: DOCUMENT_PACKS }, { status: 402 })
+    const credits = await availableDocumentCredits(checked.owner)
+    if (credits < 1 || !(paidCreditReserved = await reserveDocumentCredit(checked.owner))) {
+      const label = documentType === 'devis' ? 'devis' : 'facture'
+      return NextResponse.json({ error: `Votre génération gratuite de ${label} est déjà utilisée aujourd’hui.`, code: 'DOCUMENT_PACK_REQUIRED', documentType, exhaustedType: documentType, freeLimit, usedToday, credits, packs: DOCUMENT_PACKS }, { status: 402 })
+    }
   }
   body.owner_telegram_id = checked.owner
   invalidateDocumentLists(checked.owner)
-  return proxy(request, '/v1/documents', checked.owner, body)
+  const result = await proxy(request, '/v1/documents', checked.owner, body)
+  if (paidCreditReserved && result.status >= 400) await refundDocumentCredit(checked.owner)
+  return result
 }
