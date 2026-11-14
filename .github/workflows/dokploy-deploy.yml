@@ -17,6 +17,7 @@ jobs:
           set -euo pipefail
           test -n "$DOKPLOY_API_KEY"
           curl --fail-with-body --silent --show-error \
+            --resolve cluster.terainterface.com:443:164.68.101.107 \
             -X POST "$DOKPLOY_API_URL/api/application.deploy" \
             -H 'accept: application/json' \
             -H 'content-type: application/json' \
