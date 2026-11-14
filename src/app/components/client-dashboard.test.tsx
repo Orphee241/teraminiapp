@@ -20,6 +20,7 @@ describe('client dashboard tabs', () => {
     expect(page).toContain('billingPageCount > 1')
     expect(page).toContain('Télécharger la facture PDF')
     expect(page).toContain('service-status-dot')
+    expect(page).toContain('invoice_id')
   })
 
   it('styles the tabs for mobile and desktop without horizontal overflow', () => {

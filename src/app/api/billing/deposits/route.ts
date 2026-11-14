@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, requireSameOrigin } from '../../_auth'
 import { findDocumentPack } from '../../../../modules/documents/billing-policy'
-import { createPendingPayment, listPayments, updatePaymentStatus } from '../../../../modules/billing/server/billing-repository'
+import { createPendingPayment, listPayments } from '../../../../modules/billing/server/billing-repository'
 
 const terapayUrl = () => String(process.env.TERAPAY_API_URL || '').replace(/\/$/, '')
 const terapayToken = () => process.env.TERAPAY_SERVICE_TOKEN || ''
@@ -22,17 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     const owner = String(checked.user?.id || '')
     const payments = await listPayments(owner)
-    const base = terapayUrl(); const token = terapayToken()
-    if (base && token) {
-      await Promise.all(payments.filter(payment => ['PENDING', 'PROCESSING', 'ACCEPTED'].includes(String(payment.status).toUpperCase())).slice(0, 10).map(async payment => {
-        try {
-          const response = await fetch(`${base}/api/document-deposits/${payment.deposit_id}`, { headers: { authorization: `Bearer ${token}` }, cache: 'no-store' })
-          const payload = await response.json().catch(() => ({})) as Record<string, unknown>
-          if (response.ok && payload.status) await updatePaymentStatus(payment.deposit_id, String(payload.status), owner)
-        } catch { /* History remains readable when provider reconciliation is temporarily unavailable. */ }
-      }))
-    }
-    return NextResponse.json({ payments: await listPayments(owner) })
+    return NextResponse.json({ payments })
   } catch { return NextResponse.json({ error: 'Historique des paiements momentanément indisponible.' }, { status: 503 }) }
 }
 
