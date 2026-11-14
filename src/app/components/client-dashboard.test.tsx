@@ -23,12 +23,20 @@ describe('client dashboard tabs', () => {
     expect(page).toContain('Détail de la transaction')
     expect(page).toContain('Devis et Factures')
     expect(page).toContain('setSelectedPayment(payment)')
-    expect(invoiceRoute).toContain("application/pdf")
+    expect(invoiceRoute).toContain('application/pdf')
     expect(invoiceRoute).toContain("status).toUpperCase() !== 'COMPLETED'")
     expect(page).toContain('invoice_id')
   })
 
-  it('styles the tabs for mobile and desktop without horizontal overflow', () => {
+  it('uses French payment status labels and keeps billing and service rows in panels', () => {
+    expect(page).toContain("return 'Succès'")
+    expect(page).toContain("return 'Échec'")
+    expect(page).toContain('dashboard-list')
+    expect(page).not.toContain('crédit(s) confirmé(s)')
+    expect(page).toContain('Devis et Factures')
+  })
+
+  it('styles the dashboard tabs and panels', () => {
     expect(css).toContain('.dashboard-tabs { display:flex;')
     expect(css).toContain('.dashboard-tabs button[aria-selected="true"]')
     expect(css).toContain('flex:1;')
