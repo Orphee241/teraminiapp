@@ -24,6 +24,15 @@ type DocumentKind = 'devis' | 'facture'
 type DocumentCategory = 'prestation' | 'vente' | 'prestation_vente'
 type DocumentLine = { designation: string; quantity: string; unit_price: string }
 type DocumentFormValues = { client_name: string; client_phone: string; client_address: string; client_nif: string; client_rccm: string; items: DocumentLine[] }
+const PAYMENT_DEADLINE_MS = 30_000
+const paymentBusinessMessage = (status: string, fallback?: string) => {
+  const value = status.toUpperCase()
+  if (value.includes('INSUFFICIENT')) return 'Fonds insuffisants pour effectuer ce paiement.'
+  if (value.includes('PIN') || value.includes('PASSWORD') || value.includes('AUTH')) return 'Le mot de passe Airtel Money est incorrect.'
+  if (value.includes('TIMEOUT') || value.includes('EXPIRED')) return 'Le délai de paiement est expiré. Recommencez avec le bon numéro.'
+  if (value.includes('AMOUNT')) return 'Le montant du paiement est incorrect.'
+  return fallback || 'Le paiement n’a pas été confirmé par l’opérateur.'
+}
 
 function documentFormValues(document: EditableDocument | null): DocumentFormValues {
   const empty = { client_name: '', client_phone: '', client_address: '', client_nif: '', client_rccm: '', items: [{ designation: '', quantity: '1', unit_price: '' }] }
@@ -269,16 +278,21 @@ export default function HomePage() {
       const response = await fetch('/api/billing/deposits', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ packCode: paymentPack.code, phoneNumber: paymentPhone, provider: 'AIRTEL_GAB' }) })
       const payload = await response.json().catch(() => ({})) as { depositId?: string; error?: string }
       if (!response.ok || !payload.depositId) throw new Error(payload.error || 'Le paiement n’a pas pu être initialisé.')
-      for (let attempt = 0; attempt < 24; attempt += 1) {
-        setPaymentStatus('Validation du paiement en cours…')
-        await new Promise(resolve => window.setTimeout(resolve, 5000))
+      const deadline = Date.now() + PAYMENT_DEADLINE_MS
+      for (let attempt = 0; Date.now() < deadline; attempt += 1) {
+        setPaymentStatus('Validez le paiement sur votre téléphone…')
+        const wait = Math.min(5000, Math.max(0, deadline - Date.now()))
+        await new Promise(resolve => window.setTimeout(resolve, wait))
+        if (Date.now() >= deadline) break
         const statusResponse = await fetch(`/api/billing/deposits/${payload.depositId}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
-        const status = await statusResponse.json().catch(() => ({})) as { status?: string; credited?: boolean; error?: string }
-        if (!statusResponse.ok) throw new Error(status.error || 'Impossible de vérifier le paiement.')
-        if (status.status === 'COMPLETED' && status.credited) { setPaymentPack(null); setPaymentPhone(''); setPaymentStatus(''); setPackOffer(null); notify('Paiement confirmé. Votre pack est disponible.', 'success'); return }
-        if (['FAILED', 'REJECTED', 'CANCELLED', 'EXPIRED'].includes(String(status.status || '').toUpperCase())) throw new Error('Le paiement n’a pas été confirmé par l’opérateur.')
+        const status = await statusResponse.json().catch(() => ({})) as { status?: string; credited?: boolean; error?: string; message?: string }
+        if (!statusResponse.ok) throw new Error(status.message || status.error || 'Impossible de vérifier le paiement.')
+        const providerStatus = String(status.status || 'PENDING').toUpperCase()
+        if (providerStatus === 'COMPLETED' && status.credited) { setPaymentPack(null); setPaymentPhone(''); setPaymentStatus(''); setPackOffer(null); notify('Paiement confirmé. Votre pack est disponible.', 'success'); openAccount('subscriptions'); return }
+        if (!['PENDING', 'PROCESSING', 'ACCEPTED'].includes(providerStatus)) throw new Error(paymentBusinessMessage(providerStatus, status.message))
       }
-      throw new Error('Le paiement est toujours en attente. Vous pouvez revenir vérifier son état dans quelques instants.')
+      setPaymentPack(null); setPaymentPhone(''); setPackOffer(null)
+      throw new Error('Le délai de paiement est expiré. Recommencez avec le bon numéro.')
     } catch (error) { setPaymentStatus(error instanceof Error ? error.message : 'Le paiement n’a pas pu être confirmé.') } finally { setPaymentBusy(false) }
   }
   async function sendToMichelle(event: FormEvent) {

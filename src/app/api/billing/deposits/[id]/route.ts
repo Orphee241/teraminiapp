@@ -4,7 +4,6 @@ import { updatePaymentStatus } from '../../../../../modules/billing/server/billi
 
 const terapayUrl = () => String(process.env.TERAPAY_API_URL || '').replace(/\/$/, '')
 const terapayToken = () => process.env.TERAPAY_SERVICE_TOKEN || ''
-
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const originError = requireSameOrigin(request); if (originError) return originError
   const checked = await authenticate(request)
@@ -19,6 +18,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!response.ok) return NextResponse.json({ error: 'Impossible de vérifier le paiement.' }, { status: 502 })
     const result = await updatePaymentStatus(id, String(payload.status || 'PENDING'), String(checked.user?.id || ''))
     if (!result) return NextResponse.json({ error: 'Paiement introuvable.' }, { status: 404 })
-    return NextResponse.json({ success: true, depositId: id, status: String(payload.status || 'PENDING').toUpperCase(), credited: result.credited })
+    return NextResponse.json({ success: true, depositId: id, status: String(payload.status || 'PENDING').toUpperCase(), message: typeof payload.message === 'string' ? payload.message : undefined, credited: result.credited })
   } catch { return NextResponse.json({ error: 'Impossible de vérifier le paiement.' }, { status: 503 }) }
 }
