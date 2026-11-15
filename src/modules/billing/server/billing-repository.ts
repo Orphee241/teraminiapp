@@ -46,7 +46,7 @@ export async function getPayment(owner: string, depositId: string): Promise<{ de
 export async function availableDocumentCredits(owner: string): Promise<number> {
   await ensureSchema()
   const rows = await query('SELECT document_credits FROM miniapp_billing_accounts WHERE owner_telegram_id = ? LIMIT 1', [owner])
-  return Number(rows[0]?.document_credits || 0)
+  return Math.max(0, Number(rows[0]?.document_credits || 0))
 }
 
 export async function reserveDocumentCredit(owner: string): Promise<boolean> {

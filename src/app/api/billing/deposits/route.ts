@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, requireSameOrigin } from '../../_auth'
 import { findDocumentPack } from '../../../../modules/documents/billing-policy'
-import { createPendingPayment, listPayments } from '../../../../modules/billing/server/billing-repository'
+import { createPendingPayment, listPayments, availableDocumentCredits } from '../../../../modules/billing/server/billing-repository'
 
 const terapayUrl = () => String(process.env.TERAPAY_API_URL || '').replace(/\/$/, '')
 const terapayToken = () => process.env.TERAPAY_SERVICE_TOKEN || ''
@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
   try {
     const owner = String(checked.user?.id || '')
     const payments = await listPayments(owner)
-    return NextResponse.json({ payments })
+    const documentCredits = await availableDocumentCredits(owner)
+    return NextResponse.json({ payments, documentCredits })
   } catch { return NextResponse.json({ error: 'Historique des paiements momentanément indisponible.' }, { status: 503 }) }
 }
 
