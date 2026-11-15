@@ -9,7 +9,7 @@ let workerConfigured = false
 const pdfPromiseCache = new Map<string, Promise<any>>()
 const PDF_CACHE_LIMIT = 8
 
-export default function PdfViewer({ src, title, initData }: { src: string; title: string; initData: string }) {
+export default function PdfViewer({ src, title, initData, downloadSrc = src }: { src: string; title: string; initData: string; downloadSrc?: string }) {
   const viewerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -26,8 +26,8 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
     setDownloading(true)
     setDownloadError('')
     try {
-      if (webApp?.downloadFile) {
-        const target = new URL(src, window.location.origin)
+      if (webApp?.downloadFile && downloadSrc.startsWith('/api/documents/')) {
+        const target = new URL(downloadSrc, window.location.origin)
         const tokenResponse = await fetch(`/api/documents/${encodeURIComponent(target.pathname.split('/').at(-2) || '')}/pdf`, {
           method: 'POST',
           headers: { 'x-telegram-init-data': initData },
@@ -40,10 +40,9 @@ export default function PdfViewer({ src, title, initData }: { src: string; title
         webApp.downloadFile({ url: signed.toString(), file_name: `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf` })
         return
       }
-      // Invoke the picker during the click, before any network await loses user activation.
       const filename = `${title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document'}.pdf`
       const handle = await pickPdfFile(filename)
-      const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+      const response = await fetch(downloadSrc, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
       if (!response.ok) throw new Error(`Téléchargement indisponible (${response.status})`)
       const bytes = await response.arrayBuffer()
       if (!bytes.byteLength) throw new Error('Le PDF reçu est vide.')
