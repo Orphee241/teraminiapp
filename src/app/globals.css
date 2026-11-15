@@ -189,6 +189,8 @@ button { cursor:pointer; }
 @keyframes pdf-spin { to { transform: rotate(360deg); } }
 .pdf-error { padding: 18px; color: #a3203e; }
 .pdf-note { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: var(--pink-soft); font-size: 13px; }
+.publication-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 10px 0 12px; padding: 11px 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.025); font-size: 12px; }
+.publication-meta strong { color: #f7f8fa; font-weight: 600; }
 @media (max-width: 620px) {
   .detail-backdrop { align-items: stretch; padding: calc(8px + var(--telegram-top-inset)) 8px 8px; }
   .detail-sheet { width: 100%; max-height: calc(100dvh - var(--telegram-top-inset) - 16px); padding: 24px 12px 12px; border-radius: 16px; }
