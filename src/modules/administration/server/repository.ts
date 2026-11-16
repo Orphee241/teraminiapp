@@ -6,6 +6,8 @@ export function adminMessages(id: string) { return administration.adminMessages(
 export function adminProfiles() { return administration.adminProfiles() }
 export function adminConversationStats() { return administration.adminConversationStats() }
 export function listAdmins() { return administration.listAdmins() }
+export function getUserRole(telegramId: string) { return administration.getUserRole(telegramId) }
+export function assignUserRole(telegramId: string, role: string, assignedBy: string) { return administration.assignUserRole(telegramId, role, assignedBy) }
 export function lookupTelegramUser(telegramId: string) { return administration.lookupTelegramUser(telegramId) }
 export function upsertAdmin(admin: Record<string, string>) { return administration.upsertAdmin(admin) }
 export function deleteAdmin(telegramId: string) { return administration.deleteAdmin(telegramId) }

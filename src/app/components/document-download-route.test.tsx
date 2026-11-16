@@ -22,6 +22,7 @@ const authenticated = (method: 'POST' | 'GET') => new NextRequest(base, { method
 
 const original = {
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+  TERAMINI_ADMIN_TELEGRAM_IDS: process.env.TERAMINI_ADMIN_TELEGRAM_IDS,
   TERAMINI_ADMIN_SESSION_SECRET: process.env.TERAMINI_ADMIN_SESSION_SECRET,
   INVOICE_API_URL: process.env.INVOICE_API_URL,
   INVOICE_API_KEY: process.env.INVOICE_API_KEY,
@@ -39,6 +40,7 @@ afterEach(() => {
 describe('owner-scoped Telegram PDF download', () => {
   it('rejects an unauthenticated ticket request and returns a short-lived private object URL without exposing service credentials', async () => {
     process.env.TELEGRAM_BOT_TOKEN = botToken
+    process.env.TERAMINI_ADMIN_TELEGRAM_IDS = owner
     process.env.TERAMINI_ADMIN_SESSION_SECRET = 'test-admin-session-secret-with-enough-entropy'
     process.env.INVOICE_API_URL = 'https://invoice.test'
     process.env.INVOICE_API_KEY = 'private-api-key'

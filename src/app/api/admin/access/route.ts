@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
-import { authenticate, isAdmin, adminSessionValue, ADMIN_SESSION_COOKIE, hasAdminSession, telegramProfile, requireSameOrigin, isAdminSessionConfigured } from '../../_auth'
+import { authenticate, isAdmin, userStaffRole, adminSessionValue, ADMIN_SESSION_COOKIE, hasAdminSession, telegramProfile, requireSameOrigin, isAdminSessionConfigured } from '../../_auth'
 import { listAdmins, upsertAdmin } from '../../../../modules/administration/server/repository'
 import { readBoundedJson, RequestBodyLimitError } from '../../../../lib/request-body'
 import { resetRateLimit, takeRateLimit } from '../../../../lib/rate-limit'
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const allowed = await isAdmin(userId)
   if (allowed) { try { await upsertAdmin(telegramProfile(auth.user!)) } catch { /* Access remains governed by the existing allow-list. */ } }
   const unlocked = allowed && hasAdminSession(request, userId)
-  const response = NextResponse.json({ allowed, unlocked })
+  const response = NextResponse.json({ allowed, unlocked, role: allowed ? await userStaffRole(userId) : null })
   if (unlocked) response.cookies.set(ADMIN_SESSION_COOKIE, adminSessionValue(userId, Date.now() + 30 * 60 * 1000), { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 1800, path: '/' })
   return response
 }

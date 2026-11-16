@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticate, telegramProfile, requireSameOrigin } from '../_auth'
+import { authenticate, staffPermission, telegramProfile, requireSameOrigin } from '../_auth'
 import { getProfile, updateProfileFields, upsertProfile } from '../../../modules/profiles/server/repository'
 import { boundedText } from '../../../lib/input-security'
 import { readBoundedJson, RequestBodyLimitError } from '../../../lib/request-body'
@@ -24,6 +24,7 @@ export async function PUT(request: NextRequest) {
   if (auth.response) return auth.response
   try {
     const userId = String(auth.user!.id)
+    if (await staffPermission(userId, 'update') === false) return NextResponse.json({ error: 'Votre rôle ne permet pas de modifier le profil.' }, { status: 403 })
     if (!takeRateLimit(`profile-update:user:${userId}`, 10, 60 * 60_000) || !takeRateLimit('profile-update:global', 1200, 60 * 60_000)) return NextResponse.json({ error: 'Trop d’enregistrements rapprochés.' }, { status: 429 })
     let body: any
     try { body = await readBoundedJson(request, 16 * 1024) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Données du profil trop volumineuses.' : 'Données du profil invalides.' }, { status: tooLarge ? 413 : 400 }) }

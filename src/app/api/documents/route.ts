@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticate, requireSameOrigin } from '../_auth'
+import { authenticate, staffPermission, requireSameOrigin } from '../_auth'
 import { documentOperationError } from '../../../lib/document-errors'
 import { readBoundedJson, RequestBodyLimitError } from '../../../lib/request-body'
 import { takeRateLimit } from '../../../lib/rate-limit'
@@ -7,6 +7,8 @@ import { invoiceOwnerHeaders } from '../../../lib/invoice-owner-signature'
 import { cachedDocumentList, cacheDocumentList, invalidateDocumentLists } from '../../../lib/document-cache'
 import { DAILY_FREE_DOCUMENT_LIMITS, DOCUMENT_PACKS } from '../../../modules/documents/billing-policy'
 import { availableDocumentCredits, refundDocumentCredit, reserveDocumentCredit } from '../../../modules/billing/server/billing-repository'
+import { userStaffRole } from '../_auth'
+import { resolveDocumentOwner } from '../../../modules/documents/document-access'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 const apiKey = () => process.env.INVOICE_API_KEY || ''
@@ -60,13 +62,17 @@ async function auth(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const checked = await auth(request)
   if (checked.response) return checked.response
+  if (await staffPermission(checked.owner, 'read') === false) return NextResponse.json({ error: 'Votre rôle ne permet pas de consulter les documents.' }, { status: 403 })
   if (!takeRateLimit(`documents-read:user:${checked.owner}`, 90, 60_000) || !takeRateLimit('documents-read:global', 3000, 60_000)) return NextResponse.json({ error: 'Trop de consultations rapprochées. Réessayez dans un instant.' }, { status: 429 })
   const params = request.nextUrl.searchParams
-  const query = new URLSearchParams({ owner_telegram_id: checked.owner, search: params.get('search') || '', status_filter: params.get('status') || '', document_type: params.get('document_type') || '' })
-  const key = `${checked.owner}:${params.get('document_type') || ''}:${params.get('status') || ''}:${params.get('search') || ''}`
+  const access = resolveDocumentOwner(checked.owner, params.get('owner_telegram_id'), await userStaffRole(checked.owner), 'read')
+  if (!access.allowed) return NextResponse.json({ error: 'Votre rôle ou le propriétaire demandé ne permet pas cette consultation.' }, { status: 403 })
+  const target = access.owner
+  const query = new URLSearchParams({ owner_telegram_id: target, search: params.get('search') || '', status_filter: params.get('status') || '', document_type: params.get('document_type') || '' })
+  const key = `${target}:${params.get('document_type') || ''}:${params.get('status') || ''}:${params.get('search') || ''}`
   const cached = cachedDocumentList(key)
   if (cached) return NextResponse.json(cached)
-  const result = await proxy(request, `/v1/documents?${query.toString()}`, checked.owner)
+  const result = await proxy(request, `/v1/documents?${query.toString()}`, target)
   if (result.status === 200) {
     const body = await result.clone().json().catch(() => null)
     if (body) cacheDocumentList(key, body)
@@ -78,26 +84,30 @@ export async function POST(request: NextRequest) {
   const originError = requireSameOrigin(request); if (originError) return originError
   const checked = await auth(request)
   if (checked.response) return checked.response
+  if (await staffPermission(checked.owner, 'create') === false) return NextResponse.json({ error: 'Votre rôle ne permet pas de créer des documents.' }, { status: 403 })
   if (!takeRateLimit(`documents-create:user:${checked.owner}`, 8, 60 * 60_000) || !takeRateLimit('documents-create:global', 600, 60 * 60_000)) return NextResponse.json({ error: 'Trop de créations rapprochées. Réessayez plus tard.' }, { status: 429 })
   let body: any
   try { body = await readBoundedJson(request, 64 * 1024) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Document trop volumineux.' : 'Données du document invalides.' }, { status: tooLarge ? 413 : 400 }) }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Données du document invalides.' }, { status: 400 })
   const documentType = body.document_type === 'devis' ? 'devis' : body.document_type === 'facture' ? 'facture' : null
   if (!documentType) return NextResponse.json({ error: 'Le type de document est invalide.' }, { status: 400 })
-  const usedToday = await dailyDocumentUsage(checked.owner, documentType)
+  const access = resolveDocumentOwner(checked.owner, body.owner_telegram_id, await userStaffRole(checked.owner), 'create')
+  if (!access.allowed) return NextResponse.json({ error: 'Votre rôle ou le propriétaire demandé ne permet pas cette création.' }, { status: 403 })
+  const target = access.owner
+  const usedToday = await dailyDocumentUsage(target, documentType)
   if (usedToday === null) return NextResponse.json({ error: 'Impossible de vérifier votre quota de génération. Réessayez.' }, { status: 503 })
   const freeLimit = DAILY_FREE_DOCUMENT_LIMITS[documentType]
   let paidCreditReserved = false
   if (usedToday >= freeLimit) {
-    const credits = await availableDocumentCredits(checked.owner)
-    if (credits < 1 || !(paidCreditReserved = await reserveDocumentCredit(checked.owner))) {
+    const credits = await availableDocumentCredits(target)
+    if (credits < 1 || !(paidCreditReserved = await reserveDocumentCredit(target))) {
       const label = documentType === 'devis' ? 'devis' : 'facture'
       return NextResponse.json({ error: `Votre génération gratuite de ${label} est déjà utilisée aujourd’hui.`, code: 'DOCUMENT_PACK_REQUIRED', documentType, exhaustedType: documentType, freeLimit, usedToday, credits, packs: DOCUMENT_PACKS }, { status: 402 })
     }
   }
-  body.owner_telegram_id = checked.owner
-  invalidateDocumentLists(checked.owner)
-  const result = await proxy(request, '/v1/documents', checked.owner, body)
-  if (paidCreditReserved && result.status >= 400) await refundDocumentCredit(checked.owner)
+  body.owner_telegram_id = target
+  invalidateDocumentLists(target)
+  const result = await proxy(request, '/v1/documents', target, body)
+  if (paidCreditReserved && result.status >= 400) await refundDocumentCredit(target)
   return result
 }

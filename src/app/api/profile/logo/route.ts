@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticate, requireSameOrigin } from '../../_auth'
+import { authenticate, staffPermission, requireSameOrigin } from '../../_auth'
 import { updateProfile, uploadLogo, getProfile, freshLogoUrl } from '../../../../modules/profiles/server/repository'
 import { readBoundedFormData, RequestBodyLimitError } from '../../../../lib/request-body'
 import { takeRateLimit } from '../../../../lib/rate-limit'
@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
   const auth = await authenticate(request)
   if (auth.response) return auth.response
   const userId = String(auth.user!.id)
+  if (await staffPermission(userId, 'update') === false) return NextResponse.json({ error: 'Votre rôle ne permet pas de modifier le profil.' }, { status: 403 })
   if (!takeRateLimit(`logo:user:${userId}`, 5, 60_000) || !takeRateLimit('logo:global', 120, 60_000)) return NextResponse.json({ error: 'Trop d’imports rapprochés. Réessayez dans un instant.' }, { status: 429 })
   const persistedLimit = await enforcePersistentRateLimit(userId, 'logo-upload', 5, 120, 60_000)
   if (!persistedLimit.available) return NextResponse.json({ error: 'Stockage du logo momentanément indisponible.' }, { status: 503 })

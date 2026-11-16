@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { authenticate } from '../../../_auth'
+import { authenticate, staffPermission, userStaffRole } from '../../../_auth'
 import { takeRateLimit } from '../../../../../lib/rate-limit'
 import { invoiceOwnerHeaders } from '../../../../../lib/invoice-owner-signature'
 
@@ -28,8 +28,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (checked.response) return checked.response
   const id = (await params).id
   if (!/^\d{1,18}$/.test(id)) return NextResponse.json({ error: 'Document indisponible.' }, { status: 404 })
-  const owner = String(checked.user?.id || '')
-  if (!takeRateLimit(`document-download-ticket:user:${owner}`, 10, 60_000)) return NextResponse.json({ error: 'Trop de demandes rapprochées.' }, { status: 429 })
+  const actor = String(checked.user?.id || '')
+  const owner = String(request.nextUrl.searchParams.get('owner_telegram_id') || actor)
+  if (await staffPermission(actor, 'read') === false) return NextResponse.json({ error: 'Votre rôle ne permet pas de consulter les documents.' }, { status: 403 })
+  if (!/^\d{1,20}$/.test(owner) || (owner !== actor && !await userStaffRole(actor))) return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 })
+  if (!takeRateLimit(`document-download-ticket:user:${actor}`, 10, 60_000)) return NextResponse.json({ error: 'Trop de demandes rapprochées.' }, { status: 429 })
   const base = (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
   const key = process.env.INVOICE_API_KEY || ''
   if (!base || !key) return NextResponse.json({ error: 'Service de documents non configuré.' }, { status: 503 })
@@ -57,7 +60,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (validTicket) return streamPdf(request, id, owner, ticketExpiry)
   const checked = await authenticate(request)
   if (checked.response) return checked.response
-  return streamPdf(request, id, String(checked.user?.id || ''))
+  const authenticatedOwner = String(checked.user?.id || '')
+  const requestedOwner = String(request.nextUrl.searchParams.get('owner_telegram_id') || authenticatedOwner)
+  if (await staffPermission(authenticatedOwner, 'read') === false) return NextResponse.json({ error: 'Votre rôle ne permet pas de consulter les documents.' }, { status: 403 })
+  if (!/^\d{1,20}$/.test(requestedOwner) || (requestedOwner !== authenticatedOwner && !await userStaffRole(authenticatedOwner))) return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 })
+  return streamPdf(request, id, requestedOwner)
 }
 
 async function streamPdf(request: NextRequest, id: string, owner: string, ticketExpiry?: number) {

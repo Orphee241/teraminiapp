@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
-import { isStoredAdmin } from '../../modules/administration/server/repository'
+import { getUserRole } from '../../modules/administration/server/repository'
+import { canPerform, isStaffRole, type StaffAction, type StaffRole } from '../../modules/administration/server/permissions'
 
 export type TelegramUser = { id: number; username?: string; first_name?: string; last_name?: string; language_code?: string; photo_url?: string }
 
@@ -65,7 +66,16 @@ const adminCookie = 'teramini_admin_session'
 const adminSessionSecret = () => process.env.TERAMINI_ADMIN_SESSION_SECRET || ''
 export function isAdminSessionConfigured() { return Buffer.byteLength(adminSessionSecret(), 'utf8') >= 32 }
 export function isTelegramAdmin(id: string) { return (process.env.TERAMINI_ADMIN_TELEGRAM_IDS || '').split(',').map(value => value.trim()).includes(id) }
-export async function isAdmin(id: string) { return isTelegramAdmin(id) || await isStoredAdmin(id) }
+export async function userStaffRole(id: string): Promise<StaffRole | null> {
+  if (isTelegramAdmin(id)) return 'admin'
+  const role = await getUserRole(id)
+  return isStaffRole(role) ? role : null
+}
+export async function isAdmin(id: string) { return Boolean(await userStaffRole(id)) }
+export async function staffPermission(id: string, action: StaffAction): Promise<boolean | null> {
+  const role = await userStaffRole(id)
+  return role ? canPerform(role, action) : null
+}
 export function adminSessionValue(userId: string, expiresAt: number) { const payload = `${userId}.${expiresAt}`; return `${payload}.${crypto.createHmac('sha256', adminSessionSecret()).update(payload).digest('hex')}` }
 export function hasAdminSession(request: NextRequest, userId: string) { if (!isAdminSessionConfigured()) return false; const raw = request.cookies.get(adminCookie)?.value || ''; const [sessionUser, expiry, signature] = raw.split('.'); if (!sessionUser || sessionUser !== userId || !expiry || !signature || !/^\d+$/.test(expiry) || Number(expiry) < Date.now()) return false; const expected = adminSessionValue(sessionUser, Number(expiry)).split('.').pop() || ''; const actualBytes = Uint8Array.from(Buffer.from(signature)); const expectedBytes = Uint8Array.from(Buffer.from(expected)); return actualBytes.length === expectedBytes.length && crypto.timingSafeEqual(actualBytes, expectedBytes) }
 export const ADMIN_SESSION_COOKIE = adminCookie
