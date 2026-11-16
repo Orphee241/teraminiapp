@@ -8,13 +8,13 @@ describe('document billing policy', () => {
 
   it('publishes the approved quote and invoice packs', () => {
     expect(DOCUMENT_PACKS.map(pack => [pack.code, pack.documents, pack.amount])).toEqual([
-      ['document-1', 1, 200], ['document-50', 50, 5000], ['document-100', 100, 15000], ['document-250', 250, 35000], ['document-500', 500, 60000],
+      ['document-1', 1, 100], ['document-50', 50, 150], ['document-100', 100, 200], ['document-250', 250, 250], ['document-500', 500, 300],
     ])
   })
 
   it('rejects unknown pack codes instead of trusting client pricing', async () => {
     const { findDocumentPack } = await import('../../modules/documents/billing-policy')
-    expect(findDocumentPack('document-50')?.amount).toBe(5000)
+    expect(findDocumentPack('document-50')?.amount).toBe(150)
     expect(findDocumentPack('5000')).toBeNull()
     expect(findDocumentPack('document-999')).toBeNull()
   })
