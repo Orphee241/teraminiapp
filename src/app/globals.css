@@ -333,14 +333,12 @@ button { cursor:pointer; }
 .profile-card,.conversation-card { min-width:0; max-width:100%; overflow:hidden; }
 .profile-main,.conversation-main { min-width:0; overflow:hidden; }
 .profile-table { width:100%; min-width:0; overflow:visible; }
-.profile-table-head,.profile-card { display:grid; grid-template-columns:minmax(155px,1.4fr) minmax(90px,.8fr) minmax(135px,1fr) minmax(120px,.8fr); align-items:center; gap:12px; min-width:0; }
+.profile-table-head,.profile-card { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); align-items:center; gap:12px; min-width:0; }
 .profile-table-head { margin-top:16px; padding:10px 13px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
 .profile-card { position:relative; padding:13px; }
 .profile-card .profile-avatar { grid-column:1; grid-row:1; }
 .profile-card .profile-main { grid-column:1; grid-row:1; padding-left:50px; }
-.profile-card .profile-meta { grid-column:2; grid-row:1; min-width:0; text-align:left; }
-.profile-card .profile-date { grid-column:3; grid-row:1; min-width:0; text-align:left; }
-.profile-card .admin-profile-action { grid-column:4; grid-row:1; justify-self:start; }
+.profile-card .profile-date { grid-column:2; grid-row:1; min-width:0; text-align:left; }
 .admin-search { min-width:0; max-width:100%; }
 .admin-search input { min-width:0; max-width:100%; }
 .admin-admin-form { width:min(100%,560px); max-width:100%; min-width:0; box-sizing:border-box; }

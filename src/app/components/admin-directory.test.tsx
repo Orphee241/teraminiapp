@@ -57,20 +57,26 @@ describe('admin directory regression contracts', () => {
     expect(adminPage).toContain("fetch('/api/profile/presence'")
     expect(adminPage).toContain('setInterval(heartbeatAndRefresh, 60_000)')
   })
-  it('keeps profile detail in an in-page view and suppresses add-admin action for existing admins', () => {
+  it('opens a full profile detail view from the compact recent-user card', () => {
     expect(adminPage).toContain('const onBack = () =>')
     expect(adminPage).toContain('if (selectedProfile) setSelectedProfile(null)')
-    expect(adminPage).toContain("!isProfileAdmin(profile.telegram_id) &&")
     expect(adminPage).toContain('selectedProfile &&')
+    expect(adminPage).toContain('profile-detail-grid')
+    expect(adminPage).toContain('onClick={() => setSelectedProfile(profile)}')
   })
 
-  it('shows administration only to authorized users and keeps user status plus admin action on each profile row', () => {
+  it('shows administration only to authorized users and keeps profile cards focused on identity and activity', () => {
     expect(homePage).toContain("const [adminAvailable, setAdminAvailable] = useState(false)")
     expect(homePage).toContain('{adminAvailable && <AccountRow icon={ShieldCheck}')
     expect(adminPage).toContain('aria-label={`Statut de ${displayName(profile)}`')
     expect(adminPage).toContain("? <>En ligne")
     expect(adminPage).toContain('Dernière activité')
-    expect(adminPage).toContain('Ajouter admin')
+    const recentUsersSection = adminPage.slice(adminPage.indexOf('<h3>Utilisateurs récents</h3>'), adminPage.indexOf('<h3>Conversations</h3>'))
+    expect(recentUsersSection).toContain('profile-avatar')
+    expect(recentUsersSection).toContain('profile-main')
+    expect(recentUsersSection).toContain('profile-date')
+    expect(recentUsersSection).not.toContain('profile-meta')
+    expect(recentUsersSection).not.toContain('Ajouter admin')
   })
 
   it('creates the current Telegram user as the primary admin on first authenticated access', () => {
