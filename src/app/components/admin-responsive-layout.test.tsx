@@ -17,7 +17,8 @@ describe('admin responsive boundaries', () => {
     expect(css).toContain('.admin-admin-form { width:min(100%,560px); max-width:100%;')
     expect(css).toContain('.admin-header-actions')
     expect(css).toContain('.admin-header .brand-mark.brand-logo { width:30px; height:30px; }')
-    expect(css).toContain('.admin-admin-form .primary-button { min-height:42px; margin:2px 0 0;')
+    expect(css).toContain('.admin-admin-form { grid-template-columns:minmax(0,240px) auto; width:auto; max-width:100%; align-items:center; }')
+    expect(css).toContain('.admin-admin-form .primary-button { width:auto; min-width:0; padding:10px 14px;')
   })
 
   it('keeps the three admin panels in a responsive desktop grid', () => {

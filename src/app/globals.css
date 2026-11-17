@@ -398,6 +398,9 @@ button { cursor:pointer; }
   .admin-header .brand-mark.brand-logo { width:30px; height:30px; }
   .admin-header h1 { font-size:25px; }
   .admin-header-actions { gap:6px; }
+  .admin-admin-form { grid-template-columns:minmax(0,240px) auto; width:auto; max-width:100%; align-items:center; }
+  .admin-admin-form input { width:100%; }
+  .admin-admin-form .primary-button { width:auto; min-width:0; padding:10px 14px; white-space:nowrap; }
 }
 @media (max-width:650px) {
   .admin-header { gap:6px; padding-left:10px; padding-right:10px; }
