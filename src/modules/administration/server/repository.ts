@@ -10,6 +10,9 @@ export function getUserRole(telegramId: string) { return administration.getUserR
 export function assignUserRole(telegramId: string, role: string, assignedBy: string) { return administration.assignUserRole(telegramId, role, assignedBy) }
 export function lookupTelegramUser(telegramId: string) { return administration.lookupTelegramUser(telegramId) }
 export function upsertAdmin(admin: Record<string, string>) { return administration.upsertAdmin(admin) }
+export function deleteAdminRole(telegramId: string) { return administration.deleteAdminRole(telegramId) }
 export function deleteAdmin(telegramId: string) { return administration.deleteAdmin(telegramId) }
+export function adminAuditLog(limit?: number) { return administration.adminAuditLog(limit) }
+export function recordAuditEvent(event: Parameters<typeof administration.recordAuditEvent>[0]) { return administration.recordAuditEvent(event) }
 export function markProfileOfflineBefore(cutoffIso: string) { return administration.markProfileOfflineBefore(cutoffIso) }
 export function isStoredAdmin(telegramId: string) { return administration.isStoredAdmin(telegramId) }

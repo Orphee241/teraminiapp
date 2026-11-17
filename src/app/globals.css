@@ -322,6 +322,13 @@ button { cursor:pointer; }
 .profile-online-label { display:flex!important; align-items:center; gap:7px; }
 .profile-online-label .online-dot { flex:none; width:9px; height:9px; margin:0; }
 .profile-detail-role { display:grid; gap:5px; flex:none; margin-left:auto; color:var(--muted); font-size:11px; }
+.profile-remove-role { margin-top:8px; white-space:nowrap; }
+.invoice-row-cancelled { opacity:.58; filter:grayscale(.7); }
+.audit-list { display:grid; gap:8px; }
+.audit-item { display:grid; gap:3px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.02); }
+.audit-item strong { color:var(--text); font-size:13px; }
+.audit-item span,.audit-item small { color:var(--muted); font-size:11px; overflow-wrap:anywhere; }
+
 .profile-detail-role select { min-width:132px; min-height:38px; padding:7px 28px 7px 10px; color:#f7f8fa; border:1px solid var(--line); border-radius:9px; background:#080a0f; font:inherit; font-size:12px; }
 .profile-detail-role select:focus { outline:2px solid var(--pink); outline-offset:1px; }
 .profile-detail-role select:disabled { opacity:.6; cursor:wait; }

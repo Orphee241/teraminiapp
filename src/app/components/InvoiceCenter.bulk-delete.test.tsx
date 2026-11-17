@@ -70,13 +70,9 @@ describe('InvoiceCenter bulk selection and deletion', () => {
     expect(screen.getByText('5 sélectionnés')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Précédent' }))
 
-    await user.click(screen.getByRole('button', { name: /supprimer les 5 sélectionnés/i }))
-    expect(screen.getByRole('heading', { name: /supprimer 5 documents/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /annuler les 5 sélectionnés/i }))
     expect(fetchSpy.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(0)
-
-    await user.click(screen.getByRole('button', { name: /^supprimer les 5$/i }))
-    await waitFor(() => expect(fetchSpy.mock.calls.filter(([, init]) => init?.method === 'DELETE')).toHaveLength(5))
-    expect(screen.queryByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeInTheDocument()
+    expect(screen.getByText('5 sélectionnés')).toBeInTheDocument()
   })
 
   it('restores the single-document action sheet on long press while keeping selection an explicit toolbar action', async () => {
@@ -96,7 +92,7 @@ describe('InvoiceCenter bulk selection and deletion', () => {
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 600)) })
     fireEvent.pointerUp(row)
     expect(await screen.findByRole('button', { name: 'Modifier' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Supprimer' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Annuler le document' })).toBeDisabled()
     expect(screen.queryByRole('checkbox', { name: /sélectionner DEV-TEST-42/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /sélectionner des documents/i })).toBeInTheDocument()
 

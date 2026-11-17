@@ -10,6 +10,7 @@ type Profile = { telegram_id: string; username?: string; first_name?: string; la
 type Admin = { telegram_id: string; username?: string; first_name?: string; last_name?: string; created_at?: string; role?: StaffRole }
 type Conversation = { id: string; external_user_id: string; title: string; status: string; created_at: string; updated_at: string; username?: string; first_name?: string; last_name?: string }
 type Message = { id: string; role: 'user' | 'assistant'; text: string; sent_at: string }
+type AuditEvent = { id: string; actor_telegram_id: string; actor_role: string; action: string; target_type: string; target_id: string; reason?: string; created_at: string }
 type DashboardData = { profiles: Profile[]; conversations: Conversation[]; stats: { users?: number; conversations?: number; messages?: number } }
 
 const date = (value?: string) => value ? new Date(value).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
@@ -23,6 +24,7 @@ export default function AdminPage() {
   const [initData, setInitData] = useState('')
   const [data, setData] = useState<DashboardData>({ profiles: [], conversations: [], stats: {} })
   const [admins, setAdmins] = useState<Admin[]>([])
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
   const [adminForm, setAdminForm] = useState({ telegram_id: '' })
   const [adminPage, setAdminPage] = useState(1)
   const [profilePage, setProfilePage] = useState(1)
@@ -73,16 +75,16 @@ export default function AdminPage() {
   useEffect(() => {
     const webApp = window.Telegram?.WebApp
     if (!webApp) return
-    const onBack = () => { if (selectedProfile) setSelectedProfile(null); else if (selected) setSelected(null); else window.location.href = '/' }
+    const onBack = () => { if (selectedProfile) setSelectedProfile(null); else if (selected) setSelected(null); else void closeAdminSession() }
     return configureTelegramBackButton(webApp, true, onBack)
   }, [selectedProfile, selected])
   useEffect(() => {
-    const handleExit = () => { setUnlocked(false); setPassword(''); setSelected(null); setSelectedProfile(null) }
+    const handleExit = () => { void fetch('/api/admin/access', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ action: 'logout' }), keepalive: true }); setUnlocked(false); setPassword(''); setSelected(null); setSelectedProfile(null) }
     window.addEventListener('pagehide', handleExit)
     return () => window.removeEventListener('pagehide', handleExit)
-  }, [])
+  }, [initData])
   useEffect(() => {
-    if (!unlocked || !initData) return
+    if (!initData) return
     let pending = false
     const heartbeatAndRefresh = async () => {
       if (pending || document.visibilityState === 'hidden') return
@@ -95,14 +97,26 @@ export default function AdminPage() {
 
     }
     void heartbeatAndRefresh()
-    const timer = window.setInterval(heartbeatAndRefresh, 60_000)
+    const clock = window.setInterval(() => setNow(Date.now()), 15_000)
+    const timer = window.setInterval(heartbeatAndRefresh, 30_000)
     const onVisibilityChange = () => { if (document.visibilityState === 'visible') void heartbeatAndRefresh() }
     document.addEventListener('visibilitychange', onVisibilityChange)
-    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisibilityChange) }
+    return () => { window.clearInterval(clock); window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisibilityChange) }
   }, [unlocked, initData])
   useEffect(() => { setAdminPage(1) }, [adminQuery])
   useEffect(() => { setProfilePage(1) }, [profileQuery])
   useEffect(() => { setConversationPage(1) }, [conversationQuery])
+  useEffect(() => {
+    if (!error) return
+    const timer = window.setTimeout(() => setError(''), 8000)
+    return () => window.clearTimeout(timer)
+  }, [error])
+
+  async function closeAdminSession() {
+    try { await fetch('/api/admin/access', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify({ action: 'logout' }), keepalive: true }) } catch { /* Navigation still clears local admin state. */ }
+    setUnlocked(false); setPassword(''); setSelected(null); setSelectedProfile(null); setAdminLogoutOpen(false)
+    window.location.href = '/'
+  }
 
   async function unlock(event: React.FormEvent) {
     event.preventDefault()
@@ -124,6 +138,8 @@ export default function AdminPage() {
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'Accès refusé.')
         setData({ profiles: payload.profiles || [], conversations: payload.conversations || [], stats: payload.stats || {} }); setAdmins(payload.admins || []); if (payload.actor_role) setActorRole(payload.actor_role)
+        const auditResponse = await fetch('/api/admin/audit?limit=200', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+        if (auditResponse.ok) { const auditPayload = await auditResponse.json(); setAuditEvents(Array.isArray(auditPayload.events) ? auditPayload.events : []) }
       } catch (cause) { setError(cause instanceof Error ? cause.message : 'Tableau de bord indisponible.') } finally { if (!silent) { initialLoadComplete.current = true; setLoading(false) } }
     })
   }
@@ -144,6 +160,21 @@ export default function AdminPage() {
     finally { setRoleBusy(false) }
   }
 
+  async function removeRole(profile: Profile) {
+    if (actorRole !== 'admin' || roleBusy) return
+    setRoleBusy(true)
+    try {
+      const response = await fetch(`/api/admin/conversations?telegram_id=${encodeURIComponent(profile.telegram_id)}`, { method: 'DELETE', headers: { 'x-telegram-init-data': initData } })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error || 'Impossible de retirer ce rôle.')
+      setSelectedProfile(current => current?.telegram_id === profile.telegram_id ? { ...current, role: null } : current)
+      setData(current => ({ ...current, profiles: current.profiles.map(item => item.telegram_id === profile.telegram_id ? { ...item, role: null } : item) }))
+      setAdmins(current => current.filter(item => item.telegram_id !== profile.telegram_id))
+      setNoticeKind('success'); setError('Rôle retiré. Cette personne redevient un utilisateur normal.')
+    } catch (cause) { setNoticeKind('error'); setError(cause instanceof Error ? cause.message : 'Impossible de retirer ce rôle.') }
+    finally { setRoleBusy(false) }
+  }
+
   async function openConversation(conversation: Conversation) {
     setSelected(conversation); setMessages([])
     const response = await fetch(`/api/admin/conversations?conversation_id=${encodeURIComponent(conversation.id)}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
@@ -157,7 +188,7 @@ export default function AdminPage() {
   const pagedProfiles = profiles.slice((profilePage - 1) * 3, profilePage * 3)
   const pagedConversations = conversations.slice((conversationPage - 1) * 6, conversationPage * 6)
 
-  const isProfileOnline = (profile: Profile) => { const age = now - new Date(profile.last_app_visit_at || 0).getTime(); return Boolean(profile.is_online) && Boolean(profile.last_app_visit_at) && Number.isFinite(age) && age >= 0 && age < 5 * 60 * 1000 }
+  const isProfileOnline = (profile: Profile) => { const age = now - new Date(profile.last_app_visit_at || 0).getTime(); return Boolean(profile.is_online) && Boolean(profile.last_app_visit_at) && Number.isFinite(age) && age >= 0 && age < 180 * 1000 }
 
   if (!unlocked) return <main className="admin-shell"><header className="admin-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Administration</h1></div></header><div className="admin-content"><section className="settings-section admin-lock"><ShieldCheck size={24} /><h2>Accès sécurisé</h2><p>Entrez le mot de passe Administration pour continuer.</p><form noValidate onSubmit={unlock}><div className="admin-password-wrap"><input className="admin-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Mot de passe" /><button className="admin-password-toggle" type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><button className="primary-button" type="submit">Ouvrir Administration</button></form>{error && <p className={`form-message ${noticeKind}`} role="alert">{error}</p>}</section></div></main>
 
@@ -172,9 +203,10 @@ export default function AdminPage() {
         <section className="admin-panel"><div className="panel-heading"><div><p className="eyebrow">PROFILS TELEGRAM</p><h3>Utilisateurs récents</h3></div><span>{profiles.length}</span></div><div className="admin-search"><Search size={16} /><input aria-label="Rechercher un utilisateur" value={profileQuery} onChange={event => setProfileQuery(event.target.value)} placeholder="Rechercher un utilisateur…" /></div>{loading ? <Loading /> : profiles.length === 0 ? <Empty text={profileQuery ? 'Aucun utilisateur ne correspond à cette recherche.' : 'Aucun profil enregistré pour le moment.'} /> : <div className="profile-table"><div className="profile-table-head"><span>Utilisateur</span><span>Statut / dernière connexion</span></div>{pagedProfiles.map(profile => <div className="profile-card" key={profile.telegram_id} role="button" tabIndex={0} onClick={() => setSelectedProfile(profile)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') setSelectedProfile(profile) }}><div className="profile-avatar">{profile.photo_url ? <img src={profile.photo_url} alt="" /> : (profile.first_name || 'T').slice(0, 1).toUpperCase()}</div><div className="profile-main"><strong>{displayName(profile)}</strong><small>{profile.username ? `@${profile.username}` : `ID ${profile.telegram_id}`}</small></div><div className="profile-date" aria-label={`Statut de ${displayName(profile)}`}><small>{isProfileOnline(profile) ? <>En ligne <i className="online-dot" aria-label="En ligne" /></> : 'Hors ligne'}</small><span>{isProfileOnline(profile) ? 'Activité : maintenant' : `Dernière activité : ${relativeDate(profile.last_app_visit_at || profile.created_at)}`}</span></div></div>)}</div>}{profiles.length > 3 && <Pager page={profilePage} pages={Math.ceil(profiles.length / 3)} onChange={setProfilePage} label="3 par page" />} </section>
          <section className="admin-panel"><div className="panel-heading"><div><p className="eyebrow">ÉCHANGES</p><h3>Conversations</h3></div><span>{conversations.length}</span></div><div className="admin-search"><Search size={16} /><input aria-label="Rechercher une conversation" value={conversationQuery} onChange={event => setConversationQuery(event.target.value)} placeholder="Rechercher une conversation…" /></div>{loading ? <Loading /> : conversations.length === 0 ? <Empty text={conversationQuery ? 'Aucune conversation ne correspond à cette recherche.' : 'Aucune conversation enregistrée.'} /> : <div className="conversation-list">{pagedConversations.map(conversation => <button className="conversation-card" key={conversation.id} onClick={() => openConversation(conversation)}><span className="conversation-icon"><MessageCircle size={18} /></span><span className="conversation-main"><strong>{conversationName(conversation)}</strong><small>{conversation.username ? `@${conversation.username} · ` : ''}Utilisateur Telegram : {conversation.external_user_id}</small></span><span className="conversation-date"><Clock3 size={14} />{date(conversation.updated_at)}</span><ChevronRight size={18} /></button>)}</div>}{conversations.length > 6 && <Pager page={conversationPage} pages={Math.ceil(conversations.length / 6)} onChange={setConversationPage} label="6 par page" />} </section>
        </div>
+       {actorRole && <section className="admin-panel admin-audit-panel"><div className="panel-heading"><div><p className="eyebrow">JOURNAL</p><h3>Opérations récentes</h3></div><span>{auditEvents.length}</span></div>{auditEvents.length === 0 ? <Empty text="Aucune opération enregistrée." /> : <div className="audit-list">{auditEvents.map(event => <article className="audit-item" key={event.id}><strong>{event.action === 'document.cancel' ? 'Document annulé' : event.action}</strong><span>{event.target_type} · {event.target_id} · {date(event.created_at)}</span><small>Par {event.actor_telegram_id} ({event.actor_role}){event.reason ? ` · Motif : ${event.reason}` : ''}</small></article>)}</div>}</section>}
     </div>
-    {selectedProfile && <div className="admin-overlay" onMouseDown={() => setSelectedProfile(null)}><section className="profile-detail-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">PROFIL TELEGRAM</p><h2>{displayName(selectedProfile)}</h2><small>ID Telegram : {selectedProfile.telegram_id}</small></div><button className="close-button" onClick={() => setSelectedProfile(null)} aria-label="Fermer"><X size={20} /></button></div><div className="profile-detail-identity">{selectedProfile.photo_url ? <img src={selectedProfile.photo_url} alt="" /> : <div className="profile-detail-avatar">{(selectedProfile.first_name || 'T').slice(0, 1).toUpperCase()}</div>}<div className="profile-detail-status"><strong>{selectedProfile.username ? `@${selectedProfile.username}` : 'Sans nom d’utilisateur'}</strong><span className="profile-online-label">{isProfileOnline(selectedProfile) ? <>En ligne <i className="online-dot" aria-label="En ligne" /></> : 'Hors ligne'}</span></div>{actorRole && canAssignRole(actorRole, 'manager') && <label className="profile-detail-role"><span>Rôle</span><select aria-label="Rôle utilisateur" value={selectedProfile.role || ''} disabled={roleBusy} onChange={event => { if (event.target.value) void assignRole(selectedProfile, event.target.value as StaffRole) }}><option value="" disabled>Choisir un rôle</option>{(actorRole === 'admin' ? ['admin', 'manager', 'operator', 'supervisor'] as const : ['manager', 'operator'] as const).map(role => <option key={role} value={role}>{role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : role === 'operator' ? 'Opérateur' : 'Superviseur'}</option>)}</select></label>}</div><div className="profile-detail-grid"><Detail label="Prénom" value={selectedProfile.first_name} /><Detail label="Nom" value={selectedProfile.last_name} /><Detail label="Nom d’utilisateur" value={selectedProfile.username ? `@${selectedProfile.username}` : undefined} /><Detail label="Langue" value={selectedProfile.language_code} /><Detail label="E-mail" value={selectedProfile.email} /><Detail label="Téléphone" value={selectedProfile.phone} /><Detail label="Adresse" value={selectedProfile.address} /><Detail label="Entreprise" value={selectedProfile.company_name} /><Detail label="NIF" value={selectedProfile.nif} /><Detail label="RCCM" value={selectedProfile.rccm} /><Detail label="Dernière activité" value={relativeDate(selectedProfile.last_app_visit_at || selectedProfile.created_at)} /><Detail label="Conversations" value={String(selectedProfile.conversation_count || 0)} /></div></section></div>}
-    {adminLogoutOpen && <div className="admin-overlay" onMouseDown={() => setAdminLogoutOpen(false)}><section className="confirm-sheet confirm-sheet-compact" onMouseDown={event => event.stopPropagation()}><h2>Se déconnecter ?</h2><p>Voulez-vous vraiment fermer votre session d’administration ?</p><div className="confirm-actions"><button type="button" className="secondary-button" onClick={() => setAdminLogoutOpen(false)}>Non</button><button type="button" className="danger-button" onClick={() => { setAdminLogoutOpen(false); setUnlocked(false); setPassword(''); setSelected(null); setSelectedProfile(null); window.location.href = '/' }}>Oui, me déconnecter</button></div></section></div>}
+    {selectedProfile && <div className="admin-overlay" onMouseDown={() => setSelectedProfile(null)}><section className="profile-detail-sheet" onMouseDown={event => event.stopPropagation()}><div className="sheet-heading"><div><p className="eyebrow accent">PROFIL TELEGRAM</p><h2>{displayName(selectedProfile)}</h2><small>ID Telegram : {selectedProfile.telegram_id}</small></div><button className="close-button" onClick={() => setSelectedProfile(null)} aria-label="Fermer"><X size={20} /></button></div><div className="profile-detail-identity">{selectedProfile.photo_url ? <img src={selectedProfile.photo_url} alt="" /> : <div className="profile-detail-avatar">{(selectedProfile.first_name || 'T').slice(0, 1).toUpperCase()}</div>}<div className="profile-detail-status"><strong>{selectedProfile.username ? `@${selectedProfile.username}` : 'Sans nom d’utilisateur'}</strong><span className="profile-online-label">{isProfileOnline(selectedProfile) ? <>En ligne <i className="online-dot" aria-label="En ligne" /></> : 'Hors ligne'}</span></div>{actorRole && canAssignRole(actorRole, 'manager') && <label className="profile-detail-role"><span>Rôle</span><select aria-label="Rôle utilisateur" value={selectedProfile.role || ''} disabled={roleBusy} onChange={event => { if (event.target.value) void assignRole(selectedProfile, event.target.value as StaffRole) }}><option value="" disabled>Choisir un rôle</option>{(actorRole === 'admin' ? ['admin', 'manager', 'operator', 'supervisor'] as const : ['manager', 'operator'] as const).map(role => <option key={role} value={role}>{role === 'admin' ? 'Admin' : role === 'manager' ? 'Manager' : role === 'operator' ? 'Opérateur' : 'Superviseur'}</option>)}</select></label>}{actorRole === 'admin' && selectedProfile.role && <button type="button" className="secondary-button profile-remove-role" disabled={roleBusy} onClick={() => void removeRole(selectedProfile)}>Retirer le rôle</button>}</div><div className="profile-detail-grid"><Detail label="Prénom" value={selectedProfile.first_name} /><Detail label="Nom" value={selectedProfile.last_name} /><Detail label="Nom d’utilisateur" value={selectedProfile.username ? `@${selectedProfile.username}` : undefined} /><Detail label="Langue" value={selectedProfile.language_code} /><Detail label="E-mail" value={selectedProfile.email} /><Detail label="Téléphone" value={selectedProfile.phone} /><Detail label="Adresse" value={selectedProfile.address} /><Detail label="Entreprise" value={selectedProfile.company_name} /><Detail label="NIF" value={selectedProfile.nif} /><Detail label="RCCM" value={selectedProfile.rccm} /><Detail label="Dernière activité" value={relativeDate(selectedProfile.last_app_visit_at || selectedProfile.created_at)} /><Detail label="Conversations" value={String(selectedProfile.conversation_count || 0)} /></div></section></div>}
+    {adminLogoutOpen && <div className="admin-overlay" onMouseDown={() => setAdminLogoutOpen(false)}><section className="confirm-sheet confirm-sheet-compact" onMouseDown={event => event.stopPropagation()}><h2>Se déconnecter ?</h2><p>Voulez-vous vraiment fermer votre session d’administration ?</p><div className="confirm-actions"><button type="button" className="secondary-button" onClick={() => setAdminLogoutOpen(false)}>Non</button><button type="button" className="danger-button" onClick={() => void closeAdminSession()}>Oui, me déconnecter</button></div></section></div>}
   </main>
 }
 

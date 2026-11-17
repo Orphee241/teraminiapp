@@ -43,7 +43,7 @@ describe('admin directory regression contracts', () => {
     expect(administration).toContain("(strftime('%s','now') - strftime('%s',p.last_app_visit_at)) >= 0")
     expect(storage).not.toContain('MAX(c.updated_at) AS last_activity')
     expect(adminPage).toContain('const isProfileOnline = (profile: Profile)')
-    expect(adminPage).toContain('age >= 0 && age < 5 * 60 * 1000')
+    expect(adminPage).toContain('age >= 0 && age < 180 * 1000')
     expect(adminPage).toContain("isProfileOnline(profile) ? 'Activité : maintenant'")
   })
 
@@ -55,7 +55,7 @@ describe('admin directory regression contracts', () => {
     expect(presenceRoute).toContain('last_app_visit_at = new Date().toISOString()')
     expect(homePage).toContain("fetch('/api/profile/presence'")
     expect(adminPage).toContain("fetch('/api/profile/presence'")
-    expect(adminPage).toContain('setInterval(heartbeatAndRefresh, 60_000)')
+    expect(adminPage).toContain('setInterval(heartbeatAndRefresh, 30_000)')
   })
   it('opens a full profile detail view from the compact recent-user card', () => {
     expect(adminPage).toContain('const onBack = () =>')
@@ -83,5 +83,13 @@ describe('admin directory regression contracts', () => {
     expect(auth).toContain('export function telegramProfile')
     expect(accessRoute).toContain('upsertAdmin({ telegram_id: userId')
     expect(accessRoute).toContain("auth.user?.username || ''")
+  })
+
+  it('expires notifications, removes roles server-side, and clears admin sessions on exit', () => {
+    expect(adminPage).toContain('8000')
+    expect(adminPage).toContain('Retirer le rôle')
+    expect(adminRoute).toContain('role_remove')
+    expect(accessRoute).toContain('logout')
+    expect(adminPage).toContain("method: 'DELETE'")
   })
 })

@@ -6,8 +6,8 @@ import { takeRateLimit } from '../../../../lib/rate-limit'
 import { invoiceActorHeaders, invoiceOwnerHeaders } from '../../../../lib/invoice-owner-signature'
 import { invalidateDocumentLists } from '../../../../lib/document-cache'
 import { userStaffRole } from '../../_auth'
+import { recordAuditEvent } from '../../../../modules/administration/server/repository'
 import { resolveDocumentOwner } from '../../../../modules/documents/document-access'
-
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 const validDocumentId = (value: string) => /^\d{1,18}$/.test(value)
 
@@ -108,6 +108,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const response = await fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, ...proof, ...actorProof }, body: bodyText, cache: 'no-store' })
     if (!response.ok) { const payload = await response.json().catch(() => ({})); return NextResponse.json({ error: payload.detail || 'Annulation impossible.' }, { status: response.status }) }
     invalidateDocumentLists(owner)
-    return NextResponse.json(await response.json())
+    const upstreamPayload = await response.json().catch(() => ({}))
+    let auditRecorded = true
+    try { await recordAuditEvent({ actorId: actor, actorRole: actorRole || 'admin', action: 'document.cancel', targetType: 'document', targetId: id, reason, metadata: { owner_telegram_id: owner } }) } catch { auditRecorded = false }
+    return NextResponse.json({ ...upstreamPayload, audit_recorded: auditRecorded })
   } catch { return NextResponse.json({ error: 'Service de documents momentanément indisponible.' }, { status: 503 }) }
 }

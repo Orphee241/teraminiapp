@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'node:crypto'
-import { authenticate, isAdmin, userStaffRole, adminSessionValue, ADMIN_SESSION_COOKIE, hasAdminSession, telegramProfile, requireSameOrigin, isAdminSessionConfigured } from '../../_auth'
+import { authenticate, isAdmin, userStaffRole, adminSessionValue, ADMIN_SESSION_COOKIE, telegramProfile, requireSameOrigin, isAdminSessionConfigured } from '../../_auth'
 import { listAdmins, upsertAdmin } from '../../../../modules/administration/server/repository'
+import { upsertProfile } from '../../../../modules/profiles/server/repository'
 import { readBoundedJson, RequestBodyLimitError } from '../../../../lib/request-body'
 import { resetRateLimit, takeRateLimit } from '../../../../lib/rate-limit'
 import { enforcePersistentRateLimit, resetPersistentRateLimitForUser } from '../../../../lib/request-security'
@@ -15,10 +16,9 @@ export async function GET(request: NextRequest) {
   if (!persistedLimit.available) return NextResponse.json({ error: 'Service administrateur momentanément indisponible.' }, { status: 503 })
   if (!persistedLimit.allowed) return NextResponse.json({ error: 'Trop de consultations rapprochées.' }, { status: 429 })
   const allowed = await isAdmin(userId)
-  if (allowed) { try { await upsertAdmin(telegramProfile(auth.user!)) } catch { /* Access remains governed by the existing allow-list. */ } }
-  const unlocked = allowed && hasAdminSession(request, userId)
+  if (allowed) { try { await upsertProfile(telegramProfile(auth.user!)); await upsertAdmin(telegramProfile(auth.user!)) } catch { /* Access remains governed by the existing allow-list. */ } }
+  const unlocked = false
   const response = NextResponse.json({ allowed, unlocked, role: allowed ? await userStaffRole(userId) : null })
-  if (unlocked) response.cookies.set(ADMIN_SESSION_COOKIE, adminSessionValue(userId, Date.now() + 30 * 60 * 1000), { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 1800, path: '/' })
   return response
 }
 
@@ -27,13 +27,18 @@ export async function POST(request: NextRequest) {
   if (!isAdminSessionConfigured()) return NextResponse.json({ error: 'Service administrateur momentanément indisponible.' }, { status: 503 })
   const auth = await authenticate(request); if (auth.response) return auth.response
   const userId = String(auth.user?.id || '')
+  let body: unknown
+  try { body = await readBoundedJson(request, 4096) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Demande trop volumineuse.' : 'Demande invalide.' }, { status: tooLarge ? 413 : 400 }) }
+  if (body && typeof body === 'object' && (body as Record<string, unknown>).action === 'logout') {
+    const response = new NextResponse(null, { status: 204 })
+    response.cookies.set(ADMIN_SESSION_COOKIE, '', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 0, expires: new Date(0), path: '/' })
+    return response
+  }
   const userBucket = `admin-login:user:${userId}`
   if (!takeRateLimit(userBucket, 5, 15 * 60_000) || !takeRateLimit('admin-login:global', 80, 15 * 60_000)) return NextResponse.json({ error: 'Accès administrateur momentanément limité. Réessayez plus tard.' }, { status: 429 })
   const persistedLimit = await enforcePersistentRateLimit(userId, 'admin-login', 5, 80, 15 * 60_000)
   if (!persistedLimit.available) return NextResponse.json({ error: 'Service administrateur momentanément indisponible.' }, { status: 503 })
   if (!persistedLimit.allowed) return NextResponse.json({ error: 'Accès administrateur momentanément limité. Réessayez plus tard.' }, { status: 429 })
-  let body: unknown
-  try { body = await readBoundedJson(request, 4096) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Demande trop volumineuse.' : 'Demande invalide.' }, { status: tooLarge ? 413 : 400 }) }
   const supplied = body && typeof body === 'object' && 'password' in body && typeof body.password === 'string' ? body.password : ''; const configured = process.env.TERAMINI_ADMIN_PASSWORD || ''
   const allowed = await isAdmin(userId)
   let bootstrapAllowed = false

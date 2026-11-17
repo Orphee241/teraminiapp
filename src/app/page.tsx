@@ -16,6 +16,7 @@ import { validateDocumentLines } from '../lib/document-form-validation'
 import { buildDocumentPayload } from '../lib/document-payload'
 import { COUNTRY_OPTIONS } from '../modules/profiles/country-catalog'
 import { DOCUMENT_PACKS, type DocumentPack } from '../modules/documents/billing-policy'
+import { type StaffRole } from '../modules/administration/server/permissions'
 
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'dashboard' | 'settings' | 'profile' | 'subscriptions' | 'transaction' | 'assistance'
@@ -94,6 +95,7 @@ export default function HomePage() {
   const [chatInput, setChatInput] = useState('')
   const [chatBusy, setChatBusy] = useState(false)
   const [adminAvailable, setAdminAvailable] = useState(false)
+  const [adminRole, setAdminRole] = useState<StaffRole | null>(null)
   const [desktopTelegram, setDesktopTelegram] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const invoiceBackRef = useRef<() => void>(() => undefined)
@@ -150,7 +152,7 @@ export default function HomePage() {
     setInitData(data)
     if (data) {
       void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).then(response => response.ok ? response.json() : null).then(value => value?.profile && setProfile(value.profile)).catch(() => undefined).finally(() => setProfileReady(true))
-      void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => setAdminAvailable(Boolean(payload?.allowed))).catch(() => undefined)
+      void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => { setAdminAvailable(Boolean(payload?.allowed)); if (payload?.role) setAdminRole(payload.role as StaffRole) }).catch(() => undefined)
     }
     return () => {
       window.removeEventListener('load', expandOnReady)
@@ -331,7 +333,7 @@ export default function HomePage() {
     <div className="content">
       {tab === 'accueil' && <section className="screen"><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => navigate('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
       {tab === 'services' && <section className="screen"><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.filter(service => !service.documentKind).map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}<button className="service-card" onClick={() => navigate('facture')}><span className="service-icon"><FileText size={20} /></span><span className="service-copy"><strong>Devis et Facture</strong><small>Créer et retrouver vos devis et factures générés.</small></span><span className="chevron">›</span></button></div></section>}
-      {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} onClose={() => navigate('services')} onBackReady={handler => { invoiceBackRef.current = handler }} archiveRefresh={archiveRefresh} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} onCreateFromQuote={openInvoiceFromQuote} /></section>}
+      {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} staffRole={adminRole} onClose={() => navigate('services')} onBackReady={handler => { invoiceBackRef.current = handler }} archiveRefresh={archiveRefresh} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} onCreateFromQuote={openInvoiceFromQuote} /></section>}
       {tab === 'profil' && <AccountScreen accountPage={accountPage} navigateAccount={navigateAccount} profile={profile} setProfile={setProfile} profileMessage={profileMessage} setProfileMessage={setProfileMessage} language={language} updateLanguage={updateLanguage} adminAvailable={adminAvailable} openMichelle={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} onAdmin={() => { const webApp = window.Telegram?.WebApp; if (webApp) openTelegramWindow(webApp); window.location.href = '/adm' }} />}
     </div>
     {message && <div className={`toast ${messageKind}`} role="status" aria-live="polite">{message}</div>}
