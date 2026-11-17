@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   let body: unknown
   try { body = await readBoundedJson(request, 4096) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Demande trop volumineuse.' : 'Données invalides.' }, { status: tooLarge ? 413 : 400 }) }
   let telegramId = ''; try { telegramId = validTelegramId(body && typeof body === 'object' && 'telegram_id' in body ? body.telegram_id : undefined) } catch { return NextResponse.json({ error: 'Identifiant Telegram invalide.' }, { status: 400 }) }
-  try { const profile = await lookupTelegramUser(telegramId); return NextResponse.json({ admin: await upsertAdmin(profile) }) } catch { return NextResponse.json({ error: 'Administrateur impossible à enregistrer.' }, { status: 503 }) }
+  try { const profile = await lookupTelegramUser(telegramId); const admin = await upsertAdmin(profile); await recordAuditEvent({ actorId: userId, actorRole: 'admin', action: 'staff.role.assign', targetType: 'user', targetId: telegramId, metadata: { role: 'admin', source: 'admin_access' } }); return NextResponse.json({ admin }) } catch { return NextResponse.json({ error: 'Administrateur impossible à enregistrer.' }, { status: 503 }) }
 }
 export async function DELETE(request: NextRequest) {
   const originError = requireSameOrigin(request); if (originError) return originError

@@ -9,7 +9,7 @@ let workerConfigured = false
 const pdfPromiseCache = new Map<string, Promise<any>>()
 const PDF_CACHE_LIMIT = 8
 
-export default function PdfViewer({ src, title, initData, downloadSrc = src }: { src: string; title: string; initData: string; downloadSrc?: string }) {
+export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean }) {
   const viewerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -137,7 +137,7 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src }: {
       <span aria-live="polite">Page {page} / {pageCount}</span>
       <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= pageCount || state === 'loading'} aria-label="Page suivante">›</button>
     </div>
-    <button className="pdf-download" type="button" onClick={() => void downloadPdf()} disabled={downloading || state === 'loading'} aria-label={downloading ? 'Téléchargement en cours' : 'Télécharger le document'} title={downloading ? 'Téléchargement…' : 'Télécharger'}>
+    <button className="pdf-download" type="button" onClick={() => void downloadPdf()} disabled={downloadDisabled || downloading || state === 'loading'} aria-label={downloadDisabled ? 'Téléchargement désactivé pour ce document annulé' : downloading ? 'Téléchargement en cours' : 'Télécharger le document'} title={downloadDisabled ? 'Document annulé' : downloading ? 'Téléchargement…' : 'Télécharger'}>
       <Download size={18} />
     </button>
     <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher le PDF en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
