@@ -22,6 +22,6 @@ describe('admin responsive boundaries', () => {
 
   it('keeps the three admin panels in a responsive desktop grid', () => {
     expect(css).toContain('.admin-mobile-carousel { display:grid; grid-template-columns:repeat(3,minmax(0,1fr));')
-    expect(admin).toContain('className="admin-mobile-carousel"')
+    expect(css).toContain('.admin-mobile-carousel > .admin-panel { flex-basis:100%; padding:14px; }')
   })
 })
