@@ -15,7 +15,9 @@ describe('admin responsive boundaries', () => {
   it('prevents long admin values and forms from escaping their sections', () => {
     expect(css).toContain('.admin-table-row > * { min-width:0; overflow-wrap:normal; word-break:normal; }')
     expect(css).toContain('.admin-admin-form { width:min(100%,560px); max-width:100%;')
-    expect(css).toContain('.admin-admin-form input,.admin-admin-form .primary-button { min-width:0; max-width:100%;')
+    expect(css).toContain('.admin-header-actions')
+    expect(css).toContain('.admin-header .brand-mark.brand-logo { width:30px; height:30px; }')
+    expect(css).toContain('.admin-admin-form .primary-button { min-height:42px; margin:2px 0 0;')
   })
 
   it('keeps the three admin panels in a responsive desktop grid', () => {

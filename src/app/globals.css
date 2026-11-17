@@ -394,6 +394,24 @@ button { cursor:pointer; }
 /* Add a deliberate second inset below Telegram's native top controls. */
 .sheet-backdrop { padding-top: calc(40px + var(--telegram-top-inset)); }
 @media (min-width:900px) { .sheet-backdrop { padding-top: calc(48px + var(--telegram-top-inset)); } }
+@media (min-width:651px) {
+  .admin-header .brand-mark.brand-logo { width:30px; height:30px; }
+  .admin-header h1 { font-size:25px; }
+  .admin-header-actions { gap:6px; }
+}
+@media (max-width:650px) {
+  .admin-header { gap:6px; padding-left:10px; padding-right:10px; }
+  .admin-header .brand-mark.brand-logo { width:30px; height:30px; }
+  .admin-header h1 { min-width:0; font-size:25px; white-space:nowrap; }
+  .admin-header-actions { gap:4px; }
+  .admin-header .admin-refresh,.admin-notification-button { width:32px; height:32px; border-radius:9px; }
+  .admin-header .admin-logout { max-width:82px; overflow:hidden; padding:7px 7px; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+  .admin-admin-form { gap:8px; }
+  .admin-admin-form input { min-height:42px; padding:10px; }
+  .admin-admin-form .primary-button { min-height:42px; margin:2px 0 0; padding:10px 12px; }
+  .admin-mobile-carousel { gap:14px; }
+  .admin-mobile-carousel > .admin-panel { flex-basis:calc(100% - 16px); padding:14px; }
+}
 @media (max-width:460px) { .sheet-backdrop { padding-top: calc(38px + var(--telegram-top-inset)); }
 }
 
