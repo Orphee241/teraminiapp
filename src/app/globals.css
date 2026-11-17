@@ -409,8 +409,8 @@ button { cursor:pointer; }
   .admin-admin-form { gap:8px; }
   .admin-admin-form input { min-height:42px; padding:10px; }
   .admin-admin-form .primary-button { min-height:42px; margin:2px 0 0; padding:10px 12px; }
-  .admin-mobile-carousel { gap:14px; }
-  .admin-mobile-carousel > .admin-panel { flex-basis:100%; padding:14px; }
+  .admin-mobile-carousel { gap:14px; margin:0; padding:0 0 8px; }
+  .admin-mobile-carousel > .admin-panel { flex:0 0 100%; flex-basis:100%; padding:14px; box-sizing:border-box; }
 }
 @media (max-width:460px) { .sheet-backdrop { padding-top: calc(38px + var(--telegram-top-inset)); }
 }
