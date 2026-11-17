@@ -8,6 +8,8 @@ const documentRoute = readFileSync(resolve(root, 'app/api/documents/route.ts'), 
 const paymentRoute = readFileSync(resolve(root, 'app/api/billing/deposits/[id]/route.ts'), 'utf8')
 const roleRoute = readFileSync(resolve(root, 'app/api/admin/conversations/route.ts'), 'utf8')
 const cancellationRoute = readFileSync(resolve(root, 'app/api/documents/[id]/route.ts'), 'utf8')
+const teamRoute = readFileSync(resolve(root, 'app/api/team/members/route.ts'), 'utf8')
+const teamRepository = readFileSync(resolve(root, 'modules/teams/server/team-repository.ts'), 'utf8')
 
 describe('Telegram notification delivery boundaries', () => {
   it('uses a durable idempotent outbox and server-only Telegram sender', () => {
@@ -20,10 +22,15 @@ describe('Telegram notification delivery boundaries', () => {
     expect(notificationModule).toContain('AbortSignal.timeout(5000)')
   })
 
-  it('emits only after authoritative payment/document/role transitions', () => {
-    expect(paymentRoute).toContain('if (result.newlyCredited)')
-    expect(documentRoute).toContain("eventType: 'document.generated'")
-    expect(cancellationRoute).toContain("eventType: 'document.cancelled'")
+  it('keeps client teams explicit and fans out only to active team administrators', () => {
+    expect(teamRepository).toContain('miniapp_organizations')
+    expect(teamRepository).toContain('miniapp_organization_memberships')
+    expect(teamRepository).toContain("role IN ('admin','manager','supervisor')")
+    expect(teamRoute).toContain('export async function POST')
+    expect(teamRoute).toContain('Les membres internes Terainterface')
+    expect(documentRoute).toContain('notificationRecipientsForOwner')
+    expect(paymentRoute).toContain('notificationRecipientsForOwner')
+    expect(cancellationRoute).toContain('notificationRecipientsForOwner')
     expect(roleRoute).toContain("eventType: 'role.changed'")
   })
 })

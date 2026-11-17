@@ -72,8 +72,9 @@ async function telegramSendMessage(recipientId: string, title: string, body: str
   return String(payload.result?.message_id || '')
 }
 
-export async function enqueueTelegramNotification(input: NotificationInput) {
-  if (!/^\d{1,20}$/.test(input.recipientId)) return { queued: false, reason: 'invalid_recipient' }
+export async function enqueueTelegramNotificationForRecipients(input: Omit<NotificationInput, 'recipientId'>, recipientIds: string[]) {
+  const recipients = Array.from(new Set(recipientIds.filter(id => /^\d{1,20}$/.test(id))))
+  if (!recipients.length) return { queued: false, reason: 'invalid_recipient' }
   await ensureNotificationSchema()
   const now = new Date().toISOString()
   const eventId = crypto.randomUUID()
@@ -82,11 +83,17 @@ export async function enqueueTelegramNotification(input: NotificationInput) {
     VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id`, [eventId, input.eventType, input.entityType, input.entityId, bounded(input.idempotencyKey, 180), bounded(input.title, 120), bounded(input.body, 900), bounded(input.appUrl || '', 500), now])
   const actualEventId = String(inserted[0]?.id || '')
   if (!actualEventId) return { queued: false, duplicate: true }
-  await query(`INSERT INTO miniapp_notification_deliveries
-    (id,event_id,recipient_telegram_id,status,attempts,last_error,telegram_message_id,created_at,updated_at)
-    VALUES (?,?,?,'PENDING',0,'','',?,?) ON CONFLICT(event_id,recipient_telegram_id) DO NOTHING`, [crypto.randomUUID(), actualEventId, input.recipientId, now, now])
-  void deliverTelegramNotification(actualEventId, input.recipientId)
-  return { queued: true, eventId: actualEventId }
+  for (const recipientId of recipients) {
+    await query(`INSERT INTO miniapp_notification_deliveries
+      (id,event_id,recipient_telegram_id,status,attempts,last_error,telegram_message_id,created_at,updated_at)
+      VALUES (?,?,?,'PENDING',0,'','',?,?) ON CONFLICT(event_id,recipient_telegram_id) DO NOTHING`, [crypto.randomUUID(), actualEventId, recipientId, now, now])
+    void deliverTelegramNotification(actualEventId, recipientId)
+  }
+  return { queued: true, eventId: actualEventId, recipients: recipients.length }
+}
+
+export async function enqueueTelegramNotification(input: NotificationInput) {
+  return enqueueTelegramNotificationForRecipients(input, [input.recipientId])
 }
 
 export async function deliverTelegramNotification(eventId: string, recipientId: string) {

@@ -9,7 +9,8 @@ import { DAILY_FREE_DOCUMENT_LIMITS, DOCUMENT_PACKS } from '../../../modules/doc
 import { availableDocumentCredits, refundDocumentCredit, reserveDocumentCredit } from '../../../modules/billing/server/billing-repository'
 import { userStaffRole } from '../_auth'
 import { resolveDocumentOwner } from '../../../modules/documents/document-access'
-import { enqueueTelegramNotification } from '../../../modules/notifications/server/notifications'
+import { enqueueTelegramNotificationForRecipients } from '../../../modules/notifications/server/notifications'
+import { notificationRecipientsForOwner } from '../../../modules/teams/server/team-repository'
 
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
 const apiKey = () => process.env.INVOICE_API_KEY || ''
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
   if (paidCreditReserved && result.status >= 400) await refundDocumentCredit(target)
   if (result.status >= 200 && result.status < 300) {
     const generated = await result.clone().json().catch(() => ({})) as { id?: number | string; numero?: string; type_document?: string }
-    if (generated.id != null) void enqueueTelegramNotification({ recipientId: target, eventType: 'document.generated', entityType: 'document', entityId: String(generated.id), idempotencyKey: `document.generated:${String(generated.id)}`, title: `${documentType === 'devis' ? 'Devis' : 'Facture'} généré`, body: `${documentType === 'devis' ? 'Un devis' : 'Une facture'}${generated.numero ? ` ${generated.numero}` : ''} a été généré dans Teraminiapp.`, appUrl: process.env.MINIAPP_PUBLIC_URL || 'https://t.me/Terainterface_bot?startapp' })
+    if (generated.id != null) void notificationRecipientsForOwner(target).then(recipients => enqueueTelegramNotificationForRecipients({ eventType: 'document.generated', entityType: 'document', entityId: String(generated.id), idempotencyKey: `document.generated:${String(generated.id)}`, title: `${documentType === 'devis' ? 'Devis' : 'Facture'} généré`, body: `${documentType === 'devis' ? 'Un devis' : 'Une facture'}${generated.numero ? ` ${generated.numero}` : ''} a été généré dans Teraminiapp.`, appUrl: process.env.MINIAPP_PUBLIC_URL || 'https://t.me/Terainterface_bot?startapp' }, recipients)).catch(() => undefined)
   }
   return result
 }

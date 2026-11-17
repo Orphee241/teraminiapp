@@ -6,7 +6,8 @@ import { takeRateLimit } from '../../../../lib/rate-limit'
 import { invoiceActorHeaders, invoiceOwnerHeaders } from '../../../../lib/invoice-owner-signature'
 import { invalidateDocumentLists } from '../../../../lib/document-cache'
 import { userStaffRole } from '../../_auth'
-import { enqueueTelegramNotification } from '../../../../modules/notifications/server/notifications'
+import { enqueueTelegramNotificationForRecipients } from '../../../../modules/notifications/server/notifications'
+import { notificationRecipientsForOwner } from '../../../../modules/teams/server/team-repository'
 import { recordAuditEvent } from '../../../../modules/administration/server/repository'
 import { resolveDocumentOwner } from '../../../../modules/documents/document-access'
 const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const upstreamPayload = await response.json().catch(() => ({}))
     let auditRecorded = true
     try { await recordAuditEvent({ actorId: actor, actorRole: actorRole || 'admin', action: 'document.cancel', targetType: 'document', targetId: id, reason, metadata: { owner_telegram_id: owner } }) } catch { auditRecorded = false }
-    void enqueueTelegramNotification({ recipientId: owner, eventType: 'document.cancelled', entityType: 'document', entityId: id, idempotencyKey: `document.cancelled:${id}:${upstreamPayload.cancelled_at || reason}`, title: 'Document annulé', body: `Un document a été annulé. Motif : ${reason}`, appUrl: process.env.MINIAPP_PUBLIC_URL || 'https://t.me/Terainterface_bot?startapp' })
+    void notificationRecipientsForOwner(owner).then(recipients => enqueueTelegramNotificationForRecipients({ eventType: 'document.cancelled', entityType: 'document', entityId: id, idempotencyKey: `document.cancelled:${id}:${upstreamPayload.cancelled_at || reason}`, title: 'Document annulé', body: `Un document a été annulé. Motif : ${reason}`, appUrl: process.env.MINIAPP_PUBLIC_URL || 'https://t.me/Terainterface_bot?startapp' }, recipients)).catch(() => undefined)
     return NextResponse.json({ ...upstreamPayload, audit_recorded: auditRecorded })
   } catch { return NextResponse.json({ error: 'Service de documents momentanément indisponible.' }, { status: 503 }) }
 }
