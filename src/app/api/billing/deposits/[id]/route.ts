@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate, requireSameOrigin } from '../../../_auth'
 import { updatePaymentStatus } from '../../../../../modules/billing/server/billing-repository'
+import { enqueueTelegramNotification } from '../../../../../modules/notifications/server/notifications'
 
 const terapayUrl = () => String(process.env.TERAPAY_API_URL || '').replace(/\/$/, '')
 const terapayToken = () => process.env.TERAPAY_SERVICE_TOKEN || ''
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!response.ok) return NextResponse.json({ error: 'Impossible de vérifier le paiement.' }, { status: 502 })
     const result = await updatePaymentStatus(id, String(payload.status || 'PENDING'), String(checked.user?.id || ''))
     if (!result) return NextResponse.json({ error: 'Paiement introuvable.' }, { status: 404 })
+    if (result.newlyCredited) void enqueueTelegramNotification({ recipientId: result.owner, eventType: 'payment.completed', entityType: 'payment', entityId: id, idempotencyKey: `payment.completed:${id}`, title: 'Paiement confirmé', body: `Votre paiement est confirmé. ${result.documents} crédit${result.documents > 1 ? 's' : ''} de document${result.documents > 1 ? 's' : ''} sont maintenant disponibles.`, appUrl: process.env.MINIAPP_PUBLIC_URL || 'https://t.me/Terainterface_bot?startapp' })
     return NextResponse.json({ success: true, depositId: id, status: String(payload.status || 'PENDING').toUpperCase(), message: typeof payload.message === 'string' ? payload.message : undefined, credited: result.credited })
   } catch { return NextResponse.json({ error: 'Impossible de vérifier le paiement.' }, { status: 503 }) }
 }

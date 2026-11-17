@@ -76,7 +76,7 @@ export async function createPendingPayment(input: { depositId: string; owner: st
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)`, [input.depositId, input.owner, input.packCode, input.documents, input.amount, input.currency, input.provider, input.phoneNumber, now, now])
 }
 
-export async function updatePaymentStatus(depositId: string, status: string, owner: string): Promise<{ owner: string; documents: number; credited: boolean } | null> {
+export async function updatePaymentStatus(depositId: string, status: string, owner: string): Promise<{ owner: string; documents: number; credited: boolean; newlyCredited: boolean } | null> {
   await ensureSchema()
   const rows = await query('SELECT owner_telegram_id, documents, status, credited_at FROM miniapp_billing_payments WHERE deposit_id = ? LIMIT 1', [depositId])
   const payment = rows[0]
@@ -84,13 +84,13 @@ export async function updatePaymentStatus(depositId: string, status: string, own
   const normalized = String(status).toUpperCase()
   if (normalized !== 'COMPLETED') {
     await query('UPDATE miniapp_billing_payments SET status = ?, updated_at = ? WHERE deposit_id = ?', [normalized, new Date().toISOString(), depositId])
-    return { owner: String(payment.owner_telegram_id), documents: Number(payment.documents), credited: Boolean(payment.credited_at) }
+    return { owner: String(payment.owner_telegram_id), documents: Number(payment.documents), credited: Boolean(payment.credited_at), newlyCredited: false }
   }
-  if (payment.credited_at) return { owner: String(payment.owner_telegram_id), documents: Number(payment.documents), credited: true }
+  if (payment.credited_at) return { owner: String(payment.owner_telegram_id), documents: Number(payment.documents), credited: true, newlyCredited: false }
   const now = new Date().toISOString()
   const inserted = await query('INSERT INTO miniapp_billing_credit_events (deposit_id, owner_telegram_id, documents, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(deposit_id) DO NOTHING RETURNING deposit_id', [depositId, String(payment.owner_telegram_id), Number(payment.documents), now])
-  if (!inserted.length) return { owner: String(payment.owner_telegram_id), documents: Number(payment.documents), credited: true }
+  if (!inserted.length) return { owner: String(payment.owner_telegram_id), documents: Number(payment.documents), credited: true, newlyCredited: false }
   await query('INSERT INTO miniapp_billing_accounts (owner_telegram_id, document_credits, version, created_at, updated_at) VALUES (?, ?, 0, ?, ?) ON CONFLICT(owner_telegram_id) DO UPDATE SET document_credits = document_credits + excluded.document_credits, version = version + 1, updated_at = excluded.updated_at', [String(payment.owner_telegram_id), Number(payment.documents), now, now])
   await query('UPDATE miniapp_billing_payments SET status = ?, credited_at = ?, updated_at = ? WHERE deposit_id = ? AND credited_at IS NULL', ['COMPLETED', now, now, depositId])
-  return { owner: String(payment.owner_telegram_id), documents: Number(payment.documents), credited: true }
+  return { owner: String(payment.owner_telegram_id), documents: Number(payment.documents), credited: true, newlyCredited: true }
 }

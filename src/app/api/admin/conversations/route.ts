@@ -6,6 +6,7 @@ import { validTelegramId } from '../../../../lib/input-security'
 import { readBoundedJson, RequestBodyLimitError } from '../../../../lib/request-body'
 import { takeRateLimit } from '../../../../lib/rate-limit'
 import { enforcePersistentRateLimit } from '../../../../lib/request-security'
+import { enqueueTelegramNotification } from '../../../../modules/notifications/server/notifications'
 export async function GET(request: NextRequest) {
   const auth = await authenticate(request)
   if (auth.response) return auth.response
@@ -44,7 +45,7 @@ export async function PATCH(request: NextRequest) {
   if (telegramId === actorId) return NextResponse.json({ error: 'Vous ne pouvez pas modifier votre propre rôle.' }, { status: 403 })
   if (isTelegramAdmin(telegramId)) return NextResponse.json({ error: 'Le rôle du titulaire principal ne peut pas être modifié ici.' }, { status: 403 })
   if (!isStaffRole(payload.role) || !canAssignRole(actorRole, payload.role)) return NextResponse.json({ error: 'Vous ne pouvez pas attribuer ce rôle.' }, { status: 403 })
-  try { const result = await assignUserRole(telegramId, payload.role, actorId); await recordAuditEvent({ actorId, actorRole, action: 'staff.role.assign', targetType: 'user', targetId: telegramId, metadata: { role: payload.role } }); return NextResponse.json({ user: result }) }
+  try { const result = await assignUserRole(telegramId, payload.role, actorId); await recordAuditEvent({ actorId, actorRole, action: 'staff.role.assign', targetType: 'user', targetId: telegramId, metadata: { role: payload.role } }); void enqueueTelegramNotification({ recipientId: telegramId, eventType: 'role.changed', entityType: 'user', entityId: telegramId, idempotencyKey: `role.changed:${telegramId}:${String((result as { role_updated_at?: string })?.role_updated_at || payload.role)}`, title: 'Rôle mis à jour', body: `Votre rôle Terainterface est maintenant : ${payload.role}.`, appUrl: process.env.MINIAPP_PUBLIC_URL || 'https://t.me/Terainterface_bot?startapp' }); return NextResponse.json({ user: result }) }
   catch { return NextResponse.json({ error: 'Utilisateur introuvable ou rôle impossible à enregistrer.' }, { status: 404 }) }
 }
 export async function POST(request: NextRequest) {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
   let body: unknown
   try { body = await readBoundedJson(request, 4096) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Demande trop volumineuse.' : 'Données invalides.' }, { status: tooLarge ? 413 : 400 }) }
   let telegramId = ''; try { telegramId = validTelegramId(body && typeof body === 'object' && 'telegram_id' in body ? body.telegram_id : undefined) } catch { return NextResponse.json({ error: 'Identifiant Telegram invalide.' }, { status: 400 }) }
-  try { const profile = await lookupTelegramUser(telegramId); const admin = await upsertAdmin(profile); await recordAuditEvent({ actorId: userId, actorRole: 'admin', action: 'staff.role.assign', targetType: 'user', targetId: telegramId, metadata: { role: 'admin', source: 'admin_access' } }); return NextResponse.json({ admin }) } catch { return NextResponse.json({ error: 'Administrateur impossible à enregistrer.' }, { status: 503 }) }
+  try { const profile = await lookupTelegramUser(telegramId); const admin = await upsertAdmin(profile); const auditId = await recordAuditEvent({ actorId: userId, actorRole: 'admin', action: 'staff.role.assign', targetType: 'user', targetId: telegramId, metadata: { role: 'admin', source: 'admin_access' } }); void enqueueTelegramNotification({ recipientId: telegramId, eventType: 'role.changed', entityType: 'user', entityId: telegramId, idempotencyKey: `role.changed:${telegramId}:${auditId}`, title: 'Accès Administration accordé', body: 'Votre accès Admin Terainterface a été activé.', appUrl: process.env.MINIAPP_PUBLIC_URL || 'https://t.me/Terainterface_bot?startapp' }); return NextResponse.json({ admin }) } catch { return NextResponse.json({ error: 'Administrateur impossible à enregistrer.' }, { status: 503 }) }
 }
 export async function DELETE(request: NextRequest) {
   const originError = requireSameOrigin(request); if (originError) return originError
@@ -76,6 +77,6 @@ export async function DELETE(request: NextRequest) {
   try { telegramId = validTelegramId(new URL(request.url).searchParams.get('telegram_id')) } catch { return NextResponse.json({ error: 'Identifiant Telegram invalide.' }, { status: 400 }) }
   if (telegramId === userId) return NextResponse.json({ error: 'Vous ne pouvez pas retirer votre propre rôle.' }, { status: 400 })
   if (isTelegramAdmin(telegramId)) return NextResponse.json({ error: 'Le rôle du titulaire principal ne peut pas être retiré ici.' }, { status: 403 })
-  try { await deleteAdminRole(telegramId); await recordAuditEvent({ actorId: userId, actorRole, action: 'staff.role_remove', targetType: 'user', targetId: telegramId }); return NextResponse.json({ ok: true, telegram_id: telegramId, role: null }) }
+  try { await deleteAdminRole(telegramId); const auditId = await recordAuditEvent({ actorId: userId, actorRole, action: 'staff.role_remove', targetType: 'user', targetId: telegramId }); void enqueueTelegramNotification({ recipientId: telegramId, eventType: 'role.changed', entityType: 'user', entityId: telegramId, idempotencyKey: `role.changed:${telegramId}:${auditId}`, title: 'Rôle retiré', body: 'Votre rôle d’administration Terainterface a été retiré. Vous êtes redevenu un utilisateur normal.', appUrl: process.env.MINIAPP_PUBLIC_URL || 'https://t.me/Terainterface_bot?startapp' }); return NextResponse.json({ ok: true, telegram_id: telegramId, role: null }) }
   catch { return NextResponse.json({ error: 'Rôle impossible à retirer.' }, { status: 404 }) }
 }
