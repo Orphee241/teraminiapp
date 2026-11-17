@@ -9,7 +9,7 @@ let workerConfigured = false
 const pdfPromiseCache = new Map<string, Promise<any>>()
 const PDF_CACHE_LIMIT = 8
 
-export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean }) {
+export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false, watermarkText }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean; watermarkText?: string }) {
   const viewerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -143,6 +143,7 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src, dow
     <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher le PDF en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
       {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
     </button>
+    {watermarkText && <span className="cancelled-watermark pdf-cancelled-watermark" aria-label="Document annulé">{watermarkText}</span>}
     {state === 'loading' && <div className="pdf-loading" role="status" aria-live="polite"><span className="pdf-spinner" aria-hidden="true" /><span className="pdf-loading-label">Chargement de l’aperçu…</span></div>}
     {state === 'error' && <p className="pdf-status pdf-error">{error}</p>}
     {downloadError && <p className="pdf-status pdf-error" role="status">{downloadError}</p>}

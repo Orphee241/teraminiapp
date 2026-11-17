@@ -18,7 +18,7 @@ describe('presence, audit and cancellation contracts', () => {
     expect(adminPage).toContain('admin-audit-panel')
     expect(adminRoute).toContain('staff.role.assign')
     expect(invoice).toContain("downloadDisabled={selected.statut === 'annule'}")
-    expect(invoice).toContain('document-watermark-cancelled')  })
+    expect(invoice).toContain('watermarkText={selected.statut === \'annule\' ? \'ANNULÉ\' : undefined}')  })
   it('replaces archive deletion with role-gated cancellation and reason', () => {
     expect(invoice).toContain("method: 'POST'")
     expect(invoice).toContain('owner_telegram_id')
