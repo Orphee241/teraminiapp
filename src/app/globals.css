@@ -325,6 +325,10 @@ button { cursor:pointer; }
 .profile-remove-role { margin-top:8px; white-space:nowrap; }
 .document-watermark-cancelled { position:relative; overflow:hidden; }
 .cancelled-watermark { position:absolute; z-index:3; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-24deg); color:rgba(190,24,45,.72); border:4px solid rgba(190,24,45,.72); padding:10px 18px; font-weight:900; font-size:clamp(30px,8vw,72px); letter-spacing:.08em; pointer-events:none; user-select:none; }
+.admin-section-tabs { display:flex; gap:6px; margin:18px 0 14px; padding:4px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.035); }
+.admin-section-tabs button { flex:1; min-width:0; padding:10px 14px; color:var(--muted); border:0; border-radius:8px; background:transparent; font:inherit; font-weight:700; cursor:pointer; }
+.admin-section-tabs button.active { color:#fff; background:var(--pink); box-shadow:0 4px 14px rgba(212,46,91,.25); }
+.admin-section-tabs button:focus-visible { outline:2px solid var(--pink-soft); outline-offset:2px; }
 .invoice-row-cancelled { opacity:.58; filter:grayscale(.7); }
 .audit-list { display:grid; gap:8px; }
 .audit-item { display:grid; gap:3px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.02); }
