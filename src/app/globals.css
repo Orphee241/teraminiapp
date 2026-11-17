@@ -330,7 +330,14 @@ button { cursor:pointer; }
 .admin-section-tabs button.active { color:#fff; background:var(--pink); box-shadow:0 4px 14px rgba(212,46,91,.25); }
 .admin-section-tabs button:focus-visible { outline:2px solid var(--pink-soft); outline-offset:2px; }
 .invoice-row-cancelled { opacity:.58; filter:grayscale(.7); }
-.audit-list { display:grid; gap:8px; }
+.admin-audit-panel { margin-top:10px; }
+.audit-list { margin-top:10px; }
+.audit-item { gap:10px; }
+.audit-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 16px; padding-top:2px; }
+.audit-grid span { display:grid; gap:3px; color:var(--muted); font-size:12px; }
+.audit-grid b { color:var(--text); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+@media (max-width:650px) { .audit-grid { grid-template-columns:1fr; } }
+
 .audit-item { display:grid; gap:3px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:rgba(255,255,255,.02); }
 .audit-item strong { color:var(--text); font-size:13px; }
 .audit-item span,.audit-item small { color:var(--muted); font-size:11px; overflow-wrap:anywhere; }
