@@ -94,11 +94,13 @@ export async function POST(request: NextRequest) {
   const access = resolveDocumentOwner(checked.owner, body.owner_telegram_id, await userStaffRole(checked.owner), 'create')
   if (!access.allowed) return NextResponse.json({ error: 'Votre rôle ou le propriétaire demandé ne permet pas cette création.' }, { status: 403 })
   const target = access.owner
-  const usedToday = await dailyDocumentUsage(target, documentType)
+  const actorRole = await userStaffRole(checked.owner)
+  const isInternalTerainterfaceMember = Boolean(actorRole && target === checked.owner)
+  const usedToday = isInternalTerainterfaceMember ? 0 : await dailyDocumentUsage(target, documentType)
   if (usedToday === null) return NextResponse.json({ error: 'Impossible de vérifier votre quota de génération. Réessayez.' }, { status: 503 })
   const freeLimit = DAILY_FREE_DOCUMENT_LIMITS[documentType]
   let paidCreditReserved = false
-  if (usedToday >= freeLimit) {
+  if (!isInternalTerainterfaceMember && usedToday >= freeLimit) {
     const credits = await availableDocumentCredits(target)
     if (credits < 1 || !(paidCreditReserved = await reserveDocumentCredit(target))) {
       const label = documentType === 'devis' ? 'devis' : 'facture'

@@ -58,6 +58,9 @@ describe('Teraminiapp staff role policy', () => {
   it('enforces owner-scoped document and profile permissions in API routes', () => {
     expect(documentListRoute).toContain("staffPermission(checked.owner, 'read')")
     expect(documentListRoute).toContain("staffPermission(checked.owner, 'create')")
+    expect(documentListRoute).toContain("const isInternalTerainterfaceMember = Boolean(actorRole && target === checked.owner)")
+    expect(documentListRoute).toContain("const usedToday = isInternalTerainterfaceMember ? 0 : await dailyDocumentUsage(target, documentType)")
+    expect(documentListRoute).toContain("if (!isInternalTerainterfaceMember && usedToday >= freeLimit)")
     expect(documentDetailRoute).toContain("staffPermission(owner, 'read')")
     expect(documentDetailRoute).toContain("staffPermission(owner, 'update')")
     expect(documentDetailRoute).toContain('La suppression définitive est désactivée')
