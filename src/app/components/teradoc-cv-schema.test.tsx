@@ -36,4 +36,10 @@ describe('TeraDoc CV schema', () => {
     polluted.__proto__ = { polluted: true }
     expect(() => sanitizeTeraDocCv(polluted)).toThrow()
   })
+
+  it('validates contact formats on the server, not only in the browser', () => {
+    expect(() => sanitizeTeraDocCv({ ...validCv, email: 'not-an-email' })).toThrow('teradoc_cv_invalid')
+    expect(() => sanitizeTeraDocCv({ ...validCv, phone: 'contact inconnu' })).toThrow('teradoc_cv_invalid')
+    expect(sanitizeTeraDocCv({ ...validCv, phone: '+241 06 00 00 00' }).phone).toBe('+241 06 00 00 00')
+  })
 })

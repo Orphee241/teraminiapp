@@ -25,6 +25,8 @@ export type TeraDocCv = {
 
 const MAX = { name: 120, short: 180, long: 2400, url: 300, items: 12, skills: 30 }
 const URL_PROTOCOL = /^https:\/\/[^\s]+$/i
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+const PHONE = /^\+?[0-9][0-9 ()-]{6,24}$/
 const DATE = /^\d{4}-(0[1-9]|1[0-2])$/
 
 function record(value: unknown): Record<string, unknown> {
@@ -69,8 +71,8 @@ export function sanitizeTeraDocCv(input: unknown): TeraDocCv {
     templateId: template.id,
     fullName: text(source.fullName, MAX.name, true),
     headline: text(source.headline, MAX.short, true),
-    email: text(source.email, MAX.short, true),
-    phone: text(source.phone, MAX.short, true),
+    email: (() => { const value = text(source.email, MAX.short, true); if (!EMAIL.test(value)) throw new Error('teradoc_cv_invalid'); return value })(),
+    phone: (() => { const value = text(source.phone, MAX.short, true); if (!PHONE.test(value)) throw new Error('teradoc_cv_invalid'); return value })(),
     location: text(source.location, MAX.short, true),
     website: optionalUrl(source.website),
     linkedin: optionalUrl(source.linkedin),

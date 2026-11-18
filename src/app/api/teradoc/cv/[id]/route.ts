@@ -8,9 +8,13 @@ const validId = (value: string) => /^[0-9a-f-]{36}$/i.test(value)
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticate(request); if (auth.response) return auth.response
+  const owner = String(auth.user?.id || '')
+  const readLimit = await enforcePersistentRateLimit(owner, 'teradoc-cv-detail-read', 120, 1200, 60_000)
+  if (!readLimit.available) return NextResponse.json({ error: 'TeraDoc est momentanément indisponible.' }, { status: 503 })
+  if (!readLimit.allowed) return NextResponse.json({ error: 'Trop de consultations rapprochées.' }, { status: 429 })
   const { id } = await params
   if (!validId(id)) return NextResponse.json({ error: 'Identifiant de CV invalide.' }, { status: 400 })
-  const document = await getCvDocument(String(auth.user?.id || ''), id)
+  const document = await getCvDocument(owner, id)
   return document ? NextResponse.json({ document }, { headers: { 'cache-control': 'no-store' } }) : NextResponse.json({ error: 'CV introuvable.' }, { status: 404 })
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate } from '../../../../_auth'
-import { takeRateLimit } from '../../../../../../lib/rate-limit'
+import { enforcePersistentRateLimit } from '../../../../../../lib/request-security'
 import { getCvDocument, markCvGenerated } from '../../../../../../modules/teradoc/server/repository'
 import { renderCvPdf } from '../../../../../../modules/teradoc/server/render-cv'
 
@@ -9,7 +9,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: 'Identifiant de CV invalide.' }, { status: 400 })
   const owner = String(auth.user?.id || '')
-  if (!takeRateLimit(`teradoc-cv-pdf:user:${owner}`, 20, 60_000)) return NextResponse.json({ error: 'Trop de téléchargements rapprochés.' }, { status: 429 })
+  const limit = await enforcePersistentRateLimit(owner, 'teradoc-cv-pdf', 20, 600, 60_000)
+  if (!limit.available) return NextResponse.json({ error: 'TeraDoc est momentanément indisponible.' }, { status: 503 })
+  if (!limit.allowed) return NextResponse.json({ error: 'Trop de téléchargements rapprochés.' }, { status: 429 })
   try {
     const document = await getCvDocument(owner, id)
     if (!document) return NextResponse.json({ error: 'CV introuvable.' }, { status: 404 })
