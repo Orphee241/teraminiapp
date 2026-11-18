@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { authenticate, staffPermission, userStaffRole } from '../../../_auth'
 import { takeRateLimit } from '../../../../../lib/rate-limit'
 import { invoiceOwnerHeaders } from '../../../../../lib/invoice-owner-signature'
+import { configuredServiceUrl, isAllowedHttpsUrl, requestTimeout } from '../../../../../lib/external-service'
 
 const downloadSecret = () => process.env.TERAMINI_ADMIN_SESSION_SECRET || ''
 const issueDownloadTicket = (id: string, owner: string) => {
@@ -33,17 +34,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (await staffPermission(actor, 'read') === false) return NextResponse.json({ error: 'Votre rôle ne permet pas de consulter les documents.' }, { status: 403 })
   if (!/^\d{1,20}$/.test(owner) || (owner !== actor && !await userStaffRole(actor))) return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 })
   if (!takeRateLimit(`document-download-ticket:user:${actor}`, 10, 60_000)) return NextResponse.json({ error: 'Trop de demandes rapprochées.' }, { status: 429 })
-  const base = (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
+  const base = configuredServiceUrl(process.env.INVOICE_API_URL)
   const key = process.env.INVOICE_API_KEY || ''
   if (!base || !key) return NextResponse.json({ error: 'Service de documents non configuré.' }, { status: 503 })
   try {
     const path = `/v1/documents/${id}/download-url?owner_telegram_id=${encodeURIComponent(owner)}`
     const proof = invoiceOwnerHeaders(owner, 'GET', path)
-    const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': key, ...proof }, cache: 'no-store' })
+    const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': key, ...proof }, cache: 'no-store', signal: requestTimeout(10_000) })
     if (!response.ok) return NextResponse.json({ error: 'Téléchargement indisponible.' }, { status: response.status })
     const data = await response.json()
     const url = typeof data?.url === 'string' ? data.url : ''
-    if (!/^https:\/\//.test(url)) return NextResponse.json({ error: 'Téléchargement indisponible.' }, { status: 503 })
+    const allowedHosts = [new URL(base).hostname, ...String(process.env.DOCUMENT_DOWNLOAD_ALLOWED_HOSTS || '').split(',').map(value => value.trim()).filter(Boolean)]
+    if (!isAllowedHttpsUrl(url, allowedHosts, process.env.NODE_ENV !== 'production')) return NextResponse.json({ error: 'Téléchargement indisponible.' }, { status: 503 })
     return NextResponse.json({ url }, { headers: { 'cache-control': 'no-store' } })
   } catch {
     return NextResponse.json({ error: 'Téléchargement indisponible.' }, { status: 503 })
@@ -70,13 +72,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 async function streamPdf(request: NextRequest, id: string, owner: string, ticketExpiry?: number) {
   if (!takeRateLimit(`document-pdf:user:${owner}`, 30, 60_000)) return NextResponse.json({ error: 'Trop de téléchargements rapprochés.' }, { status: 429 })
 
-  const base = (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
+  const base = configuredServiceUrl(process.env.INVOICE_API_URL)
   const key = process.env.INVOICE_API_KEY || ''
   if (!base || !key) return NextResponse.json({ error: 'Service de documents non configuré.' }, { status: 503 })
   try {
     const path = `/v1/documents/${id}/pdf?owner_telegram_id=${encodeURIComponent(owner)}`
     const proof = invoiceOwnerHeaders(owner, 'GET', path)
-    const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': key, ...proof }, cache: 'no-store' })
+    const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': key, ...proof }, cache: 'no-store', signal: requestTimeout(10_000) })
     if (!response.ok) return NextResponse.json({ error: 'Document indisponible.' }, { status: response.status })
     const pdf = await response.arrayBuffer()
     const headers = new Headers({

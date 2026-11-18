@@ -1,0 +1,13 @@
+# Keep local and secret material out of every Docker build context.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+node_modules
+.next
+coverage
+.cache
+*.log
+src/lib/entertainment.ts
+src/lib/entertainment.test.mjs

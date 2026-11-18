@@ -11,8 +11,10 @@ import { userStaffRole } from '../_auth'
 import { resolveDocumentOwner } from '../../../modules/documents/document-access'
 import { enqueueTelegramNotificationForRecipients } from '../../../modules/notifications/server/notifications'
 import { notificationRecipientsForOwner } from '../../../modules/teams/server/team-repository'
+import { sanitizeDocumentRequest } from '../../../lib/document-request'
+import { configuredServiceUrl, requestTimeout } from '../../../lib/external-service'
 
-const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
+const apiBase = () => configuredServiceUrl(process.env.INVOICE_API_URL)
 const apiKey = () => process.env.INVOICE_API_KEY || ''
 
 async function proxy(request: NextRequest, path: string, owner: string, body?: unknown) {
@@ -26,6 +28,7 @@ async function proxy(request: NextRequest, path: string, owner: string, body?: u
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey(), ...proof },
       body: body === undefined ? undefined : bodyText,
       cache: 'no-store',
+      signal: requestTimeout(10_000),
     })
     if (!response.ok) {
       const message = request.method === 'POST'
@@ -48,7 +51,7 @@ async function dailyDocumentUsage(owner: string, documentType: 'devis' | 'factur
   const path = `/v1/documents?owner_telegram_id=${encodeURIComponent(owner)}&status_filter=&document_type=${documentType}`
   try {
     const proof = invoiceOwnerHeaders(owner, 'GET', path)
-    const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': apiKey(), ...proof }, cache: 'no-store' })
+    const response = await fetch(`${base}${path}`, { headers: { 'x-api-key': apiKey(), ...proof }, cache: 'no-store', signal: requestTimeout(10_000) })
     if (!response.ok) return null
     const payload = await response.json().catch(() => ({})) as { documents?: Array<{ created_at?: string }> }
     const today = new Date().toISOString().slice(0, 10)
@@ -91,9 +94,12 @@ export async function POST(request: NextRequest) {
   let body: any
   try { body = await readBoundedJson(request, 64 * 1024) } catch (error) { const tooLarge = error instanceof RequestBodyLimitError; return NextResponse.json({ error: tooLarge ? 'Document trop volumineux.' : 'Données du document invalides.' }, { status: tooLarge ? 413 : 400 }) }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Données du document invalides.' }, { status: 400 })
-  const documentType = body.document_type === 'devis' ? 'devis' : body.document_type === 'facture' ? 'facture' : null
-  if (!documentType) return NextResponse.json({ error: 'Le type de document est invalide.' }, { status: 400 })
-  const access = resolveDocumentOwner(checked.owner, body.owner_telegram_id, await userStaffRole(checked.owner), 'create')
+  const requestedOwner = body.owner_telegram_id
+  const documentFields = { ...body }; delete documentFields.owner_telegram_id
+  let sanitized: Record<string, unknown>
+  try { sanitized = sanitizeDocumentRequest(documentFields) } catch { return NextResponse.json({ error: 'Données du document invalides.' }, { status: 400 }) }
+  const documentType = sanitized.document_type as 'devis' | 'facture'
+  const access = resolveDocumentOwner(checked.owner, requestedOwner, await userStaffRole(checked.owner), 'create')
   if (!access.allowed) return NextResponse.json({ error: 'Votre rôle ou le propriétaire demandé ne permet pas cette création.' }, { status: 403 })
   const target = access.owner
   const actorRole = await userStaffRole(checked.owner)
@@ -109,9 +115,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Votre génération gratuite de ${label} est déjà utilisée aujourd’hui.`, code: 'DOCUMENT_PACK_REQUIRED', documentType, exhaustedType: documentType, freeLimit, usedToday, credits, packs: DOCUMENT_PACKS }, { status: 402 })
     }
   }
-  body.owner_telegram_id = target
+  sanitized.owner_telegram_id = target
   invalidateDocumentLists(target)
-  const result = await proxy(request, '/v1/documents', target, body)
+  const result = await proxy(request, '/v1/documents', target, sanitized)
   if (paidCreditReserved && result.status >= 400) await refundDocumentCredit(target)
   if (result.status >= 200 && result.status < 300) {
     const generated = await result.clone().json().catch(() => ({})) as { id?: number | string; numero?: string; type_document?: string }

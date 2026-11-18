@@ -43,7 +43,22 @@ describe('Telegram initData security', () => {
     expect(requireSameOrigin(new NextRequest('https://internal.service/api/save', { method: 'POST', headers: { origin: 'https://evil.example', 'x-forwarded-proto': 'https', 'x-forwarded-host': 'app.example', 'sec-fetch-site': 'cross-site' } }))).not.toBeNull()
     expect(requireSameOrigin(new NextRequest('https://app.example/api/save', { method: 'POST', headers: { origin: 'https://evil.example', 'sec-fetch-site': 'same-origin' } }))).not.toBeNull()
   })
-
+  it('ignores forged forwarded origins in production and trusts the configured public origin', () => {
+    const previousOrigin = process.env.PUBLIC_APP_ORIGIN
+    const previousNodeEnv = process.env.NODE_ENV
+    process.env.PUBLIC_APP_ORIGIN = 'https://app.terainterface.com'
+    Reflect.set(process.env, 'NODE_ENV', 'production')
+    try {
+      const trusted = new NextRequest('https://internal.service/api/save', { method: 'POST', headers: { origin: 'https://app.terainterface.com', 'x-forwarded-proto': 'https', 'x-forwarded-host': 'evil.example', 'sec-fetch-site': 'same-origin' } })
+      const forged = new NextRequest('https://internal.service/api/save', { method: 'POST', headers: { origin: 'https://evil.example', 'x-forwarded-proto': 'https', 'x-forwarded-host': 'app.terainterface.com', 'sec-fetch-site': 'cross-site' } })
+      expect(requireSameOrigin(trusted)).toBeNull()
+      expect(requireSameOrigin(forged)).not.toBeNull()
+    } finally {
+      if (previousOrigin === undefined) delete process.env.PUBLIC_APP_ORIGIN
+      else process.env.PUBLIC_APP_ORIGIN = previousOrigin
+      Reflect.set(process.env, 'NODE_ENV', previousNodeEnv)
+    }
+  })
 
   it('rejects data too old or implausibly in the future', () => {
     const now = Math.floor(Date.now() / 1000)

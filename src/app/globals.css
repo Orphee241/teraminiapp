@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 
 :root { --pink:#d42e5b; --pink-soft:#f06a8b; --bg:#08090d; --surface:#11141b; --surface-2:#171b24; --line:rgba(255,255,255,.10); --muted:#8b93a3; --telegram-top-inset:max(56px, var(--tg-content-safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px)); }
 *, *::before, *::after { box-sizing:border-box; }

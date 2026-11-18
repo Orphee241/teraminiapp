@@ -8,9 +8,11 @@ import { invalidateDocumentLists } from '../../../../lib/document-cache'
 import { userStaffRole } from '../../_auth'
 import { enqueueTelegramNotificationForRecipients } from '../../../../modules/notifications/server/notifications'
 import { notificationRecipientsForOwner } from '../../../../modules/teams/server/team-repository'
+import { sanitizeDocumentRequest } from '../../../../lib/document-request'
+import { configuredServiceUrl, requestTimeout } from '../../../../lib/external-service'
 import { recordAuditEvent } from '../../../../modules/administration/server/repository'
 import { resolveDocumentOwner } from '../../../../modules/documents/document-access'
-const apiBase = () => (process.env.INVOICE_API_URL || '').replace(/\/$/, '')
+const apiBase = () => configuredServiceUrl(process.env.INVOICE_API_URL)
 const validDocumentId = (value: string) => /^\d{1,18}$/.test(value)
 
 async function proxy(request: NextRequest, path: string, owner: string, body?: unknown) {
@@ -25,6 +27,7 @@ async function proxy(request: NextRequest, path: string, owner: string, body?: u
       headers: { 'content-type': 'application/json', 'x-api-key': key, ...proof },
       body: body === undefined ? undefined : bodyText,
       cache: 'no-store',
+      signal: requestTimeout(10_000),
     })
     if (response.status === 204) return new NextResponse(null, { status: 204 })
     if (!response.ok) {
@@ -72,11 +75,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   let body: any
   try { body = await readBoundedJson(request, 64 * 1024) } catch (error) { return bodyFailure(error) }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Données du document invalides.' }, { status: 400 })
-  const access = resolveDocumentOwner(owner, body.owner_telegram_id, await userStaffRole(owner), 'update')
+  const requestedOwner = body.owner_telegram_id
+  const documentFields = { ...body }; delete documentFields.owner_telegram_id
+  let sanitized: Record<string, unknown>
+  try { sanitized = sanitizeDocumentRequest(documentFields) } catch { return NextResponse.json({ error: 'Données du document invalides.' }, { status: 400 }) }
+  const access = resolveDocumentOwner(owner, requestedOwner, await userStaffRole(owner), 'update')
   if (!access.allowed) return NextResponse.json({ error: 'Votre rôle ou le propriétaire demandé ne permet pas cette modification.' }, { status: 403 })
-  body.owner_telegram_id = access.owner
+  sanitized.owner_telegram_id = access.owner
   invalidateDocumentLists(access.owner)
-  return proxy(request, `/v1/documents/${id}?owner_telegram_id=${encodeURIComponent(access.owner)}`, access.owner, body)
+  return proxy(request, `/v1/documents/${id}?owner_telegram_id=${encodeURIComponent(access.owner)}`, access.owner, sanitized)
 }
 
 export async function DELETE() {
@@ -107,8 +114,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const proof = invoiceOwnerHeaders(owner, 'POST', path, bodyText)
   const actorProof = invoiceActorHeaders(owner, actor, 'POST', path, bodyText)
   try {
-    const response = await fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, ...proof, ...actorProof }, body: bodyText, cache: 'no-store' })
-    if (!response.ok) { const payload = await response.json().catch(() => ({})); return NextResponse.json({ error: payload.detail || 'Annulation impossible.' }, { status: response.status }) }
+    const response = await fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, ...proof, ...actorProof }, body: bodyText, cache: 'no-store', signal: requestTimeout(10_000) })
+    if (!response.ok) {
+      const message = response.status === 401 || response.status === 403 ? 'Accès refusé.' : response.status === 404 ? 'Document introuvable.' : response.status === 409 ? 'Ce document est déjà annulé ou ne peut plus être modifié.' : response.status === 429 ? 'Trop de demandes. Réessayez dans un instant.' : 'Annulation impossible.'
+      return NextResponse.json({ error: message }, { status: response.status })
+    }
     invalidateDocumentLists(owner)
     const upstreamPayload = await response.json().catch(() => ({}))
     let auditRecorded = true

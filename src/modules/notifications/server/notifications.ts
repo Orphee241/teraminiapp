@@ -108,7 +108,8 @@ export async function deliverTelegramNotification(eventId: string, recipientId: 
     await query("UPDATE miniapp_notification_deliveries SET status='SENT',telegram_message_id=?,last_error='',updated_at=? WHERE event_id=? AND recipient_telegram_id=?", [messageId, now, eventId, recipientId])
     return true
   } catch (error) {
-    await query("UPDATE miniapp_notification_deliveries SET status='FAILED',last_error=?,updated_at=? WHERE event_id=? AND recipient_telegram_id=?", [bounded(error instanceof Error ? error.message : 'telegram_delivery_failed', 240), new Date().toISOString(), eventId, recipientId])
+    const code = error instanceof Error && error.message.startsWith('telegram_send_failed:') ? 'telegram_send_failed' : 'telegram_delivery_failed'
+    await query("UPDATE miniapp_notification_deliveries SET status='FAILED',last_error=?,updated_at=? WHERE event_id=? AND recipient_telegram_id=?", [code, new Date().toISOString(), eventId, recipientId])
     return false
   }
 }

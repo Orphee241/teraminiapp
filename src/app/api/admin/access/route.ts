@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'node:crypto'
 import { authenticate, isAdmin, userStaffRole, adminSessionValue, ADMIN_SESSION_COOKIE, telegramProfile, requireSameOrigin, isAdminSessionConfigured } from '../../_auth'
 import { listAdmins, upsertAdmin } from '../../../../modules/administration/server/repository'
 import { upsertProfile } from '../../../../modules/profiles/server/repository'
 import { readBoundedJson, RequestBodyLimitError } from '../../../../lib/request-body'
 import { resetRateLimit, takeRateLimit } from '../../../../lib/rate-limit'
+import { verifyAdminPassword, isAdminPasswordConfigured } from '../../../../lib/admin-password'
 import { enforcePersistentRateLimit, resetPersistentRateLimitForUser } from '../../../../lib/request-security'
 
 export async function GET(request: NextRequest) {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const originError = requireSameOrigin(request); if (originError) return originError
-  if (!isAdminSessionConfigured()) return NextResponse.json({ error: 'Service administrateur momentanément indisponible.' }, { status: 503 })
+  if (!isAdminSessionConfigured() || !isAdminPasswordConfigured()) return NextResponse.json({ error: 'Service administrateur momentanément indisponible.' }, { status: 503 })
   const auth = await authenticate(request); if (auth.response) return auth.response
   const userId = String(auth.user?.id || '')
   let body: unknown
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   const persistedLimit = await enforcePersistentRateLimit(userId, 'admin-login', 5, 80, 15 * 60_000)
   if (!persistedLimit.available) return NextResponse.json({ error: 'Service administrateur momentanément indisponible.' }, { status: 503 })
   if (!persistedLimit.allowed) return NextResponse.json({ error: 'Accès administrateur momentanément limité. Réessayez plus tard.' }, { status: 429 })
-  const supplied = body && typeof body === 'object' && 'password' in body && typeof body.password === 'string' ? body.password : ''; const configured = process.env.TERAMINI_ADMIN_PASSWORD || ''
+  const supplied = body && typeof body === 'object' && 'password' in body && typeof body.password === 'string' ? body.password : ''
   const allowed = await isAdmin(userId)
   let bootstrapAllowed = false
   if (!allowed) {
@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
     // remain closed to unknown Telegram accounts.
     bootstrapAllowed = !configuredIds.length && existingAdmins.length === 0
   }
-  const suppliedBytes = Uint8Array.from(Buffer.from(supplied)); const configuredBytes = Uint8Array.from(Buffer.from(configured))
-  const passwordMatches = Boolean(configuredBytes.length && suppliedBytes.length > 0 && suppliedBytes.length === configuredBytes.length && crypto.timingSafeEqual(suppliedBytes, configuredBytes))
+  const passwordMatches = verifyAdminPassword(supplied)
+
   if (!passwordMatches || (!allowed && !bootstrapAllowed)) return NextResponse.json({ error: 'Identifiants administrateur invalides.' }, { status: 401 })
   if (!allowed) await upsertAdmin({ telegram_id: userId, username: auth.user?.username || '', first_name: auth.user?.first_name || '', last_name: auth.user?.last_name || '' })
   resetRateLimit(userBucket)
