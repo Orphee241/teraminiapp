@@ -27,8 +27,7 @@ const bebas = localFont({ src: './fonts/bebas-neue-400.ttf', variable: '--font-b
 export const metadata: Metadata = {
   title: { default: 'Terainterface', template: '%s | Terainterface' },
   description: 'Accède plus rapidement à nos services via notre Application',
-  applicationName: 'Teraminiapp',
-  manifest: '/manifest.webmanifest',
+  applicationName: 'Terainterface',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
