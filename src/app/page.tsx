@@ -8,6 +8,7 @@ import BrandColorPicker from './components/BrandColorPicker'
 import SettingsCarousel from './components/SettingsCarousel'
 import DocumentColorSimulator from './components/DocumentColorSimulator'
 import TeamMembers from './components/TeamMembers'
+import PwaInstallPrompt from './components/PwaInstallPrompt'
 import CountryOnboarding from './components/CountryOnboarding'
 import { configureTelegramBackButton, openTelegramWindow, setTelegramVerticalSwipes, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
@@ -330,6 +331,7 @@ export default function HomePage() {
   if (!profile.country_code || !profile.currency_code || !profile.phone_country_code) return <CountryOnboarding initData={initData} onSaved={value => setProfile(value as TelegramProfile)} />
 
   return <main className="app-shell">
+      <PwaInstallPrompt />
     <header className="app-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Terainterface</h1></div><div className="header-actions">{desktopTelegram && <button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}</div></header>
     <div className="content">
       {tab === 'accueil' && <section className="screen"><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => navigate('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}

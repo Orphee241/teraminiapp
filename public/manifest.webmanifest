@@ -1,0 +1,14 @@
+{
+  "name": "Teraminiapp",
+  "short_name": "Teraminiapp",
+  "description": "L’espace professionnel Terainterface",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#08090d",
+  "theme_color": "#08090d",
+  "lang": "fr",
+  "icons": [
+    { "src": "/teraminiapp-icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
