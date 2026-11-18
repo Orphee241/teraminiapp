@@ -486,4 +486,14 @@ button { cursor:pointer; }
 .teradoc-actions { display:flex; align-items:center; gap:12px; margin-top:16px; }
 .teradoc-actions .primary-button { display:inline-flex; align-items:center; gap:8px; width:auto; }
 .teradoc-download { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 14px; border-radius:11px; text-decoration:none; font-size:13px; }
+.teradoc-live-preview-head { flex-wrap:wrap; align-items:center; gap:9px 12px; }
+.teradoc-live-preview-head > span { font-weight:700; }
+.teradoc-live-preview-head > small { flex:1 1 180px; }
+.teradoc-preview-download { display:inline-flex; flex:none; align-items:center; justify-content:center; gap:7px; min-height:40px; padding:0 13px; color:#fff; border:0; border-radius:10px; background:var(--pink); font-size:12px; font-weight:700; }
+.teradoc-preview-download:disabled { cursor:wait; opacity:.55; }
+.teradoc-preview-stage { display:flex; justify-content:center; min-width:0; max-height:74dvh; overflow:auto; padding:12px; border-radius:12px; background:#080a0f; }
+.teradoc-preview-stage .pdf-viewer { width:min(100%, 520px); min-height:320px; max-height:72dvh; margin:0; border:0; border-radius:2px; background:#fff; box-shadow:0 10px 32px rgba(0,0,0,.3); }
+.teradoc-preview-stage .pdf-viewer canvas { max-width:100%; height:auto!important; }
+.teradoc-preview-placeholder { display:grid; place-items:center; width:min(100%,420px); aspect-ratio:210 / 297; padding:30px; color:#4b5563; border-top:5px solid var(--pink); background:#fff; box-shadow:0 10px 32px rgba(0,0,0,.3); font-size:13px; line-height:1.5; text-align:center; }
+@media (max-width:640px) { .teradoc-live-preview-head { align-items:flex-start; }.teradoc-preview-download { width:100%; }.teradoc-preview-stage { padding:8px; } }
 @media (max-width:640px) { .teradoc-template-grid { grid-template-columns:1fr; } .teradoc-template { display:grid; grid-template-columns:112px 1fr; } .teradoc-template-preview { min-height:100%; } .teradoc-form-grid { grid-template-columns:1fr; } .teradoc-actions { align-items:stretch; flex-direction:column; } .teradoc-actions .primary-button { justify-content:center; width:100%; } }

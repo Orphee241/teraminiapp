@@ -130,4 +130,15 @@ describe('PdfViewer responsive preview', () => {
     expect(params.url).toBe('https://b2.example/private.pdf?X-Amz-Signature=signed&response-content-disposition=attachment')
     delete (window as Window & { Telegram?: unknown }).Telegram
   })
+
+  it('renders the supplied server preview bytes directly and can hide the internal downloader', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 640 })
+    render(<PdfViewer src="teradoc-live:1" title="CV A4" initData="telegram-init-data" pdfData={new Uint8Array([37, 80, 68, 70])} hideDownload />)
+    await waitFor(() => expect(screen.getByLabelText('CV A4')).toHaveAttribute('aria-busy', 'false'))
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Télécharger le document' })).not.toBeInTheDocument()
+    expect(renderPage).toHaveBeenCalledOnce()
+  })
 })

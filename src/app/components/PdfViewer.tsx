@@ -9,7 +9,7 @@ let workerConfigured = false
 const pdfPromiseCache = new Map<string, Promise<any>>()
 const PDF_CACHE_LIMIT = 8
 
-export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false, watermarkText }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean; watermarkText?: string }) {
+export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false, watermarkText, pdfData, hideDownload = false }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean; watermarkText?: string; pdfData?: Uint8Array; hideDownload?: boolean }) {
   const viewerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -77,11 +77,14 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src, dow
               pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
               workerConfigured = true
             }
-            const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
-            if (!response.ok) throw new Error(`PDF indisponible (${response.status})`)
-            const bytes = await response.arrayBuffer()
-            if (!bytes.byteLength) throw new Error('Le PDF reçu est vide.')
-            return pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise
+            const bytes = pdfData ? new Uint8Array(pdfData) : await (async () => {
+              const response = await fetch(src, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+              if (!response.ok) throw new Error(`PDF indisponible (${response.status})`)
+              const received = await response.arrayBuffer()
+              if (!received.byteLength) throw new Error('Le PDF reçu est vide.')
+              return new Uint8Array(received)
+            })()
+            return pdfjsLib.getDocument({ data: bytes }).promise
           })()
           pdfPromiseCache.set(cacheKey, pdfPromise)
           while (pdfPromiseCache.size > PDF_CACHE_LIMIT) {
@@ -125,7 +128,7 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src, dow
 
     void render()
     return () => { cancelled = true }
-  }, [src, initData, expanded, page])
+  }, [src, initData, expanded, page, pdfData])
 
   const goToPage = (nextPage: number) => {
     setPage(Math.max(1, Math.min(pageCount, nextPage)))
@@ -137,9 +140,9 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src, dow
       <span aria-live="polite">Page {page} / {pageCount}</span>
       <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= pageCount || state === 'loading'} aria-label="Page suivante">›</button>
     </div>
-    <button className="pdf-download" type="button" onClick={() => void downloadPdf()} disabled={downloadDisabled || downloading || state === 'loading'} aria-label={downloadDisabled ? 'Téléchargement désactivé pour ce document annulé' : downloading ? 'Téléchargement en cours' : 'Télécharger le document'} title={downloadDisabled ? 'Document annulé' : downloading ? 'Téléchargement…' : 'Télécharger'}>
+    {!hideDownload && <button className="pdf-download" type="button" onClick={() => void downloadPdf()} disabled={downloadDisabled || downloading || state === 'loading'} aria-label={downloadDisabled ? 'Téléchargement désactivé pour ce document annulé' : downloading ? 'Téléchargement en cours' : 'Télécharger le document'} title={downloadDisabled ? 'Document annulé' : downloading ? 'Téléchargement…' : 'Télécharger'}>
       <Download size={18} />
-    </button>
+    </button>}
     <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher le PDF en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
       {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
     </button>
