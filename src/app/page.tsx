@@ -9,6 +9,7 @@ import SettingsCarousel from './components/SettingsCarousel'
 import DocumentColorSimulator from './components/DocumentColorSimulator'
 import TeamMembers from './components/TeamMembers'
 import CountryOnboarding from './components/CountryOnboarding'
+import TeraDocCenter from './components/TeraDocCenter'
 import { configureTelegramBackButton, openTelegramWindow, setTelegramVerticalSwipes, toggleTelegramFullscreen, type TelegramWindow } from '../lib/telegram-window'
 import { installAutomaticTranslation, type AppLanguage } from '../lib/i18n'
 import { createActionGate } from '../lib/action-gate'
@@ -72,6 +73,7 @@ const services: ServiceItem[] = [
   { label: 'E-commerce', description: 'Boutiques en ligne et solutions de vente digitale.', icon: ShoppingBag },
   { label: 'Formations', description: 'Accompagnement et formations adaptées à vos besoins.', icon: ClipboardList },
   { label: 'Divertissement', description: 'Un espace de divertissement numérique à découvrir.', icon: Headphones },
+  { label: 'TeraDoc', description: 'Créer un CV et préparer vos documents professionnels.', icon: FileText },
 ]
 
 export default function HomePage() {
@@ -82,6 +84,7 @@ export default function HomePage() {
   const [seededDocument, setSeededDocument] = useState<EditableDocument | null>(null)
   const [lineItems, setLineItems] = useState<DocumentLine[]>([{ designation: '', quantity: '1', unit_price: '' }])
   const [formOpen, setFormOpen] = useState(false)
+  const [teradocOpen, setTeradocOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [messageKind, setMessageKind] = useState<NoticeKind>('error')
@@ -206,7 +209,7 @@ export default function HomePage() {
   const openCreate = (kind: DocumentKind, document: EditableDocument | null = null) => { const values = documentFormValues(document); setDocumentKind(kind); setDocumentCategory(categoryFromDocument(document)); setEditingDocument(document); setSeededDocument(null); setLineItems(values.items); setMessage(''); setFormOpen(true) }
   const openInvoiceFromQuote = (document: { id: number; type_document: string; numero: string; montant: number; notes?: string }) => { const seed: EditableDocument = { ...document }; const values = documentFormValues(seed); setDocumentKind('facture'); setDocumentCategory(categoryFromDocument(seed)); setEditingDocument(null); setSeededDocument(seed); setLineItems(values.items); setMessage(''); setFormOpen(true) }
   const closeForm = () => { if (!busy) { setFormOpen(false); setSeededDocument(null) } }
-  const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : notify('Ce service sera bientôt disponible.')
+  const onServiceClick = (service: ServiceItem) => service.documentKind ? openCreate(service.documentKind) : service.label === 'TeraDoc' ? setTeradocOpen(true) : notify('Ce service sera bientôt disponible.')
   const openAccount = (page: AccountPage = 'menu') => { setAccountPage(page); setTab('profil'); window.localStorage.setItem('terainterface-account-page', page); window.localStorage.setItem('terainterface-tab', 'profil') }
   const navigate = (value: Tab) => { setTab(value); if (value !== 'profil') setAccountPage('menu'); window.localStorage.setItem('terainterface-tab', value); if (value !== 'profil') window.localStorage.setItem('terainterface-account-page', 'menu') }
   const navigateAccount = (value: AccountPage) => { setAccountPage(value); window.localStorage.setItem('terainterface-account-page', value) }
@@ -333,7 +336,7 @@ export default function HomePage() {
     <header className="app-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Terainterface</h1></div><div className="header-actions">{desktopTelegram && <button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}</div></header>
     <div className="content">
       {tab === 'accueil' && <section className="screen"><h2 className="hero-title">Bienvenue</h2><p className="lead">Gérez vos services depuis un seul espace.</p><div className="home-grid"><HomeCard icon={ShoppingBag} title="Services" text="Découvrir nos solutions et accompagnements." onClick={() => navigate('services')} /><HomeCard icon={MessageCircle} title="Michelle" text="Discuter directement avec notre assistante." onClick={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} /></div><div className="info-strip"><span className="strip-icon"><FileText size={18} /></span><span><strong>Des documents professionnels</strong><small>Créez vos devis et factures en quelques secondes.</small></span></div></section>}
-      {tab === 'services' && <section className="screen"><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.filter(service => !service.documentKind).map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}<button className="service-card" onClick={() => navigate('facture')}><span className="service-icon"><FileText size={20} /></span><span className="service-copy"><strong>Devis et Facture</strong><small>Créer et retrouver vos devis et factures générés.</small></span><span className="chevron">›</span></button></div></section>}
+      {tab === 'services' && (teradocOpen ? <section className="screen"><TeraDocCenter initData={initData} onClose={() => setTeradocOpen(false)} /></section> : <section className="screen"><h2 className="section-title">Services</h2><p className="lead compact">Découvrez tous les services de Terainterface.</p><div className="service-list">{services.filter(service => !service.documentKind).map(service => { const Icon = service.icon; return <button className="service-card" key={service.label} onClick={() => onServiceClick(service)}><span className="service-icon"><Icon size={20} /></span><span className="service-copy"><strong>{service.label}</strong><small>{service.description}</small></span><span className="chevron">›</span></button> })}<button className="service-card" onClick={() => navigate('facture')}><span className="service-icon"><FileText size={20} /></span><span className="service-copy"><strong>Devis et Facture</strong><small>Créer et retrouver vos devis et factures générés.</small></span><span className="chevron">›</span></button></div></section>)}
       {tab === 'facture' && <section className="screen invoice-screen"><InvoiceCenter initData={initData} staffRole={adminRole} onClose={() => navigate('services')} onBackReady={handler => { invoiceBackRef.current = handler }} archiveRefresh={archiveRefresh} onCreate={(kind = 'facture') => { openCreate(kind) }} onEdit={(kind = 'facture', document) => { openCreate(kind, document || null) }} onCreateFromQuote={openInvoiceFromQuote} /></section>}
       {tab === 'profil' && <AccountScreen accountPage={accountPage} navigateAccount={navigateAccount} profile={profile} setProfile={setProfile} profileMessage={profileMessage} setProfileMessage={setProfileMessage} language={language} updateLanguage={updateLanguage} adminAvailable={adminAvailable} openMichelle={() => { setChatMessages(previous => previous.length ? previous : [{ role: 'assistant', text: 'Bonjour, je suis Michelle, assistante de Terainterface. Comment puis-je vous aider ?' }]); setMichelleOpen(true) }} onAdmin={() => { const webApp = window.Telegram?.WebApp; if (webApp) openTelegramWindow(webApp); window.location.href = '/adm' }} />}
     </div>
