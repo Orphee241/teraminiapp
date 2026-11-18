@@ -12,7 +12,7 @@ type CvDraft = {
   education: { degree: string; institution: string }[]; skills: string[]; languages: { language: string; level: string }[]; certifications: string[]
 }
 
-const emptyDraft: CvDraft = { templateId: 'essential', fullName: '', headline: '', email: '', phone: '', location: '', summary: '', experience: [{ role: '', company: '', startDate: '', description: '' }], education: [{ degree: '', institution: '' }], skills: [], languages: [{ language: '', level: '' }], certifications: [] }
+const emptyDraft: CvDraft = { templateId: 'essential', fullName: '', headline: '', email: '', phone: '', location: '', summary: '', experience: [{ role: '', company: '', startDate: '', description: '' }], education: [{ degree: '', institution: '' }], skills: [], languages: [], certifications: [] }
 
 export default function TeraDocCenter({ initData, onClose }: Props) {
   const [draft, setDraft] = useState<CvDraft>(emptyDraft)
