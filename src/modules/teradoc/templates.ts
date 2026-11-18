@@ -11,7 +11,7 @@ export type TeraDocTemplate = {
 }
 
 export const TERADOC_TEMPLATES: readonly TeraDocTemplate[] = [
-  { id: 'essential', name: 'Essential', description: 'Sobre, lisible et optimisé pour une lecture ATS.', atsLevel: 'high', accent: '#7a243c', columns: 1, supportsPhoto: false },
+  { id: 'essential', name: 'Professionnel', description: 'Modèle fourni par Terainterface, structuré en deux colonnes.', atsLevel: 'high', accent: '#7a243c', columns: 2, supportsPhoto: false },
   { id: 'editorial', name: 'Editorial', description: 'Hiérarchie typographique élégante pour les profils expérimentés.', atsLevel: 'high', accent: '#405466', columns: 1, supportsPhoto: false },
   { id: 'executive', name: 'Executive', description: 'Deux colonnes équilibrées pour un CV plus affirmé.', atsLevel: 'standard', accent: '#27364a', columns: 2, supportsPhoto: true },
 ] as const

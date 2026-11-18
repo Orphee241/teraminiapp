@@ -37,6 +37,16 @@ describe('TeraDoc CV PDF renderer', () => {
     expect(extractedText).toContain('Université Test')
   })
 
+  it('reproduces the supplied professional model structure with a sidebar and right content column', () => {
+    const pdf = renderCvPdf(cv).toString('latin1')
+    expect(pdf).toContain('0.965 0.953 0.945 rg 0 0 218 841.89 re f')
+    expect(pdf).toContain('0.478 0.141 0.235 rg 218 0 2 841.89 re f')
+    expect(pdf).toContain('(FORMATION)')
+    expect(pdf).toContain('(COMP\\311TENCES)')
+    expect(pdf).toContain('(PROFIL)')
+    expect(pdf).toContain('(EXP\\311RIENCE PROFESSIONNELLE)')
+  })
+
   it('adds pages when long CV content no longer fits on one A4 sheet', () => {
     const longCv = { ...cv, experience: Array.from({ length: 12 }, (_, index) => ({ role: `Poste ${index + 1}`, company: 'Entreprise', startDate: '2010-01', description: `Responsabilités professionnelles ${index + 1}. `.repeat(12) })) }
     const pdf = renderCvPdf(longCv).toString('latin1')
