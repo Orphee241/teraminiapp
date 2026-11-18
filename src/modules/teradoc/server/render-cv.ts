@@ -8,7 +8,7 @@ function color(hex: string) { const value = hex.replace('#', ''); return [0, 2, 
 export function renderCvPdf(cv: TeraDocCv): Buffer {
   const template = findTeraDocTemplate(cv.templateId) || findTeraDocTemplate('essential')!
   const accent = color(template.accent); const commands: string[] = []
-  const text = (value: string, x: number, y: number, size = 9, font = '/F1', fill = '0.12 0.14 0.18') => { commands.push(`${fill} rg ${font} ${size} Tf 1 0 0 1 ${x} ${y} Tm (${pdfText(value)}) Tj`) }
+  const text = (value: string, x: number, y: number, size = 9, font = '/F1', fill = '0.12 0.14 0.18') => { commands.push(`BT ${fill} rg ${font} ${size} Tf 1 0 0 1 ${x} ${y} Tm (${pdfText(value)}) Tj ET`) }
   const rule = (x: number, y: number, width: number) => commands.push(`${accent} RG 1.2 w ${x} ${y} m ${x + width} ${y} l S`)
   let y = 790
   commands.push(`${accent} rg 0 760 595 82 re f`)
