@@ -3,8 +3,10 @@ export function configuredServiceUrl(raw: string | undefined): string {
   if (!value) return ''
   try {
     const url = new URL(value)
+    const internalServiceName = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(url.hostname) && !url.hostname.includes('.')
     const localDevelopment = process.env.NODE_ENV !== 'production' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
-    if (url.username || url.password || url.search || url.hash || (url.protocol !== 'https:' && !localDevelopment)) return ''
+    const allowedHttp = url.protocol === 'http:' && (localDevelopment || internalServiceName)
+    if (url.username || url.password || url.search || url.hash || (url.protocol !== 'https:' && !allowedHttp)) return ''
     return url.toString().replace(/\/$/, '')
   } catch { return '' }
 }
