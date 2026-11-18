@@ -19,6 +19,7 @@ describe('PWA installation entry point', () => {
     expect(component).toContain("beforeinstallprompt")
     expect(component).toContain("display-mode: standalone")
     expect(component).toContain('Installer Teraminiapp')
-    expect(component).toContain('localStorage')
+    expect(component).toContain('fallback')
+    expect(component).not.toContain('teraminiapp-pwa-prompt-dismissed')
   })
 })
