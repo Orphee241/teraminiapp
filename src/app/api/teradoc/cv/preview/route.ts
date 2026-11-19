@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   const auth = await authenticate(request)
   if (auth.response) return auth.response
   const owner = String(auth.user?.id || '')
-  const limit = await enforcePersistentRateLimit(owner, 'teradoc-cv-preview', 120, 2400, 60 * 60_000)
+  const limit = await enforcePersistentRateLimit(owner, 'teradoc-cv-preview', 120, 2400, 10 * 60_000)
   if (!limit.available) return NextResponse.json({ error: 'TeraDoc est momentanément indisponible.' }, { status: 503 })
   if (!limit.allowed) return NextResponse.json({ error: 'Trop de prévisualisations rapprochées.' }, { status: 429 })
 

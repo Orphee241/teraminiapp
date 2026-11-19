@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '../api/teradoc/cv/preview/route'
 
-vi.mock('../../lib/request-security', () => ({ enforcePersistentRateLimit: vi.fn(async () => ({ available: true, allowed: true })) }))
+const { enforcePersistentRateLimitMock } = vi.hoisted(() => ({ enforcePersistentRateLimitMock: vi.fn(async () => ({ available: true, allowed: true })) }))
+vi.mock('../../lib/request-security', () => ({ enforcePersistentRateLimit: enforcePersistentRateLimitMock }))
 
 const botToken = 'test-telegram-bot-token'
 const cv = {
@@ -33,6 +34,7 @@ describe('TeraDoc live PDF preview route', () => {
     expect(response.headers.get('content-type')).toContain('application/pdf')
     expect(response.headers.get('content-disposition')).toContain('inline')
     expect(response.headers.get('cache-control')).toContain('no-store')
+    expect(enforcePersistentRateLimitMock).toHaveBeenLastCalledWith('123456789', 'teradoc-cv-preview', 120, 2400, 10 * 60_000)
     const pdf = Buffer.from(await response.arrayBuffer()).toString('latin1')
     expect(pdf).toContain('/MediaBox [0 0 595.28 841.89]')
     expect(pdf).toContain('Aline Mba')
