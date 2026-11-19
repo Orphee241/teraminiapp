@@ -24,6 +24,7 @@ import { NOTIFICATION_DISMISS_MS } from '../lib/notification-constants'
 type Tab = 'accueil' | 'services' | 'facture' | 'profil'
 type AccountPage = 'menu' | 'dashboard' | 'settings' | 'profile' | 'subscriptions' | 'transaction' | 'assistance'
 type NoticeKind = 'error' | 'success'
+type ProfileStatus = 'idle' | 'loading' | 'ready' | 'error'
 type EditableDocument = { id: number; type_document: string; numero: string; montant: number; notes?: string | Record<string, unknown>; [key: string]: unknown }
 type DocumentKind = 'devis' | 'facture'
 type DocumentCategory = 'prestation' | 'vente' | 'prestation_vente'
@@ -105,14 +106,15 @@ export default function HomePage() {
   const [fullscreen, setFullscreen] = useState(false)
   const invoiceBackRef = useRef<() => void>(() => undefined)
   const [telegramAvailable, setTelegramAvailable] = useState(false)
-  const [profileReady, setProfileReady] = useState(false)
+  const [runtimeResolved, setRuntimeResolved] = useState(false)
+  const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle')
+  const [profileError, setProfileError] = useState('')
   const [profile, setProfile] = useState<TelegramProfile>({ telegram_id: '', username: '', first_name: '', last_name: '', language_code: '', photo_url: '', email: '', phone: '', address: '', company_name: '', nif: '', rccm: '', logo_url: '', brand_color: '#D71920', country_code: '', country_name: '', phone_country_code: '', currency_code: '' })
   const [profileMessage, setProfileMessage] = useState('')
   const [accountPage, setAccountPage] = useState<AccountPage>('menu')
   const [language, setLanguage] = useState('fr')
   const [chatMessages, setChatMessages] = useState<{ id?: string; role: 'user' | 'assistant'; text: string; sentAt?: string }[]>([])
   const [selectedMessage, setSelectedMessage] = useState<string>('')
-  const [hydrated, setHydrated] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const chatMessagesRef = useRef<HTMLDivElement>(null)
   const createGate = useRef(createActionGate())
@@ -122,18 +124,36 @@ export default function HomePage() {
 
   const notify = (text: string, kind: NoticeKind = 'error') => { setMessageKind(kind); setMessage(text) }
 
+  const bootstrapProfile = (data: string) => {
+    setProfileStatus('loading')
+    setProfileError('')
+    void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } })
+      .then(async response => {
+        if (!response.ok) throw new Error('profile bootstrap failed')
+        const value = await response.json() as { profile?: TelegramProfile }
+        if (!value.profile) throw new Error('profile bootstrap returned no profile')
+        setProfile(value.profile)
+        setProfileStatus('ready')
+      })
+      .catch(() => {
+        setProfileStatus('error')
+        setProfileError('Impossible de charger votre profil. Vérifiez votre connexion puis réessayez.')
+      })
+  }
+
 
   useEffect(() => {
     const webApp = window.Telegram?.WebApp
-    setTelegramAvailable(Boolean(webApp?.initData))
+    const hasTelegram = Boolean(webApp?.initData)
+    setTelegramAvailable(hasTelegram)
     setLanguage(window.localStorage.getItem('terainterface-language') || 'fr')
     const savedTab = window.localStorage.getItem('terainterface-tab') as Tab | null
     const savedAccountPage = window.localStorage.getItem('terainterface-account-page') as AccountPage | null
     if (savedTab && ['accueil', 'services', 'facture', 'profil'].includes(savedTab)) setTab(savedTab)
     if (savedAccountPage && ['menu', 'settings', 'profile', 'subscriptions', 'assistance'].includes(savedAccountPage)) setAccountPage(savedAccountPage)
     if (!savedTab || savedTab !== 'profil') setAccountPage('menu')
-    setHydrated(true)
-    if (!webApp) return
+    setRuntimeResolved(true)
+    if (!webApp || !hasTelegram) return
     const telegram = webApp
     setTelegramVerticalSwipes(telegram, false)
     setDesktopTelegram(openTelegramWindow(telegram))
@@ -156,7 +176,7 @@ export default function HomePage() {
     const data = telegram.initData || ''
     setInitData(data)
     if (data) {
-      void fetch('/api/profile', { method: 'POST', headers: { 'x-telegram-init-data': data } }).then(response => response.ok ? response.json() : null).then(value => value?.profile && setProfile(value.profile)).catch(() => undefined).finally(() => setProfileReady(true))
+      bootstrapProfile(data)
       void fetch('/api/admin/access', { headers: { 'x-telegram-init-data': data }, cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(payload => { setAdminAvailable(Boolean(payload?.allowed)); if (payload?.role) setAdminRole(payload.role as StaffRole) }).catch(() => undefined)
     }
     return () => {
@@ -330,9 +350,11 @@ export default function HomePage() {
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), NOTIFICATION_DISMISS_MS); return () => window.clearTimeout(timer) }, [message])
   useEffect(() => { if (!paymentStatus) return; const timer = window.setTimeout(() => setPaymentStatus(''), NOTIFICATION_DISMISS_MS); return () => window.clearTimeout(timer) }, [paymentStatus])
 
-  if (!telegramAvailable || !hydrated) return <main className="browser-landing"><section className="browser-landing-card"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><p className="eyebrow accent">TERAINTERFACE</p><h1>Votre espace</h1><p>Accède plus rapidement à nos services via notre Application</p><a className="primary-button browser-open-button" href="https://t.me/Terainterface_bot?startapp" rel="noopener noreferrer">Ouvrir l’App</a><small>Telegram s’ouvrira pour lancer l’application.</small></section></main>
-  if (!profileReady) return <main className="country-onboarding" aria-label="Chargement"><span className="secure-loading-spinner" style={{ '--spinner-color': profile.brand_color || '#D71920' } as React.CSSProperties} aria-label="Chargement" /></main>
-  if (!profile.country_code || !profile.currency_code || !profile.phone_country_code) return <CountryOnboarding initData={initData} onSaved={value => setProfile(value as TelegramProfile)} />
+  if (!runtimeResolved) return <main className="country-onboarding" aria-label="Chargement"><span className="secure-loading-spinner" style={{ '--spinner-color': profile.brand_color || '#D71920' } as React.CSSProperties} aria-label="Chargement" /></main>
+  if (!telegramAvailable) return <main className="browser-landing"><section className="browser-landing-card"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><p className="eyebrow accent">TERAINTERFACE</p><h1>Votre espace</h1><p>Accède plus rapidement à nos services via notre Application</p><a className="primary-button browser-open-button" href="https://t.me/Terainterface_bot?startapp" rel="noopener noreferrer">Ouvrir l’App</a><small>Telegram s’ouvrira pour lancer l’application.</small></section></main>
+  if (profileStatus === 'loading' || profileStatus === 'idle') return <main className="country-onboarding" aria-label="Chargement"><span className="secure-loading-spinner" style={{ '--spinner-color': profile.brand_color || '#D71920' } as React.CSSProperties} aria-label="Chargement" /></main>
+  if (profileStatus === 'error') return <main className="country-onboarding" aria-label="Erreur de chargement"><section className="country-card"><h1>Profil indisponible</h1><p role="alert">{profileError}</p><button className="primary-button" type="button" onClick={() => bootstrapProfile(initData)}>Réessayer</button></section></main>
+  if (!profile.country_code || !profile.currency_code || !profile.phone_country_code) return <CountryOnboarding initData={initData} onSaved={value => { setProfile(value as TelegramProfile); setProfileStatus('ready') }} />
 
   return <main className="app-shell">
     <header className="app-header"><div className="brand-mark brand-logo"><img src="/terainterface-logo.png" alt="Terainterface" /></div><div><h1>Terainterface</h1></div><div className="header-actions">{desktopTelegram && <button className="window-action" type="button" title={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'} onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>}</div></header>
