@@ -528,6 +528,14 @@ button { cursor:pointer; }
 .teradoc-catalog-heading strong { font-size:16px; }
 .teradoc-catalog-heading small { color:var(--muted); font-size:12px; line-height:1.4; }
 .teradoc-document-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
+.teradoc-document-archive { margin-top:12px; min-width:0; }
+.teradoc-document-group { overflow:hidden; border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.025)); }
+.teradoc-document-row { display:flex; align-items:center; gap:10px; width:100%; min-width:0; min-height:76px; padding:12px 14px; color:#f7f8fa; border:0; border-bottom:1px solid var(--line); background:transparent; text-align:left; }
+.teradoc-document-row:last-child { border-bottom:0; }
+.teradoc-document-row:hover { background:rgba(212,46,91,.08); }
+.teradoc-pagination { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; color:var(--muted); font-size:12px; }
+.teradoc-pagination button { min-height:36px; padding:0 11px; color:#f7f8fa; border:1px solid var(--line); border-radius:9px; background:rgba(255,255,255,.035); font-size:12px; }
+.teradoc-pagination button:disabled { cursor:not-allowed; opacity:.45; }
 .teradoc-document-card { display:flex; align-items:flex-start; gap:10px; min-width:0; min-height:112px; padding:14px; color:#f7f8fa; border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.025)); text-align:left; }
 .teradoc-document-card:not(.is-disabled):hover { border-color:rgba(240,106,139,.8); transform:translateY(-1px); }
 .teradoc-document-card.is-disabled { cursor:not-allowed; opacity:.62; }

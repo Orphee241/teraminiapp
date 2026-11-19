@@ -35,4 +35,23 @@ describe('TeraDoc workspace catalogue', () => {
     fireEvent.click(screen.getByRole('button', { name: /Aline Mba/i }))
     expect(screen.getByText('cv-1')).toBeInTheDocument()
   })
+
+  it('removes the create action and groups four documents per archive page', async () => {
+    const documents = Array.from({ length: 5 }, (_, index) => ({ id: `cv-${index + 1}`, title: `CV ${index + 1}`, status: 'DRAFT', updated_at: '2026-01-01T00:00:00.000Z' }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ documents }) }))
+    render(<TeraDocWorkspace initData="init-data" onClose={() => undefined} />)
+
+    expect(screen.queryByRole('button', { name: /Créer un document/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Mes documents/i }))
+    expect(await screen.findByRole('group', { name: /documents 1 à 4/i })).toBeInTheDocument()
+    expect(screen.getByText('CV 1')).toBeInTheDocument()
+    expect(screen.getByText('CV 4')).toBeInTheDocument()
+    expect(screen.queryByText('CV 5')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /CV [1-4]/i })).toHaveLength(4)
+
+    fireEvent.click(screen.getByRole('button', { name: /page suivante/i }))
+    expect(screen.getByRole('group', { name: /documents 5 à 5/i })).toBeInTheDocument()
+    expect(screen.getByText('CV 5')).toBeInTheDocument()
+    expect(screen.queryByText('CV 1')).not.toBeInTheDocument()
+  })
 })
