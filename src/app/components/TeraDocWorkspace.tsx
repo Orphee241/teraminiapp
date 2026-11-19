@@ -16,7 +16,9 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
   const [documentsBusy, setDocumentsBusy] = React.useState(false)
   const [selectedDocumentId, setSelectedDocumentId] = React.useState<string>()
   const [documentsPage, setDocumentsPage] = React.useState(1)
+  const [catalogPage, setCatalogPage] = React.useState(1)
   const documentsPerPage = 4
+  const catalogItemsPerPage = 4
 
   const open = (option: TeraDocTemplateOption) => {
     if (!option.available) {
@@ -40,11 +42,14 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
   const pageCount = Math.max(1, Math.ceil(documents.length / documentsPerPage))
   const pageStart = (documentsPage - 1) * documentsPerPage
   const pageDocuments = documents.slice(pageStart, pageStart + documentsPerPage)
+  const catalogPageCount = Math.max(1, Math.ceil(TERADOC_DOCUMENT_TYPES.length / catalogItemsPerPage))
+  const catalogStart = (catalogPage - 1) * catalogItemsPerPage
+  const catalogOptions = TERADOC_DOCUMENT_TYPES.slice(catalogStart, catalogStart + catalogItemsPerPage)
 
   return <section className="teradoc-workspace" aria-label="TeraDoc">
     <button type="button" className="back-link" onClick={onClose}><ArrowLeft size={17} /> Retour aux services</button>
     <div className="teradoc-heading">
-      <div><p className="eyebrow accent">TERADOC</p><h2 className="section-title">Vos documents</h2><p className="lead compact">Créez un document professionnel en quelques étapes, directement dans Telegram.</p></div>
+      <div><p className="eyebrow accent">TERADOC</p><h2 className="section-title">Mes Documents</h2><p className="lead compact">Créez un document professionnel en quelques étapes, directement dans Telegram.</p></div>
       <span className="teradoc-mark"><FileText size={22} /></span>
     </div>
     <div className="teradoc-workspace-actions" aria-label="Actions TeraDoc">
@@ -60,13 +65,15 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
         {pageCount > 1 && <nav className="teradoc-pagination" aria-label="Pagination des documents"><button type="button" aria-label="Page précédente" onClick={() => setDocumentsPage(page => Math.max(1, page - 1))} disabled={documentsPage === 1}>Précédente</button><span aria-live="polite">Page {documentsPage} sur {pageCount}</span><button type="button" aria-label="Page suivante" onClick={() => setDocumentsPage(page => Math.min(pageCount, page + 1))} disabled={documentsPage === pageCount}>Suivante</button></nav>}
       </>}
     </div> : <><div className="teradoc-catalog-heading"><div><strong>Choisissez un document</strong><small>Les modèles juridiques sont à relire et à adapter.</small></div></div>
-    <div className="teradoc-document-grid" aria-label="Modèles TeraDoc">
-      {TERADOC_DOCUMENT_TYPES.map(option => <button type="button" key={option.id} className={`teradoc-document-card ${option.available ? '' : 'is-disabled'}`} onClick={() => open(option)} aria-disabled={!option.available}>
+    <div className="teradoc-document-grid" role="group" aria-label={`Modèles ${catalogStart + 1} à ${Math.min(catalogStart + catalogItemsPerPage, TERADOC_DOCUMENT_TYPES.length)}`}>
+      {catalogOptions.map(option => <button type="button" key={option.id} className={`teradoc-document-card ${option.available ? '' : 'is-disabled'}`} onClick={() => open(option)} aria-disabled={!option.available}>
         <span className="teradoc-document-icon"><FileText size={19} /></span>
         <span className="teradoc-document-copy"><strong>{option.name}</strong><small>{option.description}</small>{option.legalNotice && <em>Modèle à relire</em>}</span>
         <span className="teradoc-document-status">{option.available ? <ChevronRight size={19} /> : <small>Bientôt</small>}</span>
       </button>)}
-    </div></>}
+    </div>
+    {catalogPageCount > 1 && <nav className="teradoc-pagination" aria-label="Pagination des modèles"><button type="button" aria-label="Page précédente" onClick={() => setCatalogPage(page => Math.max(1, page - 1))} disabled={catalogPage === 1}>Précédente</button><span aria-live="polite">Page {catalogPage} sur {catalogPageCount}</span><button type="button" aria-label="Page suivante" onClick={() => setCatalogPage(page => Math.min(catalogPageCount, page + 1))} disabled={catalogPage === catalogPageCount}>Suivante</button></nav>}
+    </>}
     {notice && <p className="teradoc-inline-notice" role="status">{notice}</p>}
   </section>
 }

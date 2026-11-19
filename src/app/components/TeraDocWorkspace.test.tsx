@@ -7,8 +7,9 @@ vi.mock('./TeraDocCenter', () => ({ default: ({ onClose, documentId }: { onClose
 describe('TeraDoc workspace catalogue', () => {
   it('shows the document catalogue without displaying invoice services', () => {
     render(<TeraDocWorkspace initData="init-data" onClose={() => undefined} />)
-    expect(screen.getByRole('heading', { name: 'Vos documents' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Mes Documents' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /CV professionnel/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /page suivante/i }))
     expect(screen.getByRole('button', { name: /Plainte/i })).toBeInTheDocument()
     expect(screen.queryByText(/facture/i)).not.toBeInTheDocument()
   })
@@ -18,13 +19,29 @@ describe('TeraDoc workspace catalogue', () => {
     fireEvent.click(screen.getByRole('button', { name: /CV professionnel/i }))
     expect(screen.getByText('CV form')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Retour au catalogue' }))
-    expect(screen.getByRole('heading', { name: 'Vos documents' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Mes Documents' })).toBeInTheDocument()
   })
 
   it('keeps unavailable models inside the workspace with a clear status', () => {
     render(<TeraDocWorkspace initData="init-data" onClose={() => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: /page suivante/i }))
     fireEvent.click(screen.getByRole('button', { name: /Plainte/i }))
     expect(screen.getByRole('status')).toHaveTextContent('bientôt disponible')
+  })
+
+  it('shows four document template sections per catalogue page and paginates the remaining templates', () => {
+    render(<TeraDocWorkspace initData="init-data" onClose={() => undefined} />)
+
+    expect(screen.getByRole('group', { name: /modèles 1 à 4/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /CV professionnel/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Demande de stage/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Plainte/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /page suivante/i }))
+
+    expect(screen.getByRole('group', { name: /modèles 5 à 7/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Plainte/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /CV professionnel/i })).not.toBeInTheDocument()
   })
 
   it('loads owner CVs in Mes documents and opens the selected draft', async () => {
