@@ -20,6 +20,8 @@ describe('Telegram notification delivery boundaries', () => {
     expect(notificationModule).toContain('/sendMessage')
     expect(notificationModule).toContain('TELEGRAM_BOT_TOKEN')
     expect(notificationModule).toContain('AbortSignal.timeout(5000)')
+    expect(notificationModule).toContain("text: 'Ouvrir Terainterface'")
+    expect(notificationModule).not.toContain('Ouvrir Teraminiapp')
   })
 
   it('keeps client teams explicit and fans out only to active team administrators', () => {

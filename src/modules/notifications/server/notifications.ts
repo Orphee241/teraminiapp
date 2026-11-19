@@ -62,7 +62,7 @@ async function telegramSendMessage(recipientId: string, title: string, body: str
       chat_id: recipientId,
       text: `${title}\n\n${body}`,
       disable_web_page_preview: true,
-      ...(appUrl ? { reply_markup: { inline_keyboard: [[{ text: 'Ouvrir Teraminiapp', url: appUrl }]] } } : {}),
+      ...(appUrl ? { reply_markup: { inline_keyboard: [[{ text: 'Ouvrir Terainterface', url: appUrl }]] } } : {}),
     }),
     signal: AbortSignal.timeout(5000),
     cache: 'no-store',
