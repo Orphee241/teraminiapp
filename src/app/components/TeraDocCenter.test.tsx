@@ -15,6 +15,8 @@ describe('TeraDoc CV draft lifecycle', () => {
     const select = screen.getByLabelText(/modèle de CV/i)
     expect(select).toHaveValue('essential')
     expect(select).toHaveAttribute('data-compact', 'true')
+    expect(select).toHaveClass('teradoc-model-select')
+    expect(Array.from(select.querySelectorAll('option')).map(option => option.textContent)).toEqual(['Modèle 1', 'Modèle 2', 'Modèle 3'])
     fireEvent.change(select, { target: { value: 'editorial' } })
     expect(select).toHaveValue('editorial')
     expect(screen.getAllByText(/Modèle\s*2/).length).toBeGreaterThan(0)
