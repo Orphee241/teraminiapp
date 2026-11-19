@@ -72,18 +72,30 @@ describe('TeraDoc workspace catalogue', () => {
     expect(screen.queryByText('CV 1')).not.toBeInTheDocument()
   })
 
-  it('uses the existing spinner without exposing a loading sentence', async () => {
+  it('centers the archive spinner and exposes the exact loading label accessibly', async () => {
     let resolveRequest!: (value: unknown) => void
     vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => { resolveRequest = resolve })))
     render(<TeraDocWorkspace initData="init-data" onClose={() => undefined} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Mes documents/i }))
 
-    expect(screen.getByRole('status')).toBeInTheDocument()
-    expect(screen.getByRole('status').querySelector('.inline-spinner')).toBeInTheDocument()
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('Chargement des documents')
+    expect(status.querySelector('.inline-spinner')).toBeInTheDocument()
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    expect(status).toHaveClass('teradoc-document-archive-loading')
+    expect(status).toHaveClass('teradoc-loading-center')
     expect(screen.queryByText(/Chargement de vos documents/i)).not.toBeInTheDocument()
     resolveRequest({ ok: true, json: async () => ({ documents: [] }) })
     await waitFor(() => expect(screen.getByText('Aucun CV enregistré.')).toBeInTheDocument())
+  })
+
+  it('defines the archive loading layout as a centered flex container', async () => {
+    const fs = await import('node:fs/promises')
+    const css = await fs.readFile('src/app/globals.css', 'utf8')
+    expect(css).toMatch(/\.teradoc-loading-center\s*\{[\s\S]*?display:\s*flex[\s\S]*?align-items:\s*center[\s\S]*?justify-content:\s*center/)
+    expect(css).toMatch(/\.teradoc-document-archive-loading\s*\{[\s\S]*?min-height:\s*[^;]+/)
   })
 
   it('caches documents for this mounted owner and shares one in-flight request', async () => {

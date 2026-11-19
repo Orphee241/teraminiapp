@@ -72,7 +72,7 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
       <button type="button" className={`teradoc-workspace-action ${view === 'documents' ? 'is-active' : ''}`} onClick={showDocuments}><FileText size={18} /><span><strong>Mes documents</strong><small>Vos brouillons et versions enregistrées</small></span><ChevronRight size={17} /></button>
     </div>
     {view === 'documents' ? <div className="teradoc-document-archive" aria-label="Mes documents">
-      {documentsBusy ? <p role="status"><span className="inline-spinner" aria-hidden="true" /></p> : documents.length === 0 ? <p role="status">Aucun CV enregistré.</p> : <>
+      {documentsBusy ? <p className="teradoc-document-archive-loading teradoc-loading-center" role="status" aria-live="polite" aria-busy="true"><span className="inline-spinner" aria-hidden="true" /><span>Chargement des documents</span></p> : documents.length === 0 ? <p role="status">Aucun CV enregistré.</p> : <>
         <div className="teradoc-document-group" role="group" aria-label={`Documents ${pageStart + 1} à ${Math.min(pageStart + documentsPerPage, documents.length)}`}>
           {pageDocuments.map(document => <button type="button" key={document.id} className="teradoc-document-row" onClick={() => { documentCache.current.delete(initData); setSelectedDocumentId(document.id); setView('cv') }}>
             <span className="teradoc-document-icon"><FileText size={19} /></span><span className="teradoc-document-copy"><strong>{document.title || 'CV sans nom'}</strong><small>{document.status === 'GENERATED' ? 'Généré' : 'Brouillon'} · {new Date(document.updated_at).toLocaleDateString('fr-FR')}</small></span><ChevronRight size={19} />
