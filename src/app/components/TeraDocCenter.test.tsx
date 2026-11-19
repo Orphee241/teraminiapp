@@ -9,6 +9,34 @@ const payload = {
 }
 
 describe('TeraDoc CV draft lifecycle', () => {
+  it('uses a compact native template select that updates the selected model', () => {
+    vi.stubGlobal('fetch', vi.fn())
+    render(<TeraDocCenter initData="init-data" onClose={() => undefined} />)
+    const select = screen.getByLabelText(/modèle de CV/i)
+    expect(select).toHaveValue('essential')
+    expect(select).toHaveAttribute('data-compact', 'true')
+    fireEvent.change(select, { target: { value: 'editorial' } })
+    expect(select).toHaveValue('editorial')
+    expect(screen.getAllByText(/Model\s*2/).length).toBeGreaterThan(0)
+  })
+
+  it('adds and removes repeatable experience and education entries', () => {
+    vi.stubGlobal('fetch', vi.fn())
+    render(<TeraDocCenter initData="init-data" onClose={() => undefined} />)
+    for (const [label, value] of [['Nom complet', 'Aline Mba'], ['Titre professionnel', 'Responsable'], ['Email', 'aline@example.com'], ['Téléphone', '+241 06000000'], ['Ville / pays', 'Libreville'], ['Résumé', 'Profil']]) {
+      fireEvent.change(screen.getByLabelText(new RegExp(label)), { target: { value } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: /Étape suivante/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter une expérience/ }))
+    expect(screen.getByRole('button', { name: /Supprimer expérience 2/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer expérience 2/i }))
+    expect(screen.queryByRole('button', { name: /Supprimer expérience 2/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /3 Formation et compétences/ }))
+    const addEducation = screen.getByText('+ Ajouter une formation')
+    expect(addEducation).toBeInTheDocument()
+    fireEvent.click(addEducation)
+    expect(screen.getByText('Formation 2')).toBeInTheDocument()
+  })
   it('loads an existing payload and updates it with PUT', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ document: { id: 'cv-1', payload } }) })

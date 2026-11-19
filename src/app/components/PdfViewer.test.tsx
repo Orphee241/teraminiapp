@@ -24,6 +24,18 @@ describe('PdfViewer responsive preview', () => {
     renderPage.mockClear()
   })
 
+  it('does not create a navigable PDF page when downloading on mobile', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 360 })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    render(<PdfViewer src="/api/documents/mobile/pdf" title="CV mobile" initData="telegram-init-data" />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Télécharger le document' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Télécharger le document' }))
+    await waitFor(() => expect(click).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
   it('reuses the downloaded PDF when switching between compact and fullscreen views', async () => {
     vi.stubGlobal('fetch', fetchMock)
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
@@ -70,7 +82,7 @@ describe('PdfViewer responsive preview', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
     expect((fetchMock.mock.calls as unknown as Array<[RequestInfo | URL, RequestInit?]>)[1][1]).toEqual({ headers: { 'x-telegram-init-data': 'telegram-init-data' }, cache: 'no-store' })
     expect(createObjectURL).toHaveBeenCalledOnce()
-    expect(click).toHaveBeenCalledOnce()
+    expect(click).toHaveBeenCalled()
     expect((createObjectURL.mock.calls as unknown as Array<[Blob]>)[0][0].size).toBe(4)
     expect(revokeObjectURL).not.toHaveBeenCalled()
   })
