@@ -17,7 +17,7 @@ describe('TeraDoc CV draft lifecycle', () => {
     expect(select).toHaveAttribute('data-compact', 'true')
     fireEvent.change(select, { target: { value: 'editorial' } })
     expect(select).toHaveValue('editorial')
-    expect(screen.getAllByText(/Model\s*2/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Modèle\s*2/).length).toBeGreaterThan(0)
   })
 
   it('adds and removes repeatable experience and education entries', () => {
