@@ -47,6 +47,18 @@ describe('TeraDoc CV PDF renderer', () => {
     expect(pdf).toContain('(EXP\\311RIENCE PROFESSIONNELLE)')
   })
 
+  it('uses 12pt regular text, 15pt bold name, and 14pt bold section titles', () => {
+    const pdf = renderCvPdf(cv).toString('latin1')
+    expect(pdf).not.toContain('/F1 7.2 Tf')
+    expect(pdf).not.toContain('/F1 7.4 Tf')
+    expect(pdf).not.toContain('/F1 7.5 Tf')
+    expect(pdf).not.toContain('/F1 7.6 Tf')
+    expect(pdf).toContain('/F1 12 Tf')
+    expect(pdf).toContain('/F2 15 Tf')
+    expect(pdf).toContain('/F2 14 Tf')
+    expect(pdf).toContain('/BaseFont /Helvetica-Bold')
+  })
+
   it('adds pages when long CV content no longer fits on one A4 sheet', () => {
     const longCv = { ...cv, experience: Array.from({ length: 12 }, (_, index) => ({ role: `Poste ${index + 1}`, company: 'Entreprise', startDate: '2010-01', description: `Responsabilités professionnelles ${index + 1}. `.repeat(12) })) }
     const pdf = renderCvPdf(longCv).toString('latin1')

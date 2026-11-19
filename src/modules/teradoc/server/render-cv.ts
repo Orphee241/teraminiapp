@@ -153,31 +153,31 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
   let page = 0
   let y = 780
   const push = (value: string) => pages[page].push(value)
-  const text = (value: string, x: number, top: number, size = 8.5, font = '/F1', fill = '0.12 0.14 0.18') => push(`BT ${fill} rg ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${top.toFixed(2)} Tm (${pdfText(value)}) Tj ET`)
+  const text = (value: string, x: number, top: number, size = 12, font = '/F1', fill = '0.12 0.14 0.18') => push(`BT ${fill} rg ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${top.toFixed(2)} Tm (${pdfText(value)}) Tj ET`)
   const rule = (x1: number, top: number, x2: number, fill = accent) => push(`${fill} RG 0.7 w ${x1} ${top.toFixed(2)} m ${x2} ${top.toFixed(2)} l S`)
   const fillRect = (x: number, bottom: number, width: number, height: number, fill: string) => push(`${fill} rg ${x} ${bottom} ${width} ${height} re f`)
   const wrapLines = (value: string, max: number) => wrap(value, max)
-  const nextPage = () => { pages.push([]); page += 1; y = 790; text(`CV · ${cv.fullName}`, 330, 815, 8, '/F2', '0.40 0.43 0.48'); rule(330, 802, 553, '0.82 0.84 0.87') }
+  const nextPage = () => { pages.push([]); page += 1; y = 790; text(`CV · ${cv.fullName}`, 330, 815, 12, '/F2', '0.40 0.43 0.48'); rule(330, 802, 553, '0.82 0.84 0.87') }
   const ensure = (height: number) => { if (y - height < 48) nextPage() }
-  const section = (title: string) => { ensure(34); y -= 12; text(title.toUpperCase(), 265, y, 9, '/F2', accent); y -= 6; rule(265, y, 553); y -= 15 }
-  const paragraph = (value: string, max = 75, size = 8.3, leading = 11) => { for (const lineText of wrapLines(value, max)) { ensure(leading); text(lineText, 265, y, size); y -= leading } }
+  const section = (title: string) => { ensure(34); y -= 12; text(title.toUpperCase(), 265, y, 14, '/F2', accent); y -= 6; rule(265, y, 553); y -= 15 }
+  const paragraph = (value: string, max = 75, size = 12, leading = 14) => { for (const lineText of wrapLines(value, max)) { ensure(leading); text(lineText, 265, y, size); y -= leading } }
 
   // Reproduction of the supplied one-page PDF: warm left sidebar, compact right content.
   fillRect(0, 0, 218, PAGE_HEIGHT, sidebar)
   fillRect(218, 0, 2, PAGE_HEIGHT, accent)
   const name = wrapLines(cv.fullName, 19).slice(0, 2)
-  name.forEach((lineText, index) => text(lineText, 36, 790 - index * 25, 19, '/F2', accent))
+  name.forEach((lineText, index) => text(lineText, 36, 790 - index * 25, 15, '/F2', accent))
   const titleY = 790 - (name.length - 1) * 25 - 23
-  text(cv.headline, 36, titleY, 9.5, '/F2')
+  text(cv.headline, 36, titleY, 12, '/F2')
   let leftY = titleY - 34
-  const leftSection = (title: string) => { leftY -= 14; text(title, 36, leftY, 8.5, '/F2', accent); leftY -= 7; rule(36, leftY, 190, accent); leftY -= 13 }
-  const leftLines = (value: string, max = 27, size = 7.6, leading = 10) => { for (const lineText of wrapLines(value, max)) { text(lineText, 36, leftY, size); leftY -= leading } }
+  const leftSection = (title: string) => { leftY -= 14; text(title, 36, leftY, 14, '/F2', accent); leftY -= 7; rule(36, leftY, 190, accent); leftY -= 13 }
+  const leftLines = (value: string, max = 27, size = 12, leading = 14) => { for (const lineText of wrapLines(value, max)) { text(lineText, 36, leftY, size); leftY -= leading } }
   leftSection('FORMATION')
-  for (const item of cv.education.slice(0, 4)) { leftLines([item.startDate, item.endDate].filter(Boolean).join(' – '), 28, 7.2, 9); leftLines(item.degree, 28, 8, 10); leftLines([item.institution, item.location].filter(Boolean).join(' · '), 28, 7.4, 10); leftY -= 6 }
+  for (const item of cv.education.slice(0, 4)) { leftLines([item.startDate, item.endDate].filter(Boolean).join(' – ')); leftLines(item.degree); leftLines([item.institution, item.location].filter(Boolean).join(' · ')); leftY -= 6 }
   leftSection('COMPÉTENCES')
-  for (const skill of cv.skills.slice(0, 9)) { leftLines(`• ${skill}`, 28, 7.5, 10) }
-  if (cv.languages.length) { leftSection('LANGUES'); for (const item of cv.languages.slice(0, 5)) { leftLines(item.language, 28, 7.7, 10); leftLines(item.level, 28, 7.1, 9); leftY -= 3 } }
-  if (cv.certifications.length) { leftSection('RÉFÉRENCES'); for (const item of cv.certifications.slice(0, 3)) { leftLines(item, 28, 7.4, 10); leftY -= 3 } }
+  for (const skill of cv.skills.slice(0, 9)) { leftLines(`• ${skill}`) }
+  if (cv.languages.length) { leftSection('LANGUES'); for (const item of cv.languages.slice(0, 5)) { leftLines(item.language); leftLines(item.level); leftY -= 3 } }
+  if (cv.certifications.length) { leftSection('RÉFÉRENCES'); for (const item of cv.certifications.slice(0, 3)) { leftLines(item); leftY -= 3 } }
 
   y = 790
   section('Profil')
@@ -185,17 +185,17 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
   section('Expérience professionnelle')
   for (const item of cv.experience) {
     ensure(48)
-    text(item.company.toUpperCase(), 265, y, 8.6, '/F2', accent)
-    if (item.location) text(item.location, 460, y, 7.4, '/F1', '0.35 0.39 0.45')
+    text(item.company.toUpperCase(), 265, y, 12, '/F2', accent)
+    if (item.location) text(item.location, 460, y, 12, '/F1', '0.35 0.39 0.45')
     y -= 12
-    text(item.role, 265, y, 8.7, '/F2')
-    text(`${item.startDate} – ${item.endDate || 'Présent'}`, 460, y, 7.3, '/F1', '0.35 0.39 0.45')
+    text(item.role, 265, y, 12, '/F2')
+    text(`${item.startDate} – ${item.endDate || 'Présent'}`, 460, y, 12, '/F1', '0.35 0.39 0.45')
     y -= 13
-    for (const lineText of wrapLines(item.description, 73)) { ensure(11); text(`• ${lineText}`, 265, y, 7.8); y -= 10 }
+    for (const lineText of wrapLines(item.description, 55)) { ensure(15); text(`• ${lineText}`, 265, y, 12); y -= 15 }
     y -= 6
   }
-  if (cv.website || cv.linkedin) { section('Contact en ligne'); paragraph([cv.website, cv.linkedin].filter(Boolean).join(' · '), 75, 8) }
-  pages.forEach((commands, index) => text(`${index + 1} / ${pages.length}`, 520, 25, 7.2, '/F1', '0.45 0.47 0.51'))
+  if (cv.website || cv.linkedin) { section('Contact en ligne'); paragraph([cv.website, cv.linkedin].filter(Boolean).join(' · '), 55) }
+  pages.forEach((commands, index) => text(`${index + 1} / ${pages.length}`, 520, 25, 12, '/F1', '0.45 0.47 0.51'))
 
   const regularId = 3 + 2 * pages.length
   const boldId = regularId + 1
