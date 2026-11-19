@@ -73,6 +73,18 @@ describe('TeraDoc CV draft lifecycle', () => {
     expect(screen.getByDisplayValue('Aline Mba')).toBeInTheDocument()
   })
 
+  it('keeps navigation controls as equal-width siblings for mobile and desktop layouts', () => {
+    vi.stubGlobal('fetch', vi.fn())
+    render(<TeraDocCenter initData="init-data" onClose={() => undefined} />)
+    const actions = document.querySelector('.teradoc-actions')
+    expect(actions).toBeInTheDocument()
+    const previous = screen.getByRole('button', { name: /étape précédente/i })
+    const next = screen.getByRole('button', { name: /étape suivante/i })
+    expect(previous.parentElement).toBe(actions)
+    expect(next.parentElement).toBe(actions)
+    expect(previous).toHaveClass('teradoc-previous')
+    expect(next).toHaveClass('primary-button')
+  })
   it('creates a new draft with POST when no document id exists', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ document: { id: 'cv-new' } }) })
     vi.stubGlobal('fetch', fetchMock)

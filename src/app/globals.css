@@ -490,8 +490,9 @@ button { cursor:pointer; }
 .teradoc-form-card input,.teradoc-form-card textarea { width:100%; padding:11px 12px; color:#fff; border:1px solid var(--line); border-radius:10px; outline:none; background:#0c0f15; font:inherit; font-size:13px; }
 .teradoc-form-card textarea { resize:vertical; }
 .teradoc-form-card input:focus,.teradoc-form-card textarea:focus { border-color:#f06a8b; box-shadow:0 0 0 3px rgba(240,106,139,.12); }
-.teradoc-actions { display:flex; align-items:center; gap:12px; margin-top:16px; }
-.teradoc-actions .primary-button { display:inline-flex; align-items:center; gap:8px; width:auto; }
+.teradoc-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:12px; margin-top:16px; }
+.teradoc-actions .primary-button,.teradoc-actions .teradoc-previous { display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; min-width:0; min-height:44px; margin:0; }
+.teradoc-actions .form-message { grid-column:1 / -1; margin:0; }
 .teradoc-download { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 14px; border-radius:11px; text-decoration:none; font-size:13px; }
 .teradoc-live-preview-head { flex-wrap:wrap; align-items:center; gap:9px 12px; }
 .teradoc-live-preview-head > span { font-weight:700; }
@@ -512,7 +513,7 @@ button { cursor:pointer; }
 .teradoc-section-title h3 { margin:0; font-size:15px; font-weight:600; }
 .teradoc-previous { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:0 14px; color:#dfe3eb; border:1px solid var(--line); border-radius:11px; background:transparent; font-size:13px; }
 .teradoc-previous:disabled { cursor:not-allowed; opacity:.45; }
-@media (max-width:640px) { .teradoc-live-preview-head { align-items:flex-start; }.teradoc-preview-download { width:100%; }.teradoc-preview-stage { padding:8px; }.teradoc-stepper { gap:4px; }.teradoc-stepper button { min-height:42px; padding:7px 5px; font-size:11px; }.teradoc-stepper button strong { display:none; }.teradoc-stepper button span { width:26px; height:26px; }.teradoc-template-grid { grid-template-columns:1fr; }.teradoc-template { display:grid; grid-template-columns:112px 1fr; }.teradoc-template-preview { min-height:100%; }.teradoc-form-grid { grid-template-columns:1fr; }.teradoc-actions { align-items:stretch; flex-direction:column; }.teradoc-actions .primary-button,.teradoc-actions .teradoc-previous { justify-content:center; width:100%; } }
+@media (max-width:640px) { .teradoc-live-preview-head { align-items:flex-start; }.teradoc-preview-download { width:100%; }.teradoc-preview-stage { padding:8px; }.teradoc-stepper { gap:4px; }.teradoc-stepper button { min-height:42px; padding:7px 5px; font-size:11px; }.teradoc-stepper button strong { display:none; }.teradoc-stepper button span { width:26px; height:26px; }.teradoc-template-grid { grid-template-columns:1fr; }.teradoc-template { display:grid; grid-template-columns:112px 1fr; }.teradoc-template-preview { min-height:100%; }.teradoc-form-grid { grid-template-columns:1fr; }.teradoc-actions .primary-button,.teradoc-actions .teradoc-previous { justify-content:center; } }
 .teradoc-workspace-actions { display:grid; gap:10px; margin-top:24px; }
 .teradoc-workspace-action { display:flex; align-items:center; gap:11px; width:100%; min-width:0; padding:13px 14px; color:#f7f8fa; border:1px solid var(--line); border-radius:16px; background:rgba(255,255,255,.035); text-align:left; }
 .teradoc-workspace-action > svg:first-child { flex:none; color:var(--pink-soft); }
