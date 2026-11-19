@@ -4,6 +4,7 @@ import React from 'react'
 import { ArrowLeft, ChevronRight, FileText } from 'lucide-react'
 import { TERADOC_DOCUMENT_TYPES, type TeraDocTemplateOption } from '../../modules/teradoc/document-catalog'
 import TeraDocCenter from './TeraDocCenter'
+import { NOTIFICATION_DISMISS_MS } from '../../lib/notification-constants'
 
 type Props = { initData: string; onClose: () => void }
 type View = 'catalog' | 'documents' | 'cv'
@@ -17,6 +18,7 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
   const [selectedDocumentId, setSelectedDocumentId] = React.useState<string>()
   const [documentsPage, setDocumentsPage] = React.useState(1)
   const [catalogPage, setCatalogPage] = React.useState(1)
+  React.useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), NOTIFICATION_DISMISS_MS); return () => window.clearTimeout(timer) }, [notice])
   const documentsPerPage = 4
   const catalogItemsPerPage = 4
 
@@ -74,6 +76,6 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
     </div>
     {catalogPageCount > 1 && <nav className="teradoc-pagination" aria-label="Pagination des modèles"><button type="button" aria-label="Page précédente" onClick={() => setCatalogPage(page => Math.max(1, page - 1))} disabled={catalogPage === 1}>Précédente</button><span aria-live="polite">Page {catalogPage} sur {catalogPageCount}</span><button type="button" aria-label="Page suivante" onClick={() => setCatalogPage(page => Math.min(catalogPageCount, page + 1))} disabled={catalogPage === catalogPageCount}>Suivante</button></nav>}
     </>}
-    {notice && <p className="teradoc-inline-notice" role="status">{notice}</p>}
+    {notice && <p className="teradoc-inline-notice notification-surface" role="status">{notice}</p>}
   </section>
 }
