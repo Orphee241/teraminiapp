@@ -7,7 +7,7 @@ import { pickPdfFile, savePdf } from '../../lib/document-download'
 import { TERADOC_TEMPLATES, type TeraDocTemplateId } from '../../modules/teradoc/templates'
 import { validateTeraDocForm, type TeraDocFormErrors } from '../../lib/teradoc-form-validation'
 
-type Props = { initData: string; onClose: () => void }
+type Props = { initData: string; onClose: () => void; documentId?: string }
 
 type CvDraft = {
   templateId: TeraDocTemplateId; fullName: string; headline: string; email: string; phone: string; location: string; summary: string
@@ -17,7 +17,8 @@ type CvDraft = {
 
 const emptyDraft: CvDraft = { templateId: 'essential', fullName: '', headline: '', email: '', phone: '', location: '', summary: '', experience: [{ role: '', company: '', startDate: '', description: '' }], education: [{ degree: '', institution: '' }], skills: [], languages: [], certifications: [] }
 
-export default function TeraDocCenter({ initData, onClose }: Props) {
+export default function TeraDocCenter({ initData, onClose, documentId: initialDocumentId }: Props) {
+  const [documentId, setDocumentId] = useState(initialDocumentId || '')
   const [draft, setDraft] = useState<CvDraft>(emptyDraft)
   const [skillsText, setSkillsText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -38,6 +39,20 @@ export default function TeraDocCenter({ initData, onClose }: Props) {
   const update = (key: keyof CvDraft, value: string) => { setDraft(previous => ({ ...previous, [key]: value })); clearError(key as keyof TeraDocFormErrors) }
   const updateExperience = (key: string, value: string) => { setDraft(previous => ({ ...previous, experience: [{ ...previous.experience[0], [key]: value }] })); clearError(key as keyof TeraDocFormErrors) }
   const updateEducation = (key: string, value: string) => { setDraft(previous => ({ ...previous, education: [{ ...previous.education[0], [key]: value }] })); clearError(key as keyof TeraDocFormErrors) }
+  useEffect(() => {
+    if (!initialDocumentId) return
+    const controller = new AbortController()
+    void fetch(`/api/teradoc/cv/${encodeURIComponent(initialDocumentId)}`, { headers: { 'x-telegram-init-data': initData }, cache: 'no-store', signal: controller.signal })
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Impossible de charger le CV.')))
+      .then(data => {
+        const value = data.document?.payload
+        if (!value) throw new Error('Impossible de charger le CV.')
+        setDraft({ ...emptyDraft, ...value, experience: value.experience?.length ? value.experience : emptyDraft.experience, education: value.education?.length ? value.education : emptyDraft.education })
+        setSkillsText(Array.isArray(value.skills) ? value.skills.join(', ') : '')
+      })
+      .catch(error => { if (!(error instanceof DOMException && error.name === 'AbortError')) setMessage(error instanceof Error ? error.message : 'Impossible de charger le CV.') })
+    return () => controller.abort()
+  }, [initialDocumentId, initData])
   useEffect(() => {
     const controller = new AbortController()
     let cancelled = false
@@ -75,9 +90,10 @@ export default function TeraDocCenter({ initData, onClose }: Props) {
     if (Object.keys(validation).length) { setMessage('Complétez les champs signalés avant d’enregistrer votre CV.'); window.setTimeout(() => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 0); return }
     setBusy(true); setMessage('')
     try {
-      const response = await fetch('/api/teradoc/cv', { method: 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) })
+      const response = await fetch(documentId ? `/api/teradoc/cv/${encodeURIComponent(documentId)}` : '/api/teradoc/cv', { method: documentId ? 'PUT' : 'POST', headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: JSON.stringify(payload) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(String(data.error || 'Impossible de sauvegarder le CV.'))
+      if (data.document?.id) setDocumentId(String(data.document.id))
       setMessage('Brouillon enregistré.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Impossible de sauvegarder le CV.') } finally { setBusy(false) }
   }
@@ -95,7 +111,7 @@ export default function TeraDocCenter({ initData, onClose }: Props) {
   }
   return <section className="teradoc-center" aria-label="TeraDoc">
     <button type="button" className="back-link" onClick={onClose}><ArrowLeft size={17} /> Retour aux services</button>
-    <div className="teradoc-heading"><div><p className="eyebrow accent">TERADOC</p><h2 className="section-title">Créer un CV</h2><p className="lead compact">Un CV propre, lisible et adapté à votre parcours.</p></div><span className="teradoc-mark"><FileText size={22} /></span></div>
+    <div className="teradoc-heading"><div><p className="eyebrow accent">TERADOC</p><h2 className="section-title">{documentId ? 'Modifier votre CV' : 'Créer un CV'}</h2><p className="lead compact">Un CV propre, lisible et adapté à votre parcours.</p></div><span className="teradoc-mark"><FileText size={22} /></span></div>
     <div className="teradoc-template-grid" aria-label="Choisir un modèle">{TERADOC_TEMPLATES.map(template => <button type="button" key={template.id} className={`teradoc-template ${draft.templateId === template.id ? 'is-selected' : ''}`} onClick={() => setDraft(previous => ({ ...previous, templateId: template.id }))}><span className="teradoc-template-preview" style={{ borderTopColor: template.accent }}><LayoutTemplate size={18} /><strong>{template.name}</strong><small>{template.columns === 1 ? 'Une colonne' : 'Deux colonnes'}</small></span><span className="teradoc-template-copy"><strong>{template.description}</strong><small>{template.atsLevel === 'high' ? 'Lecture ATS prioritaire' : 'Style créatif — vérifiez la compatibilité ATS'}</small>{draft.templateId === template.id && <Check size={16} aria-label="Sélectionné" />}</span></button>)}</div>
     <div className="teradoc-live-preview" aria-label="Prévisualisation du CV"><div className="teradoc-live-preview-head"><span>PRÉVISUALISATION A4</span><small>Le PDF affiché est exactement celui qui sera téléchargé.</small><button className="teradoc-preview-download" type="button" onClick={() => void downloadPdf()} disabled={!previewReady || downloadBusy} aria-label="Télécharger le CV"><Download size={16} />{downloadBusy ? 'Préparation…' : 'Télécharger le CV'}</button></div><div className="teradoc-preview-stage" aria-busy={previewStatus === 'loading'}>{previewReady && previewBytes ? <PdfViewer key={previewVersion} src={`teradoc-live:${previewVersion}`} title="Aperçu réel du CV au format A4" initData={initData} pdfData={previewBytes} hideDownload /> : <div className="teradoc-preview-placeholder" role="status">{previewStatus === 'loading' ? 'Génération de votre aperçu A4…' : previewStatus === 'error' ? previewMessage : 'Complétez les champs indispensables pour afficher votre CV au format A4.'}</div>}</div></div>
     <div className="teradoc-form-card"><div className="teradoc-section-title"><strong>Informations personnelles</strong><small>Les champs avec * sont indispensables.</small></div><div className="teradoc-form-grid"><label className={errors.fullName ? 'has-error' : ''}>Nom complet <span className="required-mark" aria-hidden="true">*</span><input required aria-invalid={Boolean(errors.fullName)} aria-describedby={errors.fullName ? 'teradoc-error-fullName' : undefined} value={draft.fullName} onChange={event => update('fullName', event.target.value)} placeholder="Ex. Aline Mba" />{errors.fullName && <small id="teradoc-error-fullName" className="teradoc-field-error">{errors.fullName}</small>}</label><label className={errors.headline ? 'has-error' : ''}>Titre professionnel <span className="required-mark" aria-hidden="true">*</span><input required aria-invalid={Boolean(errors.headline)} value={draft.headline} onChange={event => update('headline', event.target.value)} placeholder="Ex. Responsable administrative" />{errors.headline && <small className="teradoc-field-error">{errors.headline}</small>}</label><label className={errors.email ? 'has-error' : ''}>Email <span className="required-mark" aria-hidden="true">*</span><input required type="email" aria-invalid={Boolean(errors.email)} value={draft.email} onChange={event => update('email', event.target.value)} />{errors.email && <small className="teradoc-field-error">{errors.email}</small>}</label><label className={errors.phone ? 'has-error' : ''}>Téléphone <span className="required-mark" aria-hidden="true">*</span><input required aria-invalid={Boolean(errors.phone)} value={draft.phone} onChange={event => update('phone', event.target.value)} />{errors.phone && <small className="teradoc-field-error">{errors.phone}</small>}</label><label className={errors.location ? 'has-error' : ''}>Ville / pays <span className="required-mark" aria-hidden="true">*</span><input required aria-invalid={Boolean(errors.location)} value={draft.location} onChange={event => update('location', event.target.value)} />{errors.location && <small className="teradoc-field-error">{errors.location}</small>}</label></div><label className={errors.summary ? 'has-error' : ''}>Résumé professionnel <span className="required-mark" aria-hidden="true">*</span><textarea required aria-invalid={Boolean(errors.summary)} value={draft.summary} onChange={event => update('summary', event.target.value)} rows={4} placeholder="Présentez votre profil en quelques lignes." />{errors.summary && <small className="teradoc-field-error">{errors.summary}</small>}</label></div>
