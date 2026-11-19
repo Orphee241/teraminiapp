@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import TeraDocCenter from './TeraDocCenter'
 import { pickPdfFile, savePdf } from '../../lib/document-download'
 
-vi.mock('./PdfViewer', () => ({ default: ({ title, pdfData }: { title: string; pdfData?: Uint8Array }) => <div aria-label={title} data-testid="pdf-preview" data-byte-count={pdfData?.byteLength || 0} /> }))
+vi.mock('./PdfViewer', () => ({ default: ({ title, pdfData, hideDownload }: { title: string; pdfData?: Uint8Array; hideDownload?: boolean }) => <div aria-label={title} data-testid="pdf-preview" data-byte-count={pdfData?.byteLength || 0}>{!hideDownload && <button type="button" aria-label="Télécharger le document">Télécharger le document</button>}</div> }))
 vi.mock('../../lib/document-download', () => ({ pickPdfFile: vi.fn(async () => null), savePdf: vi.fn(async () => 'download') }))
 
 const pdfBytes = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52])
@@ -40,5 +40,24 @@ describe('TeraDoc A4 live preview and download', () => {
     fireEvent.click(readyDownload)
     await waitFor(() => expect(savePdf).toHaveBeenCalledTimes(1))
     expect(savePdf).toHaveBeenCalledWith(expect.any(ArrayBuffer), 'teradoc-cv.pdf', null)
+  })
+
+  it('places the download action below the Telegram mobile preview action', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(pdfBytes, { status: 200, headers: { 'content-type': 'application/pdf' } })))
+    render(<TeraDocCenter initData="telegram-init-data" onClose={vi.fn()} />)
+
+    const preview = screen.getByLabelText('Prévisualisation du CV')
+    const stage = preview.querySelector('.teradoc-preview-stage')
+    const download = screen.getByRole('button', { name: 'Télécharger le CV' })
+
+    const fill = (label: string, value: string) => fireEvent.change(screen.getByLabelText(new RegExp(label, 'i')), { target: { value } })
+    fireEvent.change(screen.getByPlaceholderText('Ex. Aline Mba'), { target: { value: 'Aline Mba' } })
+    fill('Titre professionnel', 'Responsable administrative'); fill('Email', 'aline@example.com'); fill('Téléphone', '+241 06000000'); fill('Ville / pays', 'Libreville'); fill('Résumé professionnel', 'Professionnelle expérimentée.')
+    fill('Poste', 'Responsable'); fill('Entreprise', 'Entreprise Test'); fill('Date de début', '2021-01'); fill('Description', 'Coordination des opérations.'); fill('Diplôme / formation', 'Licence'); fill('Établissement', 'Université Test'); fill('Compétences', 'Organisation, Excel')
+    await waitFor(() => expect(screen.getByTestId('pdf-preview')).toBeInTheDocument(), { timeout: 3000 })
+    const telegramDownload = screen.getByRole('button', { name: 'Télécharger le document' })
+    expect(stage).toBeInTheDocument()
+    expect(stage!.compareDocumentPosition(telegramDownload) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(telegramDownload.compareDocumentPosition(download) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
