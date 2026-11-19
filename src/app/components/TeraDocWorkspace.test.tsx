@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import TeraDocWorkspace from './TeraDocWorkspace'
 
@@ -70,5 +70,65 @@ describe('TeraDoc workspace catalogue', () => {
     expect(screen.getByRole('group', { name: /documents 5 à 5/i })).toBeInTheDocument()
     expect(screen.getByText('CV 5')).toBeInTheDocument()
     expect(screen.queryByText('CV 1')).not.toBeInTheDocument()
+  })
+
+  it('uses the existing spinner without exposing a loading sentence', async () => {
+    let resolveRequest!: (value: unknown) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => { resolveRequest = resolve })))
+    render(<TeraDocWorkspace initData="init-data" onClose={() => undefined} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Mes documents/i }))
+
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.getByRole('status').querySelector('.inline-spinner')).toBeInTheDocument()
+    expect(screen.queryByText(/Chargement de vos documents/i)).not.toBeInTheDocument()
+    resolveRequest({ ok: true, json: async () => ({ documents: [] }) })
+    await waitFor(() => expect(screen.getByText('Aucun CV enregistré.')).toBeInTheDocument())
+  })
+
+  it('caches documents for this mounted owner and shares one in-flight request', async () => {
+    let resolveRequest!: (value: unknown) => void
+    const fetchMock = vi.fn(() => new Promise(resolve => { resolveRequest = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<TeraDocWorkspace initData="owner-a" onClose={() => undefined} />)
+
+    const openArchive = screen.getByRole('button', { name: /Mes documents/i })
+    fireEvent.click(openArchive)
+    fireEvent.click(openArchive)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    resolveRequest({ ok: true, json: async () => ({ documents: [{ id: 'cv-1', title: 'CV cache', status: 'DRAFT', updated_at: '2026-01-01T00:00:00.000Z' }] }) })
+    expect(await screen.findByText('CV cache')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Mes documents/i }))
+
+    expect(screen.getByText('CV cache')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the cache owner-scoped when the mounted owner changes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ documents: [{ id: 'cv-owner', title: 'Owner document', status: 'DRAFT', updated_at: '2026-01-01T00:00:00.000Z' }] }) })
+    vi.stubGlobal('fetch', fetchMock)
+    const { rerender } = render(<TeraDocWorkspace initData="owner-a" onClose={() => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: /Mes documents/i }))
+    expect(await screen.findByText('Owner document')).toBeInTheDocument()
+
+    rerender(<TeraDocWorkspace initData="owner-b" onClose={() => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: /Mes documents/i }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('does not cache a failed archive request', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ documents: [] }) })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<TeraDocWorkspace initData="owner-a" onClose={() => undefined} />)
+    const openArchive = screen.getByRole('button', { name: /Mes documents/i })
+
+    fireEvent.click(openArchive)
+    await waitFor(() => expect(screen.getByText(/Impossible de charger vos CV/i)).toBeInTheDocument())
+    fireEvent.click(openArchive)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByText('Aucun CV enregistré.')).toBeInTheDocument())
   })
 })

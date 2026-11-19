@@ -9,6 +9,7 @@ import { NOTIFICATION_DISMISS_MS } from '../../lib/notification-constants'
 type Props = { initData: string; onClose: () => void }
 type View = 'catalog' | 'documents' | 'cv'
 type CvDocument = { id: string; title: string; status: string; updated_at: string }
+type DocumentCache = { documents: CvDocument[] }
 
 export default function TeraDocWorkspace({ initData, onClose }: Props) {
   const [view, setView] = React.useState<View>('catalog')
@@ -18,6 +19,8 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
   const [selectedDocumentId, setSelectedDocumentId] = React.useState<string>()
   const [documentsPage, setDocumentsPage] = React.useState(1)
   const [catalogPage, setCatalogPage] = React.useState(1)
+  const documentCache = React.useRef(new Map<string, DocumentCache>())
+  const documentRequests = React.useRef(new Map<string, Promise<CvDocument[]>>())
   React.useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), NOTIFICATION_DISMISS_MS); return () => window.clearTimeout(timer) }, [notice])
   const documentsPerPage = 4
   const catalogItemsPerPage = 4
@@ -27,16 +30,27 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
       setNotice('Ce modèle sera bientôt disponible dans TeraDoc.')
       return
     }
-    if (option.documentType === 'cv') setView('cv')
+    if (option.documentType === 'cv') { documentCache.current.delete(initData); setView('cv') }
   }
 
   const showDocuments = () => {
-    setView('documents'); setDocumentsBusy(true); setDocumentsPage(1)
-    void fetch('/api/teradoc/cv', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
+    setView('documents'); setDocumentsPage(1)
+    const cached = documentCache.current.get(initData)
+    if (cached) { setDocuments(cached.documents); setDocumentsBusy(false); return }
+    setDocumentsBusy(true)
+    const existingRequest = documentRequests.current.get(initData)
+    const request = existingRequest || fetch('/api/teradoc/cv', { headers: { 'x-telegram-init-data': initData }, cache: 'no-store' })
       .then(response => response.ok ? response.json() : Promise.reject(new Error('Impossible de charger vos CV.')))
-      .then(data => setDocuments(Array.isArray(data.documents) ? data.documents : []))
+      .then(data => {
+        const nextDocuments = Array.isArray(data.documents) ? data.documents as CvDocument[] : []
+        documentCache.current.set(initData, { documents: nextDocuments })
+        return nextDocuments
+      })
+    if (!existingRequest) documentRequests.current.set(initData, request)
+    void request
+      .then(nextDocuments => setDocuments(nextDocuments))
       .catch(error => setNotice(error instanceof Error ? error.message : 'Impossible de charger vos CV.'))
-      .finally(() => setDocumentsBusy(false))
+      .finally(() => { if (documentRequests.current.get(initData) === request) documentRequests.current.delete(initData); setDocumentsBusy(false) })
   }
 
   if (view === 'cv') return <TeraDocCenter initData={initData} documentId={selectedDocumentId} onClose={() => setView('catalog')} />
@@ -58,9 +72,9 @@ export default function TeraDocWorkspace({ initData, onClose }: Props) {
       <button type="button" className={`teradoc-workspace-action ${view === 'documents' ? 'is-active' : ''}`} onClick={showDocuments}><FileText size={18} /><span><strong>Mes documents</strong><small>Vos brouillons et versions enregistrées</small></span><ChevronRight size={17} /></button>
     </div>
     {view === 'documents' ? <div className="teradoc-document-archive" aria-label="Mes documents">
-      {documentsBusy ? <p role="status">Chargement de vos documents…</p> : documents.length === 0 ? <p role="status">Aucun CV enregistré.</p> : <>
+      {documentsBusy ? <p role="status"><span className="inline-spinner" aria-hidden="true" /></p> : documents.length === 0 ? <p role="status">Aucun CV enregistré.</p> : <>
         <div className="teradoc-document-group" role="group" aria-label={`Documents ${pageStart + 1} à ${Math.min(pageStart + documentsPerPage, documents.length)}`}>
-          {pageDocuments.map(document => <button type="button" key={document.id} className="teradoc-document-row" onClick={() => { setSelectedDocumentId(document.id); setView('cv') }}>
+          {pageDocuments.map(document => <button type="button" key={document.id} className="teradoc-document-row" onClick={() => { documentCache.current.delete(initData); setSelectedDocumentId(document.id); setView('cv') }}>
             <span className="teradoc-document-icon"><FileText size={19} /></span><span className="teradoc-document-copy"><strong>{document.title || 'CV sans nom'}</strong><small>{document.status === 'GENERATED' ? 'Généré' : 'Brouillon'} · {new Date(document.updated_at).toLocaleDateString('fr-FR')}</small></span><ChevronRight size={19} />
           </button>)}
         </div>
