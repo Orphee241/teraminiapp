@@ -148,7 +148,7 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src, dow
       <canvas ref={canvasRef} />
     </div>
     {mobileAction && <div className="pdf-mobile-action">{mobileAction}</div>}
-    <div className="pdf-actions">
+    <div className={`pdf-actions${expanded ? ' pdf-actions-expanded' : ''}`}>
       {!hideDownload && <button className="pdf-download" type="button" onClick={() => void downloadPdf()} disabled={downloadDisabled || downloading || state === 'loading'} aria-label={downloadDisabled ? 'Téléchargement désactivé pour ce document annulé' : downloading ? 'Téléchargement en cours' : 'Télécharger le document'} title={downloadDisabled ? 'Document annulé' : downloading ? 'Téléchargement…' : 'Télécharger'}>
         <Download size={18} />
       </button>}

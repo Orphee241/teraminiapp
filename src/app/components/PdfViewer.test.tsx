@@ -162,6 +162,29 @@ describe('PdfViewer responsive preview', () => {
     expect(shell?.querySelector('.pdf-actions')).toContainElement(fullscreen)
   })
 
+  it('keeps the exit control in an always-visible fixed action bar while expanded on every viewport', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 360 })
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8')
+
+    render(<PdfViewer src="teradoc-live:expanded-exit" title="CV expanded" initData="telegram-init-data" pdfData={new Uint8Array([37, 80, 68, 70])} mobileAction={<button type="button">Télécharger le CV</button>} />)
+    await waitFor(() => expect(screen.getByLabelText('CV expanded')).toHaveAttribute('aria-busy', 'false'))
+    fireEvent.click(screen.getByRole('button', { name: /plein écran/i }))
+
+    const exit = screen.getByRole('button', { name: 'Réduire l’aperçu' })
+    expect(exit).toBeVisible()
+    expect(exit.closest('.pdf-actions')).toHaveClass('pdf-actions-expanded')
+    expect(screen.getByRole('button', { name: 'Télécharger le CV' })).toBeInTheDocument()
+    expect(css).toMatch(/\.pdf-actions-expanded\s*\{[^}]*position:\s*fixed[^}]*inset/)
+    expect(css).not.toMatch(/\.pdf-viewer-shell-expanded\s+\.pdf-actions\s*\{[^}]*position:\s*static/)
+
+    fireEvent.click(exit)
+    expect(screen.getByRole('button', { name: /plein écran/i })).toBeVisible()
+  })
+
   it('defines the mobile action stack without changing desktop control positioning', async () => {
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
