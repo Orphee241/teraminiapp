@@ -167,6 +167,7 @@ button { cursor:pointer; }
 .action-sheet button { display:flex; align-items:center; gap:9px; padding:11px 8px; color:#f7f8fa; border:0; border-radius:9px; background:transparent; text-align:left; font:inherit; }
 .action-sheet button:hover { background:rgba(255,255,255,.07); }
 .action-sheet .danger-action { color:#ff8fa8; }
+.pdf-viewer-shell { position: relative; width: 100%; }
 .pdf-viewer { position: relative; display: flex; justify-content: center; width: 100%; min-height: 320px; max-height: min(65dvh, 720px); margin: 18px 0; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .pdf-toolbar { position: absolute; top: 8px; left: 50%; z-index: 3; display: flex; align-items: center; gap: 8px; transform: translateX(-50%); padding: 4px 6px; color: #252832; border: 1px solid rgba(0,0,0,.14); border-radius: 9px; background: rgba(255,255,255,.94); box-shadow: 0 4px 14px rgba(0,0,0,.14); font-size: 12px; white-space: nowrap; }
 .pdf-toolbar button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; color: #252832; border: 0; border-radius: 6px; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; }
@@ -175,10 +176,12 @@ button { cursor:pointer; }
 .pdf-viewer canvas { display: block; max-width: none; align-self: flex-start; image-rendering: auto; }
 .pdf-viewer-expanded { position: fixed; top: calc(12px + var(--telegram-top-inset)); right: 12px; bottom: 12px; left: 12px; z-index: 100; width: auto; max-height: none; min-height: 0; margin: 0; padding: 44px 12px 12px; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,.65); }
 .pdf-viewer-expanded canvas { max-width: none; }
-.pdf-download { position: absolute; top: 10px; right: 54px; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9d9d9; border-radius: 9px; color: #222; background: rgba(255,255,255,.94); cursor: pointer; }
+.pdf-actions { position: absolute; top: 28px; right: 10px; z-index: 4; display: flex; gap: 8px; }
+.pdf-viewer-shell-expanded .pdf-actions { position: fixed; top: calc(22px + var(--telegram-top-inset)); right: 22px; z-index: 101; }
+.pdf-download { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9d9d9; border-radius: 9px; color: #222; background: rgba(255,255,255,.94); cursor: pointer; }
 .pdf-download:hover:not(:disabled), .pdf-fullscreen:hover { background: #fff; }
 .pdf-download:disabled { cursor: wait; opacity: .55; }
-.pdf-fullscreen { position: absolute; top: 10px; right: 10px; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9d9d9; border-radius: 9px; color: #222; background: rgba(255,255,255,.94); cursor: pointer; }
+.pdf-fullscreen { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9d9d9; border-radius: 9px; color: #222; background: rgba(255,255,255,.94); cursor: pointer; }
 .pdf-status { color: #333; }
 .pdf-loading { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; gap: 10px; align-content: center; color: #333; background: rgba(255,255,255,.82); }
 .pdf-spinner { width: 34px; height: 34px; border: 3px solid rgba(212,46,91,.22); border-top-color: #d42e5b; border-radius: 50%; animation: pdf-spin .75s linear infinite; }
@@ -191,7 +194,11 @@ button { cursor:pointer; }
   .detail-backdrop { align-items: stretch; padding: calc(8px + var(--telegram-top-inset)) 8px 8px; }
   .detail-sheet { width: 100%; max-height: calc(100dvh - var(--telegram-top-inset) - 16px); padding: 24px 12px 12px; border-radius: 16px; }
   .pdf-viewer { min-height: min(62dvh, 520px); max-height: min(72dvh, 620px); margin: 12px 0; }
-  .pdf-fullscreen { top: 8px; right: 8px; width: 34px; height: 34px; }
+  .pdf-mobile-action { width: 100%; }
+  .pdf-mobile-action > button { width: 100%; }
+  .pdf-actions { position: static; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .pdf-viewer-shell-expanded .pdf-actions { position: static; }
+  .pdf-fullscreen,.pdf-download { width: 42px; height: 42px; }
 }
 @media (min-width: 900px) {
   .detail-sheet { width: min(86vw, 920px); }

@@ -143,6 +143,35 @@ describe('PdfViewer responsive preview', () => {
     delete (window as Window & { Telegram?: unknown }).Telegram
   })
 
+  it('places the Telegram mobile action before the viewer controls', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 640 })
+
+    render(<PdfViewer src="teradoc-live:mobile-actions" title="CV mobile actions" initData="telegram-init-data" pdfData={new Uint8Array([37, 80, 68, 70])} mobileAction={<button type="button">Télécharger le CV</button>} />)
+    const viewer = screen.getByLabelText('CV mobile actions')
+    await waitFor(() => expect(viewer).toHaveAttribute('aria-busy', 'false'))
+
+    const shell = viewer.parentElement
+    expect(shell).toHaveClass('pdf-viewer-shell')
+    const telegramAction = screen.getByRole('button', { name: 'Télécharger le CV' })
+    const fullscreen = screen.getByRole('button', { name: /plein écran/i })
+    expect(viewer.compareDocumentPosition(telegramAction) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(telegramAction.compareDocumentPosition(fullscreen) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(shell?.querySelector('.pdf-mobile-action')).toContainElement(telegramAction)
+    expect(shell?.querySelector('.pdf-actions')).toContainElement(fullscreen)
+  })
+
+  it('defines the mobile action stack without changing desktop control positioning', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8')
+    expect(css).toMatch(/\.pdf-viewer-shell\s*\{[^}]*position:\s*relative/)
+    expect(css).toMatch(/\.pdf-actions\s*\{[^}]*position:\s*absolute/)
+    expect(css).toMatch(/@media\s*\(max-width:\s*620px\)[^{]*\{[\s\S]*?\.pdf-actions\s*\{[^}]*position:\s*static/)
+    expect(css).toMatch(/@media\s*\(max-width:\s*620px\)[\s\S]*?\.pdf-mobile-action\s*\{[\s\S]*?\.pdf-actions\s*\{/)
+  })
+
   it('renders the supplied server preview bytes directly and can hide the internal downloader', async () => {
     vi.stubGlobal('fetch', fetchMock)
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)

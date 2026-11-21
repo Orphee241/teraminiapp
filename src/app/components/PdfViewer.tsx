@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Download, Maximize2, Minimize2 } from 'lucide-react'
 import { pickPdfFile, savePdf } from '../../lib/document-download'
 import type { TelegramWindow } from '../../lib/telegram-window'
@@ -9,7 +9,7 @@ let workerConfigured = false
 const pdfPromiseCache = new Map<string, Promise<any>>()
 const PDF_CACHE_LIMIT = 8
 
-export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false, watermarkText, pdfData, hideDownload = false }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean; watermarkText?: string; pdfData?: Uint8Array; hideDownload?: boolean }) {
+export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false, watermarkText, pdfData, hideDownload = false, mobileAction }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean; watermarkText?: string; pdfData?: Uint8Array; hideDownload?: boolean; mobileAction?: ReactNode }) {
   const viewerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -134,22 +134,27 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src, dow
     setPage(Math.max(1, Math.min(pageCount, nextPage)))
   }
 
-  return <div ref={viewerRef} className={`pdf-viewer${expanded ? ' pdf-viewer-expanded' : ''}`} aria-label={title} aria-busy={state === 'loading'}>
-    <div className="pdf-toolbar" role="navigation" aria-label="Navigation des pages PDF">
-      <button type="button" onClick={() => goToPage(page - 1)} disabled={page <= 1 || state === 'loading'} aria-label="Page précédente">‹</button>
-      <span aria-live="polite">Page {page} / {pageCount}</span>
-      <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= pageCount || state === 'loading'} aria-label="Page suivante">›</button>
+  return <div className={`pdf-viewer-shell${expanded ? ' pdf-viewer-shell-expanded' : ''}`}>
+    <div ref={viewerRef} className={`pdf-viewer${expanded ? ' pdf-viewer-expanded' : ''}`} aria-label={title} aria-busy={state === 'loading'}>
+      <div className="pdf-toolbar" role="navigation" aria-label="Navigation des pages PDF">
+        <button type="button" onClick={() => goToPage(page - 1)} disabled={page <= 1 || state === 'loading'} aria-label="Page précédente">‹</button>
+        <span aria-live="polite">Page {page} / {pageCount}</span>
+        <button type="button" onClick={() => goToPage(page + 1)} disabled={page >= pageCount || state === 'loading'} aria-label="Page suivante">›</button>
+      </div>
+      {watermarkText && <span className="cancelled-watermark pdf-cancelled-watermark" aria-label="Document annulé">{watermarkText}</span>}
+      {state === 'loading' && <div className="pdf-loading" role="status" aria-live="polite"><span className="pdf-spinner" aria-hidden="true" /><span className="pdf-loading-label">Chargement de l’aperçu…</span></div>}
+      {state === 'error' && <p className="pdf-status pdf-error">{error}</p>}
+      {downloadError && <p className="pdf-status pdf-error" role="status">{downloadError}</p>}
+      <canvas ref={canvasRef} />
     </div>
-    {!hideDownload && <button className="pdf-download" type="button" onClick={() => void downloadPdf()} disabled={downloadDisabled || downloading || state === 'loading'} aria-label={downloadDisabled ? 'Téléchargement désactivé pour ce document annulé' : downloading ? 'Téléchargement en cours' : 'Télécharger le document'} title={downloadDisabled ? 'Document annulé' : downloading ? 'Téléchargement…' : 'Télécharger'}>
-      <Download size={18} />
-    </button>}
-    <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher le PDF en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
-      {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-    </button>
-    {watermarkText && <span className="cancelled-watermark pdf-cancelled-watermark" aria-label="Document annulé">{watermarkText}</span>}
-    {state === 'loading' && <div className="pdf-loading" role="status" aria-live="polite"><span className="pdf-spinner" aria-hidden="true" /><span className="pdf-loading-label">Chargement de l’aperçu…</span></div>}
-    {state === 'error' && <p className="pdf-status pdf-error">{error}</p>}
-    {downloadError && <p className="pdf-status pdf-error" role="status">{downloadError}</p>}
-    <canvas ref={canvasRef} />
+    {mobileAction && <div className="pdf-mobile-action">{mobileAction}</div>}
+    <div className="pdf-actions">
+      {!hideDownload && <button className="pdf-download" type="button" onClick={() => void downloadPdf()} disabled={downloadDisabled || downloading || state === 'loading'} aria-label={downloadDisabled ? 'Téléchargement désactivé pour ce document annulé' : downloading ? 'Téléchargement en cours' : 'Télécharger le document'} title={downloadDisabled ? 'Document annulé' : downloading ? 'Téléchargement…' : 'Télécharger'}>
+        <Download size={18} />
+      </button>}
+      <button className="pdf-fullscreen" type="button" onClick={() => setExpanded(value => !value)} aria-label={expanded ? 'Réduire l’aperçu' : 'Afficher le PDF en plein écran'} title={expanded ? 'Réduire' : 'Plein écran'}>
+        {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+      </button>
+    </div>
   </div>
 }

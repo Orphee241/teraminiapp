@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import TeraDocCenter from './TeraDocCenter'
 import { pickPdfFile, savePdf } from '../../lib/document-download'
 
-vi.mock('./PdfViewer', () => ({ default: ({ title, pdfData, hideDownload }: { title: string; pdfData?: Uint8Array; hideDownload?: boolean }) => <div aria-label={title} data-testid="pdf-preview" data-byte-count={pdfData?.byteLength || 0}>{!hideDownload && <button type="button" aria-label="Télécharger le document">Télécharger le document</button>}</div> }))
+vi.mock('./PdfViewer', () => ({ default: ({ title, pdfData, hideDownload, mobileAction }: { title: string; pdfData?: Uint8Array; hideDownload?: boolean; mobileAction?: React.ReactNode }) => <div aria-label={title} data-testid="pdf-preview" data-byte-count={pdfData?.byteLength || 0}>{mobileAction}{!hideDownload && <button type="button" aria-label="Télécharger le document">Télécharger le document</button>}</div> }))
 vi.mock('../../lib/document-download', () => ({ pickPdfFile: vi.fn(async () => null), savePdf: vi.fn(async () => 'download') }))
 
 const pdfBytes = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52])
@@ -57,7 +57,7 @@ describe('TeraDoc A4 live preview and download', () => {
     await waitFor(() => expect(screen.getByTestId('pdf-preview')).toBeInTheDocument(), { timeout: 3000 })
     const telegramDownload = screen.getByRole('button', { name: 'Télécharger le document' })
     expect(stage).toBeInTheDocument()
-    expect(stage!.compareDocumentPosition(telegramDownload) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(telegramDownload.compareDocumentPosition(download) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(stage!.compareDocumentPosition(download) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(download.compareDocumentPosition(telegramDownload) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
