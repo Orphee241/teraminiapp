@@ -180,6 +180,8 @@ describe('PdfViewer responsive preview', () => {
     expect(screen.getByRole('button', { name: 'Télécharger le CV' })).toBeInTheDocument()
     expect(css).toMatch(/\.pdf-actions-expanded\s*\{[^}]*position:\s*fixed[^}]*inset/)
     expect(css).not.toMatch(/\.pdf-viewer-shell-expanded\s+\.pdf-actions\s*\{[^}]*position:\s*static/)
+    expect(css).toMatch(/\.pdf-actions-expanded\s*\{[^}]*position:\s*fixed[^}]*z-index:\s*110/)
+    expect(css).toMatch(/\.pdf-actions:not\(\.pdf-actions-expanded\)\s*\{[^}]*position:\s*static/)
 
     fireEvent.click(exit)
     expect(screen.getByRole('button', { name: /plein écran/i })).toBeVisible()
@@ -191,8 +193,8 @@ describe('PdfViewer responsive preview', () => {
     const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8')
     expect(css).toMatch(/\.pdf-viewer-shell\s*\{[^}]*position:\s*relative/)
     expect(css).toMatch(/\.pdf-actions\s*\{[^}]*position:\s*absolute/)
-    expect(css).toMatch(/@media\s*\(max-width:\s*620px\)[^{]*\{[\s\S]*?\.pdf-actions\s*\{[^}]*position:\s*static/)
-    expect(css).toMatch(/@media\s*\(max-width:\s*620px\)[\s\S]*?\.pdf-mobile-action\s*\{[\s\S]*?\.pdf-actions\s*\{/)
+    expect(css).toMatch(/@media\s*\(max-width:\s*620px\)[^{]*\{[\s\S]*?\.pdf-actions(?::not\(\.pdf-actions-expanded\))?\s*\{[^}]*position:\s*static/)
+    expect(css).toMatch(/@media\s*\(max-width:\s*620px\)[\s\S]*?\.pdf-mobile-action\s*\{[\s\S]*?\.pdf-actions(?::not\(\.pdf-actions-expanded\))?\s*\{/)
   })
 
   it('renders the supplied server preview bytes directly and can hide the internal downloader', async () => {

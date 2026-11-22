@@ -177,7 +177,7 @@ button { cursor:pointer; }
 .pdf-viewer-expanded { position: fixed; top: calc(12px + var(--telegram-top-inset)); right: 12px; bottom: 12px; left: 12px; z-index: 100; width: auto; max-height: none; min-height: 0; margin: 0; padding: 44px 12px 12px; border-radius: 16px; box-shadow: 0 24px 80px rgba(0,0,0,.65); }
 .pdf-viewer-expanded canvas { max-width: none; }
 .pdf-actions { position: absolute; top: 28px; right: 10px; z-index: 4; display: flex; gap: 8px; }
-.pdf-actions-expanded { position: fixed; inset: calc(22px + var(--telegram-top-inset)) 22px auto auto; z-index: 101; padding: 4px; border: 1px solid rgba(0,0,0,.14); border-radius: 11px; background: rgba(255,255,255,.96); box-shadow: 0 4px 18px rgba(0,0,0,.22); }
+.pdf-actions-expanded { position: fixed; inset: calc(22px + var(--telegram-top-inset)) 22px auto auto; z-index: 110; padding: 4px; border: 1px solid rgba(0,0,0,.14); border-radius: 11px; background: rgba(255,255,255,.98); box-shadow: 0 4px 18px rgba(0,0,0,.22); }
 .pdf-download { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #d9d9d9; border-radius: 9px; color: #222; background: rgba(255,255,255,.94); cursor: pointer; }
 .pdf-download:hover:not(:disabled), .pdf-fullscreen:hover { background: #fff; }
 .pdf-download:disabled { cursor: wait; opacity: .55; }
@@ -196,7 +196,7 @@ button { cursor:pointer; }
   .pdf-viewer { min-height: min(62dvh, 520px); max-height: min(72dvh, 620px); margin: 12px 0; }
   .pdf-mobile-action { width: 100%; }
   .pdf-mobile-action > button { width: 100%; }
-  .pdf-actions { position: static; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .pdf-actions:not(.pdf-actions-expanded) { position: static; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 
   .pdf-fullscreen,.pdf-download { width: 42px; height: 42px; }
 }
