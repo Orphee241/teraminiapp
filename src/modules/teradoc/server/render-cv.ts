@@ -39,6 +39,25 @@ function wrap(value: string, maxChars: number) {
   return lines
 }
 
+function wrapToWidth(value: string, width: number, size: number) {
+  const maxChars = Math.max(1, Math.floor(width / (size * 0.62)))
+  const lines: string[] = []
+  for (const sourceLine of wrap(value, maxChars)) {
+    let line = ''
+    for (const word of sourceLine.split(' ')) {
+      if (!word) continue
+      if (word.length > maxChars) {
+        if (line) { lines.push(line); line = '' }
+        for (let index = 0; index < word.length; index += maxChars) lines.push(word.slice(index, index + maxChars))
+      } else if (!line) line = word
+      else if (`${line} ${word}`.length <= maxChars) line += ` ${word}`
+      else { lines.push(line); line = word }
+    }
+    if (line) lines.push(line)
+  }
+  return lines
+}
+
 function rgb(hex: string) { const value = hex.replace('#', ''); return [0, 2, 4].map(index => (parseInt(value.slice(index, index + 2), 16) / 255).toFixed(3)).join(' ') }
 
 export function renderCvPdf(cv: TeraDocCv): Buffer {
@@ -156,22 +175,27 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
   const text = (value: string, x: number, top: number, size = 12, font = '/F1', fill = '0.12 0.14 0.18') => push(`BT ${fill} rg ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${top.toFixed(2)} Tm (${pdfText(value)}) Tj ET`)
   const rule = (x1: number, top: number, x2: number, fill = accent) => push(`${fill} RG 0.7 w ${x1} ${top.toFixed(2)} m ${x2} ${top.toFixed(2)} l S`)
   const fillRect = (x: number, bottom: number, width: number, height: number, fill: string) => push(`${fill} rg ${x} ${bottom} ${width} ${height} re f`)
-  const wrapLines = (value: string, max: number) => wrap(value, max)
-  const nextPage = () => { pages.push([]); page += 1; y = 790; text(`CV · ${cv.fullName}`, 330, 815, 12, '/F2', '0.40 0.43 0.48'); rule(330, 802, 553, '0.82 0.84 0.87') }
+  const RIGHT_LEFT = 265
+  const RIGHT_EDGE = 553
+  const RIGHT_WIDTH = RIGHT_EDGE - RIGHT_LEFT
+  const SIDEBAR_WIDTH = 154
+  const wrapLines = (value: string, width: number, size: number) => wrapToWidth(value, width, size)
+  const nextPage = () => { pages.push([]); page += 1; y = 790; wrapToWidth(`CV · ${cv.fullName}`, 223, 12).slice(0, 2).forEach((lineText, index) => text(lineText, 330, 815 - index * 14, 12, '/F2', '0.40 0.43 0.48')); rule(330, 802, RIGHT_EDGE, '0.82 0.84 0.87') }
   const ensure = (height: number) => { if (y - height < 48) nextPage() }
-  const section = (title: string) => { ensure(34); y -= 12; text(title.toUpperCase(), 265, y, 14, '/F2', accent); y -= 6; rule(265, y, 553); y -= 15 }
-  const paragraph = (value: string, max = 75, size = 12, leading = 14) => { for (const lineText of wrapLines(value, max)) { ensure(leading); text(lineText, 265, y, size); y -= leading } }
+  const section = (title: string) => { ensure(34); y -= 12; text(title.toUpperCase(), RIGHT_LEFT, y, 14, '/F2', accent); y -= 6; rule(RIGHT_LEFT, y, RIGHT_EDGE); y -= 15 }
+  const paragraph = (value: string, width = RIGHT_WIDTH, size = 12, leading = 14) => { for (const lineText of wrapLines(value, width, size)) { ensure(leading); text(lineText, RIGHT_LEFT, y, size); y -= leading } }
 
   // Reproduction of the supplied one-page PDF: warm left sidebar, compact right content.
   fillRect(0, 0, 218, PAGE_HEIGHT, sidebar)
   fillRect(218, 0, 2, PAGE_HEIGHT, accent)
-  const name = wrapLines(cv.fullName, 19).slice(0, 2)
+  const name = wrapLines(cv.fullName, SIDEBAR_WIDTH, 15).slice(0, 3)
   name.forEach((lineText, index) => text(lineText, 36, 790 - index * 25, 15, '/F2', accent))
   const titleY = 790 - (name.length - 1) * 25 - 23
-  text(cv.headline, 36, titleY, 12, '/F2')
-  let leftY = titleY - 34
+  const headlineLines = wrapLines(cv.headline, SIDEBAR_WIDTH, 12).slice(0, 4)
+  headlineLines.forEach((lineText, index) => text(lineText, 36, titleY - index * 14, 12, '/F2'))
+  let leftY = titleY - 34 - Math.max(0, headlineLines.length - 1) * 14
   const leftSection = (title: string) => { leftY -= 14; text(title, 36, leftY, 14, '/F2', accent); leftY -= 7; rule(36, leftY, 190, accent); leftY -= 13 }
-  const leftLines = (value: string, max = 27, size = 12, leading = 14) => { for (const lineText of wrapLines(value, max)) { text(lineText, 36, leftY, size); leftY -= leading } }
+  const leftLines = (value: string, size = 12, leading = 14) => { for (const lineText of wrapLines(value, SIDEBAR_WIDTH, size)) { if (leftY > 48) { text(lineText, 36, leftY, size); leftY -= leading } } }
   leftSection('FORMATION')
   for (const item of cv.education.slice(0, 4)) { leftLines([item.startDate, item.endDate].filter(Boolean).join(' – ')); leftLines(item.degree); leftLines([item.institution, item.location].filter(Boolean).join(' · ')); leftY -= 6 }
   leftSection('COMPÉTENCES')
@@ -185,16 +209,14 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
   section('Expérience professionnelle')
   for (const item of cv.experience) {
     ensure(48)
-    text(item.company.toUpperCase(), 265, y, 12, '/F2', accent)
-    if (item.location) text(item.location, 460, y, 12, '/F1', '0.35 0.39 0.45')
-    y -= 12
-    text(item.role, 265, y, 12, '/F2')
-    text(`${item.startDate} – ${item.endDate || 'Présent'}`, 460, y, 12, '/F1', '0.35 0.39 0.45')
-    y -= 13
-    for (const lineText of wrapLines(item.description, 55)) { ensure(15); text(`• ${lineText}`, 265, y, 12); y -= 15 }
+    for (const lineText of wrapLines(item.company.toUpperCase(), RIGHT_WIDTH, 12)) { ensure(15); text(lineText, RIGHT_LEFT, y, 12, '/F2', accent); y -= 15 }
+    if (item.location) for (const lineText of wrapLines(item.location, RIGHT_WIDTH, 12)) { ensure(15); text(lineText, RIGHT_LEFT, y, 12, '/F1', '0.35 0.39 0.45'); y -= 15 }
+    for (const lineText of wrapLines(item.role, RIGHT_WIDTH, 12)) { ensure(15); text(lineText, RIGHT_LEFT, y, 12, '/F2'); y -= 15 }
+    for (const lineText of wrapLines(`${item.startDate} – ${item.endDate || 'Présent'}`, RIGHT_WIDTH, 12)) { ensure(15); text(lineText, RIGHT_LEFT, y, 12, '/F1', '0.35 0.39 0.45'); y -= 15 }
+    for (const lineText of wrapLines(item.description, RIGHT_WIDTH, 12)) { ensure(15); text(`• ${lineText}`, RIGHT_LEFT, y, 12); y -= 15 }
     y -= 6
   }
-  if (cv.website || cv.linkedin) { section('Contact en ligne'); paragraph([cv.website, cv.linkedin].filter(Boolean).join(' · '), 55) }
+  if (cv.website || cv.linkedin) { section('Contact en ligne'); paragraph([cv.website, cv.linkedin].filter(Boolean).join(' · ')) }
   pages.forEach((commands, index) => text(`${index + 1} / ${pages.length}`, 520, 25, 12, '/F1', '0.45 0.47 0.51'))
 
   const regularId = 3 + 2 * pages.length

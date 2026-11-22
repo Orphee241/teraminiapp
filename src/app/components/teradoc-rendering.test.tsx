@@ -18,7 +18,8 @@ describe('TeraDoc CV PDF renderer', () => {
     expect(pdf).toContain('BT')
     expect(pdf).toContain('ET')
     expect(pdf).toContain('Aline Mba')
-    expect(pdf).toContain('Responsable administrative')
+    expect(pdf).toContain('Responsable')
+    expect(pdf).toContain('administrative')
     expect(pdf).toContain('op\\351rations')
   })
 
@@ -64,5 +65,38 @@ describe('TeraDoc CV PDF renderer', () => {
     const pdf = renderCvPdf(longCv).toString('latin1')
     expect(Number(pdf.match(/\/Count (\d+)/)?.[1])).toBeGreaterThan(1)
     expect(pdf).toContain('Poste 12')
+  })
+
+  it('keeps long French fields inside the A4 printable area on every page', async () => {
+    const longCv: TeraDocCv = {
+      ...cv,
+      fullName: 'Alexandrine Marie-Claire Nguema Ondo Essono',
+      headline: 'Directrice générale chargée des opérations internationales et de la transformation numérique',
+      email: 'alexandrine.marie-claire.nguema.ondo.essono@example.com',
+      location: 'Libreville, Estuaire, République gabonaise',
+      summary: 'Expérience confirmée en pilotage stratégique et accompagnement d’équipes pluridisciplinaires. '.repeat(8),
+      education: [{ degree: 'Master spécialisé en management des organisations et stratégie internationale', institution: 'Université internationale des sciences administratives de Libreville', location: 'Libreville, République gabonaise', startDate: '2014-01', endDate: '2016-12', description: 'Formation approfondie.' }],
+      experience: Array.from({ length: 4 }, (_, index) => ({
+        role: `Responsable principale des opérations et de la coordination régionale ${index + 1}`,
+        company: 'Entreprise internationale de conseil et de transformation numérique',
+        location: 'Libreville, Estuaire, République gabonaise', startDate: '2010-01', endDate: '2013-12',
+        description: 'Coordination de projets complexes, amélioration continue des processus et accompagnement des collaborateurs. '.repeat(10),
+      })),
+      skills: ['Gestion de projets internationaux', 'Communication institutionnelle', 'Transformation numérique', 'Analyse stratégique'],
+    }
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+    const document = await pdfjs.getDocument({ data: new Uint8Array(renderCvPdf(longCv)), useSystemFonts: true }).promise
+    expect(document.numPages).toBeGreaterThan(1)
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      const content = await (await document.getPage(pageNumber)).getTextContent()
+      for (const item of content.items) {
+        if (!('str' in item) || !item.str.trim()) continue
+        expect(item.transform[4]).toBeGreaterThanOrEqual(0)
+        expect(item.transform[4] + item.width).toBeLessThanOrEqual(553.5)
+        if (item.transform[5] < 40) continue
+        expect(item.transform[5]).toBeGreaterThanOrEqual(47)
+        expect(item.transform[5]).toBeLessThanOrEqual(817)
+      }
+    }
   })
 })
