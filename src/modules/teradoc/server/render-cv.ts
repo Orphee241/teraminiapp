@@ -175,12 +175,16 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
   const text = (value: string, x: number, top: number, size = 12, font = '/F1', fill = '0.12 0.14 0.18') => push(`BT ${fill} rg ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${top.toFixed(2)} Tm (${pdfText(value)}) Tj ET`)
   const rule = (x1: number, top: number, x2: number, fill = accent) => push(`${fill} RG 0.7 w ${x1} ${top.toFixed(2)} m ${x2} ${top.toFixed(2)} l S`)
   const fillRect = (x: number, bottom: number, width: number, height: number, fill: string) => push(`${fill} rg ${x} ${bottom} ${width} ${height} re f`)
-  const RIGHT_LEFT = 265
-  const RIGHT_EDGE = 553
+  // Keep both columns readable on the A4 page: the previous 36/42pt outer
+  // insets made the text look unnecessarily narrow in the mobile preview.
+  const SIDEBAR_LEFT = 26
+  const SIDEBAR_RULE_RIGHT = 204
+  const RIGHT_LEFT = 244
+  const RIGHT_EDGE = 571
   const RIGHT_WIDTH = RIGHT_EDGE - RIGHT_LEFT
-  const SIDEBAR_WIDTH = 154
+  const SIDEBAR_WIDTH = SIDEBAR_RULE_RIGHT - SIDEBAR_LEFT
   const wrapLines = (value: string, width: number, size: number) => wrapToWidth(value, width, size)
-  const nextPage = () => { pages.push([]); page += 1; y = 790; wrapToWidth(`CV · ${cv.fullName}`, 223, 12).slice(0, 2).forEach((lineText, index) => text(lineText, 330, 815 - index * 14, 12, '/F2', '0.40 0.43 0.48')); rule(330, 802, RIGHT_EDGE, '0.82 0.84 0.87') }
+  const nextPage = () => { pages.push([]); page += 1; y = 790; wrapToWidth(`CV · ${cv.fullName}`, RIGHT_WIDTH, 12).slice(0, 2).forEach((lineText, index) => text(lineText, RIGHT_LEFT, 815 - index * 14, 12, '/F2', '0.40 0.43 0.48')); rule(RIGHT_LEFT, 802, RIGHT_EDGE, '0.82 0.84 0.87') }
   const ensure = (height: number) => { if (y - height < 48) nextPage() }
   const section = (title: string) => { ensure(34); y -= 12; text(title.toUpperCase(), RIGHT_LEFT, y, 14, '/F2', accent); y -= 6; rule(RIGHT_LEFT, y, RIGHT_EDGE); y -= 15 }
   const paragraph = (value: string, width = RIGHT_WIDTH, size = 12, leading = 14) => { for (const lineText of wrapLines(value, width, size)) { ensure(leading); text(lineText, RIGHT_LEFT, y, size); y -= leading } }
@@ -189,13 +193,13 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
   fillRect(0, 0, 218, PAGE_HEIGHT, sidebar)
   fillRect(218, 0, 2, PAGE_HEIGHT, accent)
   const name = wrapLines(cv.fullName, SIDEBAR_WIDTH, 15).slice(0, 3)
-  name.forEach((lineText, index) => text(lineText, 36, 790 - index * 25, 15, '/F2', accent))
+  name.forEach((lineText, index) => text(lineText, SIDEBAR_LEFT, 790 - index * 25, 15, '/F2', accent))
   const titleY = 790 - (name.length - 1) * 25 - 23
   const headlineLines = wrapLines(cv.headline, SIDEBAR_WIDTH, 12).slice(0, 4)
-  headlineLines.forEach((lineText, index) => text(lineText, 36, titleY - index * 14, 12, '/F2'))
+  headlineLines.forEach((lineText, index) => text(lineText, SIDEBAR_LEFT, titleY - index * 14, 12, '/F2'))
   let leftY = titleY - 34 - Math.max(0, headlineLines.length - 1) * 14
-  const leftSection = (title: string) => { leftY -= 14; text(title, 36, leftY, 14, '/F2', accent); leftY -= 7; rule(36, leftY, 190, accent); leftY -= 13 }
-  const leftLines = (value: string, size = 12, leading = 14) => { for (const lineText of wrapLines(value, SIDEBAR_WIDTH, size)) { if (leftY > 48) { text(lineText, 36, leftY, size); leftY -= leading } } }
+  const leftSection = (title: string) => { leftY -= 14; text(title, SIDEBAR_LEFT, leftY, 14, '/F2', accent); leftY -= 7; rule(SIDEBAR_LEFT, leftY, SIDEBAR_RULE_RIGHT, accent); leftY -= 13 }
+  const leftLines = (value: string, size = 12, leading = 14) => { for (const lineText of wrapLines(value, SIDEBAR_WIDTH, size)) { if (leftY > 48) { text(lineText, SIDEBAR_LEFT, leftY, size); leftY -= leading } } }
   leftSection('FORMATION')
   for (const item of cv.education.slice(0, 4)) { leftLines([item.startDate, item.endDate].filter(Boolean).join(' – ')); leftLines(item.degree); leftLines([item.institution, item.location].filter(Boolean).join(' · ')); leftY -= 6 }
   leftSection('COMPÉTENCES')

@@ -92,7 +92,7 @@ describe('TeraDoc CV PDF renderer', () => {
       for (const item of content.items) {
         if (!('str' in item) || !item.str.trim()) continue
         expect(item.transform[4]).toBeGreaterThanOrEqual(0)
-        expect(item.transform[4] + item.width).toBeLessThanOrEqual(553.5)
+        expect(item.transform[4] + item.width).toBeLessThanOrEqual(571.5)
         if (item.transform[5] < 40) continue
         expect(item.transform[5]).toBeGreaterThanOrEqual(47)
         expect(item.transform[5]).toBeLessThanOrEqual(817)
