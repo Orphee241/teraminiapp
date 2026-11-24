@@ -175,12 +175,12 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
   const text = (value: string, x: number, top: number, size = 12, font = '/F1', fill = '0.12 0.14 0.18') => push(`BT ${fill} rg ${font} ${size} Tf 1 0 0 1 ${x.toFixed(2)} ${top.toFixed(2)} Tm (${pdfText(value)}) Tj ET`)
   const rule = (x1: number, top: number, x2: number, fill = accent) => push(`${fill} RG 0.7 w ${x1} ${top.toFixed(2)} m ${x2} ${top.toFixed(2)} l S`)
   const fillRect = (x: number, bottom: number, width: number, height: number, fill: string) => push(`${fill} rg ${x} ${bottom} ${width} ${height} re f`)
-  // Keep both columns readable on the A4 page: the previous 36/42pt outer
-  // insets made the text look unnecessarily narrow in the mobile preview.
-  const SIDEBAR_LEFT = 26
+  // Maintain the requested 0.5 cm text inset from the outer page edges and the center divider.
+  const TEXT_MARGIN = 14.17
+  const SIDEBAR_LEFT = TEXT_MARGIN
   const SIDEBAR_RULE_RIGHT = 204
-  const RIGHT_LEFT = 244
-  const RIGHT_EDGE = 571
+  const RIGHT_LEFT = 218 + TEXT_MARGIN
+  const RIGHT_EDGE = PAGE_WIDTH - TEXT_MARGIN
   const RIGHT_WIDTH = RIGHT_EDGE - RIGHT_LEFT
   const SIDEBAR_WIDTH = SIDEBAR_RULE_RIGHT - SIDEBAR_LEFT
   const wrapLines = (value: string, width: number, size: number) => wrapToWidth(value, width, size)
@@ -221,7 +221,7 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
     y -= 6
   }
   if (cv.website || cv.linkedin) { section('Contact en ligne'); paragraph([cv.website, cv.linkedin].filter(Boolean).join(' · ')) }
-  pages.forEach((commands, index) => text(`${index + 1} / ${pages.length}`, 520, 25, 12, '/F1', '0.45 0.47 0.51'))
+  pages.forEach((commands, index) => text(`${index + 1} / ${pages.length}`, RIGHT_EDGE - 25, 25, 12, '/F1', '0.45 0.47 0.51'))
 
   const regularId = 3 + 2 * pages.length
   const boldId = regularId + 1
