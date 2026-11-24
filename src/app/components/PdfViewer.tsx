@@ -9,7 +9,7 @@ let workerConfigured = false
 const pdfPromiseCache = new Map<string, Promise<any>>()
 const PDF_CACHE_LIMIT = 8
 
-export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false, watermarkText, pdfData, hideDownload = false, mobileAction }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean; watermarkText?: string; pdfData?: Uint8Array; hideDownload?: boolean; mobileAction?: ReactNode }) {
+export default function PdfViewer({ src, title, initData, downloadSrc = src, downloadDisabled = false, watermarkText, pdfData, hideDownload = false, mobileAction, pageBleed = false }: { src: string; title: string; initData: string; downloadSrc?: string; downloadDisabled?: boolean; watermarkText?: string; pdfData?: Uint8Array; hideDownload?: boolean; mobileAction?: ReactNode; pageBleed?: boolean }) {
   const viewerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -104,7 +104,7 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src, dow
         }
         const pageData = await pdf.getPage(safePage)
         const baseViewport = pageData.getViewport({ scale: 1 })
-        const availableWidth = Math.max(280, container.clientWidth - 24)
+        const availableWidth = Math.max(280, container.clientWidth - (pageBleed ? 0 : 24))
         const cssScale = availableWidth / baseViewport.width
         // Keep the PDF sharp on Retina/high-density screens. The canvas backing
         // store is larger than its CSS size, so text does not look pixelated.
@@ -128,14 +128,14 @@ export default function PdfViewer({ src, title, initData, downloadSrc = src, dow
 
     void render()
     return () => { cancelled = true }
-  }, [src, initData, expanded, page, pdfData])
+  }, [src, initData, expanded, page, pdfData, pageBleed])
 
   const goToPage = (nextPage: number) => {
     setPage(Math.max(1, Math.min(pageCount, nextPage)))
   }
 
   return <div className={`pdf-viewer-shell${expanded ? ' pdf-viewer-shell-expanded' : ''}`}>
-    <div ref={viewerRef} className={`pdf-viewer${expanded ? ' pdf-viewer-expanded' : ''}`} aria-label={title} aria-busy={state === 'loading'}>
+    <div ref={viewerRef} className={`pdf-viewer${pageBleed ? ' pdf-viewer-bleed' : ''}${expanded ? ' pdf-viewer-expanded' : ''}`} aria-label={title} aria-busy={state === 'loading'}>
       <div className="pdf-toolbar" role="navigation" aria-label="Navigation des pages PDF">
         <button type="button" onClick={() => goToPage(page - 1)} disabled={page <= 1 || state === 'loading'} aria-label="Page précédente">‹</button>
         <span aria-live="polite">Page {page} / {pageCount}</span>

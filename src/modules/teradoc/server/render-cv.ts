@@ -190,7 +190,7 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
   const paragraph = (value: string, width = RIGHT_WIDTH, size = 12, leading = 14) => { for (const lineText of wrapLines(value, width, size)) { ensure(leading); text(lineText, RIGHT_LEFT, y, size); y -= leading } }
 
   // Reproduction of the supplied one-page PDF: warm left sidebar, compact right content.
-  fillRect(0, 0, 218, PAGE_HEIGHT, sidebar)
+  fillRect(-1, 0, 219, PAGE_HEIGHT, sidebar)
   fillRect(218, 0, 2, PAGE_HEIGHT, accent)
   const name = wrapLines(cv.fullName, SIDEBAR_WIDTH, 15).slice(0, 3)
   name.forEach((lineText, index) => text(lineText, SIDEBAR_LEFT, 790 - index * 25, 15, '/F2', accent))

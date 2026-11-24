@@ -40,7 +40,7 @@ describe('TeraDoc CV PDF renderer', () => {
 
   it('reproduces the supplied professional model structure with a sidebar and right content column', () => {
     const pdf = renderCvPdf(cv).toString('latin1')
-    expect(pdf).toContain('0.965 0.953 0.945 rg 0 0 218 841.89 re f')
+    expect(pdf).toContain('0.965 0.953 0.945 rg -1 0 219 841.89 re f')
     expect(pdf).toContain('0.478 0.141 0.235 rg 218 0 2 841.89 re f')
     expect(pdf).toContain('(FORMATION)')
     expect(pdf).toContain('(COMP\\311TENCES)')

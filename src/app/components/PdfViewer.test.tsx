@@ -197,6 +197,18 @@ describe('PdfViewer responsive preview', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*620px\)[\s\S]*?\.pdf-mobile-action\s*\{[\s\S]*?\.pdf-actions(?::not\(\.pdf-actions-expanded\))?\s*\{/)
   })
 
+  it('lets the CV page background bleed to the viewer edge without the document gutter', async () => {
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, value: 640 })
+
+    render(<PdfViewer src="teradoc-live:bleed" title="CV sans gouttière" initData="telegram-init-data" pdfData={new Uint8Array([37, 80, 68, 70])} pageBleed />)
+    const viewer = screen.getByLabelText('CV sans gouttière')
+    await waitFor(() => expect(viewer).toHaveAttribute('aria-busy', 'false'))
+    expect(viewer).toHaveClass('pdf-viewer-bleed')
+    expect(viewer.querySelector('canvas')).toHaveStyle({ width: '640px' })
+  })
+
   it('renders the supplied server preview bytes directly and can hide the internal downloader', async () => {
     vi.stubGlobal('fetch', fetchMock)
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn() } as unknown as CanvasRenderingContext2D)
