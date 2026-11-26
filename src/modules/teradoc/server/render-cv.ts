@@ -220,7 +220,7 @@ function renderProfessionalModelPdf(cv: TeraDocCv): Buffer {
     if (item.location) for (const lineText of wrapLines(item.location, RIGHT_WIDTH, BODY_SIZE)) { ensure(15); text(lineText, RIGHT_LEFT, y, BODY_SIZE, '/F1', '0.35 0.39 0.45'); y -= 15 }
     for (const lineText of wrapLines(item.role, RIGHT_WIDTH, 12)) { ensure(15); text(lineText, RIGHT_LEFT, y, 12, '/F2'); y -= 15 }
     for (const lineText of wrapLines(`${item.startDate} – ${item.endDate || 'Présent'}`, RIGHT_WIDTH, BODY_SIZE)) { ensure(15); text(lineText, RIGHT_LEFT, y, BODY_SIZE, '/F1', '0.35 0.39 0.45'); y -= 15 }
-    for (const lineText of wrapLines(item.description, RIGHT_WIDTH, BODY_SIZE)) { ensure(15); text(`• ${lineText}`, RIGHT_LEFT, y, BODY_SIZE); y -= 15 }
+    for (const lineText of wrapLines(item.description, RIGHT_WIDTH, BODY_SIZE)) { ensure(15); text(lineText, RIGHT_LEFT, y, BODY_SIZE); y -= 15 }
     y -= 6
   }
   if (cv.website || cv.linkedin) { section('Contact en ligne'); paragraph([cv.website, cv.linkedin].filter(Boolean).join(' · ')) }

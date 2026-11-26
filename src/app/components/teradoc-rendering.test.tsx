@@ -69,6 +69,24 @@ describe('TeraDoc CV PDF renderer', () => {
     expect(pdf).not.toContain('/F2 15 Tf 1 0 0 1 14.17 765.00 Tm')
   })
 
+  it('renders experience descriptions as plain text across the full content column', () => {
+    const descriptionCv = {
+      ...cv,
+      experience: [{
+        ...cv.experience[0],
+        description: 'Coordination des opérations et suivi des résultats.\nTransmission des rapports à la direction.',
+      }],
+    }
+    const pdf = renderCvPdf(descriptionCv).toString('latin1')
+    expect(pdf).toContain('(Coordination des op\\351rations et suivi des)')
+    expect(pdf).toContain('(r\\351sultats.)')
+    expect(pdf).toContain('(Transmission des rapports \\340 la direction.)')
+    expect(pdf).not.toContain('\\225 Coordination des')
+    expect(pdf).not.toContain('\\225 r\\351sultats.')
+    expect(pdf).toContain('232.17')
+    expect(pdf).toContain('/F1 13 Tf 1 0 0 1 232.17')
+  })
+
   it('adds pages when long CV content no longer fits on one A4 sheet', () => {
     const longCv = { ...cv, experience: Array.from({ length: 12 }, (_, index) => ({ role: `Poste ${index + 1}`, company: 'Entreprise', startDate: '2010-01', description: `Responsabilités professionnelles ${index + 1}. `.repeat(12) })) }
     const pdf = renderCvPdf(longCv).toString('latin1')
