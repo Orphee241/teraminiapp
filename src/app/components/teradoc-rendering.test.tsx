@@ -48,16 +48,25 @@ describe('TeraDoc CV PDF renderer', () => {
     expect(pdf).toContain('(EXP\\311RIENCE PROFESSIONNELLE)')
   })
 
-  it('uses 12pt regular text, 15pt bold name, and 14pt bold section titles', () => {
+  it('uses 13pt regular text, 15pt bold name, and 14pt bold section titles', () => {
     const pdf = renderCvPdf(cv).toString('latin1')
     expect(pdf).not.toContain('/F1 7.2 Tf')
     expect(pdf).not.toContain('/F1 7.4 Tf')
     expect(pdf).not.toContain('/F1 7.5 Tf')
     expect(pdf).not.toContain('/F1 7.6 Tf')
-    expect(pdf).toContain('/F1 12 Tf')
+    expect(pdf).toContain('/F1 13 Tf')
+
     expect(pdf).toContain('/F2 15 Tf')
     expect(pdf).toContain('/F2 14 Tf')
     expect(pdf).toContain('/BaseFont /Helvetica-Bold')
+  })
+
+  it('keeps the professional model candidate name lines close together', () => {
+    const longNameCv = { ...cv, fullName: 'Aline Marie Claire Mba Ondo' }
+    const pdf = renderCvPdf(longNameCv).toString('latin1')
+    expect(pdf).toContain('/F2 15 Tf 1 0 0 1 14.17 790.00 Tm')
+    expect(pdf).toContain('/F2 15 Tf 1 0 0 1 14.17 770.00 Tm')
+    expect(pdf).not.toContain('/F2 15 Tf 1 0 0 1 14.17 765.00 Tm')
   })
 
   it('adds pages when long CV content no longer fits on one A4 sheet', () => {
